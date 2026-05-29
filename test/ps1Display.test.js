@@ -19,6 +19,8 @@ test('uses a 4:3 NTSC-style low-resolution render target', () => {
 test('starts with PS1/CRT effects enabled and adjustable', () => {
   assert.equal(DEFAULT_EFFECTS.pixelScale, 3);
   assert.equal(DEFAULT_EFFECTS.invertY, false);
+  assert.equal(DEFAULT_EFFECTS.flipFramebufferY, false);
+  assert.equal(DEFAULT_EFFECTS.showReticule, true);
   assert.equal(DEFAULT_EFFECTS.scanlines, true);
   assert.equal(DEFAULT_EFFECTS.crtDistortion, true);
   assert.equal(DEFAULT_EFFECTS.dither, true);

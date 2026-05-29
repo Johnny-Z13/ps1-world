@@ -18,7 +18,52 @@ body {
   width: 100vw;
   height: 100vh;
   image-rendering: pixelated;
-  cursor: crosshair;
+  cursor: none;
+}
+
+body.options-open #screen {
+  cursor: default;
+}
+
+body.game-active,
+body.game-active * {
+  cursor: none !important;
+}
+
+.reticule {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.reticule::before,
+.reticule::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: rgba(245, 237, 218, 0.88);
+  box-shadow: 1px 1px 0 rgba(5, 5, 5, 0.78);
+  transform: translate(-50%, -50%);
+}
+
+.reticule::before {
+  width: 18px;
+  height: 2px;
+}
+
+.reticule::after {
+  width: 2px;
+  height: 18px;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 .hud {

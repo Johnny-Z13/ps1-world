@@ -17,6 +17,8 @@ export const DEFAULT_EFFECTS = Object.freeze({
   resolutionId: '320x240',
   pixelScale: 3,
   invertY: false,
+  flipFramebufferY: false,
+  showReticule: true,
   scanlines: true,
   crtDistortion: true,
   dither: true,

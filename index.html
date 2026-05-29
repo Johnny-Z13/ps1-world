@@ -4,14 +4,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PS1 World Renderer</title>
-    <link rel="stylesheet" href="./styles.css?v=2">
+    <link rel="stylesheet" href="./styles.css?v=4">
   </head>
   <body>
     <canvas id="screen" aria-label="PS1 warehouse test renderer"></canvas>
+    <div id="reticule" class="reticule" aria-hidden="true"></div>
 
     <div class="hud" aria-hidden="true">
       <div>WASD</div>
       <div>Mouse look</div>
+      <div>Space jump</div>
+      <div>Shift sprint</div>
       <div>Esc options</div>
     </div>
 
@@ -46,6 +49,7 @@
         <label><input id="warping" type="checkbox" checked> Polygon wobble</label>
         <label><input id="colorBleed" type="checkbox" checked> Color bleed</label>
         <label><input id="noise" type="checkbox" checked> RF noise</label>
+        <label><input id="showReticule" type="checkbox" checked> Reticule</label>
 
         <label>
           <span>Pixel scale</span>
@@ -60,6 +64,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./src/app.js?v=10"></script>
+    <script type="module" src="./src/app.js?v=24"></script>
   </body>
 </html>

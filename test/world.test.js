@@ -7,12 +7,16 @@ import {
   createWarehouseWorld,
 } from '../src/world.js';
 
-test('registers dungeon and alien landscape scene options', () => {
+test('registers the selectable scene options', () => {
   assert.deepEqual(
     SCENE_DEFINITIONS.map((scene) => [scene.id, scene.label]),
     [
       ['dungeon', 'Dungeon'],
       ['alien-landscape', 'Alien landscape'],
+      ['derelict-starship', 'Derelict starship'],
+      ['neon-backstreets', 'Neon backstreets'],
+      ['sunken-temple', 'Sunken temple'],
+      ['one-bit-cathedral', '1-bit cathedral'],
     ],
   );
 });
@@ -51,4 +55,91 @@ test('builds an alien landscape with sun, distant mountains, and low-res texture
   assert.ok(world.floor.width >= 70);
   assert.ok(world.textures.some((texture) => texture.id === 'sun' && texture.size === 64));
   assert.ok(world.textures.some((texture) => texture.id === 'alienGround' && texture.size === 128));
+});
+
+test('builds three additional PS1-style wanderable scenes', () => {
+  for (const id of ['derelict-starship', 'neon-backstreets', 'sunken-temple']) {
+    const world = createSceneWorld(id);
+    const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
+
+    assert.equal(world.id, id);
+    assert.ok(world.playerSpawn);
+    assert.ok(world.floor);
+    assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
+    assert.ok(colliders.length >= 8);
+  }
+});
+
+test('builds neon backstreets as a psychedelic floating sky scene', () => {
+  const world = createSceneWorld('neon-backstreets');
+  const objects = [...world.walls, ...world.crates, ...world.mountains];
+
+  assert.equal(world.id, 'neon-backstreets');
+  assert.equal(world.skyMode, 'psychedelic');
+  assert.ok(objects.filter((item) => item.name.includes('floating platform')).length >= 4);
+  assert.ok(objects.filter((item) => item.name.includes('tree')).length >= 8);
+  assert.ok(objects.filter((item) => item.name.includes('cloud')).length >= 3);
+  assert.ok(world.lightning?.bolts.length >= 2);
+  assert.ok(world.audio?.wind);
+  assert.ok(world.audio?.lightning);
+  assert.ok(world.textures.some((texture) => texture.id === 'neonSky' && texture.size === 128));
+  assert.ok(world.textures.some((texture) => texture.id === 'neonCloud' && texture.size === 128));
+});
+
+test('builds a 1-bit polygon cathedral with black and white texture mapping', () => {
+  const world = createSceneWorld('one-bit-cathedral');
+  const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
+
+  assert.equal(world.id, 'one-bit-cathedral');
+  assert.equal(world.label, '1-bit cathedral');
+  assert.equal(world.oneBitStyle, 'dithered-gradient');
+  assert.ok(world.floor);
+  assert.ok(world.textures.every((texture) => texture.id.startsWith('oneBit')));
+  assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
+  assert.ok(world.clearColor[0] > 0);
+  assert.ok(world.walls.length >= 28);
+  assert.ok(world.crates.length >= 18);
+  assert.ok(colliders.length >= 40);
+  assert.ok(world.playerSpawn.z > 15);
+});
+
+test('adds non-colliding rain to the sunken temple scene', () => {
+  const world = createSceneWorld('sunken-temple');
+
+  assert.equal(world.rain?.texture, 'rain');
+  assert.ok(world.rain?.drops.length >= 24);
+  assert.ok(world.textures.some((texture) => texture.id === 'rain' && texture.size === 64));
+  assert.ok([...world.walls, ...world.crates].every((item) => !item.name.includes('rain')));
+});
+
+test('keeps every scene in a positive-Y-up convention', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+    const objects = [world.floor, world.ceiling, ...world.walls, ...world.crates].filter(Boolean);
+
+    assert.ok(world.playerSpawn.y > 0, definition.id);
+    assert.ok(objects.every((item) => item.height > 0), definition.id);
+    assert.ok(objects.every((item) => item.y + item.height >= item.y), definition.id);
+    assert.ok(world.sun === null || world.sun.y > world.playerSpawn.y, definition.id);
+    assert.ok(world.mountains.every((item) => item.y >= 0 && item.height > 0), definition.id);
+  }
+});
+
+test('spawns every scene in open floor space outside colliders', () => {
+  const radius = 0.32;
+
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+    const spawn = world.playerSpawn;
+    const blocking = [...world.walls, ...world.crates]
+      .filter((item) => item.collider)
+      .filter((item) => (
+        spawn.x + radius > item.collider.minX
+        && spawn.x - radius < item.collider.maxX
+        && spawn.z + radius > item.collider.minZ
+        && spawn.z - radius < item.collider.maxZ
+      ));
+
+    assert.deepEqual(blocking.map((item) => item.name), [], definition.id);
+  }
 });
