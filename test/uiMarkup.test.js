@@ -12,6 +12,16 @@ test('renders a center reticule with an options toggle', () => {
   assert.match(styles, /\.reticule/);
 });
 
+test('starts on a PS1-style title screen before random scene play', () => {
+  assert.match(index, /id="titleScreen"/);
+  assert.match(index, /id="startButton"/);
+  assert.match(index, />\[start\]</);
+  assert.match(styles, /\.title-screen/);
+  assert.match(app, /function startRandomScene/);
+  assert.match(app, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
+  assert.match(app, /document\.body\.classList\.remove\('title-active'\)/);
+});
+
 test('hides the game canvas cursor during play', () => {
   assert.match(styles, /cursor:\s*none/);
   assert.match(styles, /body\.options-open\s+#screen/);

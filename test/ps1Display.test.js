@@ -41,15 +41,15 @@ test('offers the requested PlayStation resolution modes', () => {
   );
 });
 
-test('defaults to the common 320x240 3D mode and falls back to it for invalid ids', () => {
-  assert.equal(DEFAULT_EFFECTS.resolutionId, '320x240');
-  assert.deepEqual(getResolutionMode('320x240'), {
-    id: '320x240',
-    width: 320,
-    height: 240,
-    label: '320x240 - Most 3D games',
+test('defaults to the 512x480 interlaced high-res mode and falls back to it for invalid ids', () => {
+  assert.equal(DEFAULT_EFFECTS.resolutionId, '512x480');
+  assert.deepEqual(getResolutionMode('512x480'), {
+    id: '512x480',
+    width: 512,
+    height: 480,
+    label: '512x480 - Interlaced high-res',
   });
-  assert.equal(getResolutionMode('missing').id, '320x240');
+  assert.equal(getResolutionMode('missing').id, '512x480');
 });
 
 test('normalizes numeric pixel scale controls to the supported integer range', () => {

@@ -19,6 +19,8 @@ import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
+const titleScreen = document.querySelector('#titleScreen');
+const startButton = document.querySelector('#startButton');
 const optionsDialog = document.querySelector('#options');
 const gl = canvas.getContext('webgl', {
   antialias: false,
@@ -49,6 +51,7 @@ const player = {
 };
 
 const keys = new Set();
+let titleActive = true;
 let mouseLookActive = false;
 let gameModeRequested = false;
 let lastPointerUnlockAt = 0;
@@ -305,6 +308,14 @@ function resize() {
 function setupInput() {
   window.addEventListener('resize', resize);
   document.addEventListener('keydown', (event) => {
+    if (titleActive) {
+      if (event.code === 'Enter' || event.code === 'Space') {
+        event.preventDefault();
+        startRandomScene();
+      }
+      return;
+    }
+
     ensureSceneAudio();
     if (event.code === 'Escape') {
       event.preventDefault();
@@ -326,6 +337,7 @@ function setupInput() {
   }, { capture: true });
   document.addEventListener('keyup', (event) => keys.delete(event.code), { capture: true });
   canvas.addEventListener('pointerdown', (event) => {
+    if (titleActive) return;
     ensureSceneAudio();
     if (optionsDialog.open) return;
     lastMousePosition = { x: event.clientX, y: event.clientY };
@@ -447,6 +459,10 @@ function handlePointerLockChange() {
 }
 
 function setupOptions() {
+  startButton.addEventListener('click', () => {
+    startRandomScene();
+  });
+
   const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise'];
   for (const id of bindings) {
     const input = document.querySelector(`#${id}`);
@@ -503,6 +519,21 @@ function setupOptions() {
     event.preventDefault();
     closeOptions();
   });
+}
+
+function startRandomScene() {
+  if (!titleActive) return;
+
+  const randomScene = SCENE_DEFINITIONS[Math.floor(Math.random() * SCENE_DEFINITIONS.length)];
+  setScene(randomScene.id);
+  const scene = document.querySelector('#scene');
+  scene.value = effects.sceneId;
+
+  titleActive = false;
+  titleScreen.hidden = true;
+  document.body.classList.remove('title-active');
+  ensureSceneAudio();
+  enterGameMode({ requestLock: true });
 }
 
 function toggleOptions() {
@@ -1192,6 +1223,7 @@ precision mediump float;
 
 uniform sampler2D uAtlas;
 uniform float uTextureCount;
+uniform highp float uTime;
 uniform float uOneBit;
 uniform float uLightningTextureId;
 uniform float uLightningStrength;

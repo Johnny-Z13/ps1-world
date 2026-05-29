@@ -14,7 +14,7 @@ export const PS1_RESOLUTION_MODES = Object.freeze([
 ]);
 
 export const DEFAULT_EFFECTS = Object.freeze({
-  resolutionId: '320x240',
+  resolutionId: '512x480',
   pixelScale: 3,
   invertY: false,
   flipFramebufferY: false,

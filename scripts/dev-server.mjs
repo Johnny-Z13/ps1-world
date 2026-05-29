@@ -3,7 +3,8 @@ import { extname, join, normalize, resolve } from 'node:path';
 import { createServer } from 'node:http';
 
 const root = resolve(process.cwd());
-const port = Number(process.argv[2] ?? 4173);
+const port = Number(process.env.PORT ?? process.argv[2] ?? 4173);
+const host = process.env.HOST ?? '0.0.0.0';
 const types = new Map([
   ['.html', 'text/html; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'],
@@ -26,6 +27,7 @@ createServer((request, response) => {
     'Content-Type': types.get(extname(filePath)) ?? 'application/octet-stream',
   });
   createReadStream(filePath).pipe(response);
-}).listen(port, '127.0.0.1', () => {
-  console.log(`Serving http://127.0.0.1:${port}`);
+}).listen(port, host, () => {
+  const localUrl = host === '0.0.0.0' ? `http://127.0.0.1:${port}` : `http://${host}:${port}`;
+  console.log(`Serving ${localUrl}`);
 });

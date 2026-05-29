@@ -3,12 +3,20 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PS1 World Renderer</title>
-    <link rel="stylesheet" href="./styles.css?v=4">
+    <title>PS1 World</title>
+    <link rel="stylesheet" href="./styles.css?v=5">
   </head>
-  <body>
+  <body class="title-active">
     <canvas id="screen" aria-label="PS1 warehouse test renderer"></canvas>
     <div id="reticule" class="reticule" aria-hidden="true"></div>
+
+    <main id="titleScreen" class="title-screen">
+      <div class="title-panel">
+        <p class="title-kicker">512i signal</p>
+        <h1>ps1-world</h1>
+        <button id="startButton" type="button">[start]</button>
+      </div>
+    </main>
 
     <div class="hud" aria-hidden="true">
       <div>WASD</div>
@@ -64,6 +72,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./src/app.js?v=24"></script>
+    <script type="module" src="./src/app.js?v=25"></script>
   </body>
 </html>
