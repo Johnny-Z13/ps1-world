@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PS1 World Renderer</title>
+    <link rel="stylesheet" href="./styles.css?v=2">
+  </head>
+  <body>
+    <canvas id="screen" aria-label="PS1 warehouse test renderer"></canvas>
+
+    <div class="hud" aria-hidden="true">
+      <div>WASD</div>
+      <div>Mouse look</div>
+      <div>Esc options</div>
+    </div>
+
+    <dialog id="options" class="options">
+      <form method="dialog">
+        <header>
+          <h1>Video</h1>
+          <button value="close" aria-label="Close options">x</button>
+        </header>
+
+        <label>
+          <span>Preset</span>
+          <select id="preset">
+            <option value="portable">Portable TV</option>
+            <option value="clean">Cleaner RGB</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Scene</span>
+          <select id="scene"></select>
+        </label>
+
+        <label>
+          <span>Resolution</span>
+          <select id="resolution"></select>
+        </label>
+
+        <label><input id="scanlines" type="checkbox" checked> Scan lines</label>
+        <label><input id="crtDistortion" type="checkbox" checked> CRT distortion</label>
+        <label><input id="dither" type="checkbox" checked> Dither</label>
+        <label><input id="warping" type="checkbox" checked> Polygon wobble</label>
+        <label><input id="colorBleed" type="checkbox" checked> Color bleed</label>
+        <label><input id="noise" type="checkbox" checked> RF noise</label>
+
+        <label>
+          <span>Pixel scale</span>
+          <input id="pixelScale" type="number" min="1" max="6" step="1" value="3" inputmode="numeric">
+        </label>
+
+        <label><input id="invertY" type="checkbox"> Invert Y</label>
+
+        <footer>
+          <button value="close">Resume</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script type="module" src="./src/app.js?v=10"></script>
+  </body>
+</html>
