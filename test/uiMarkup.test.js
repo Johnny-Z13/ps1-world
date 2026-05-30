@@ -23,6 +23,8 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(app, /function startRandomScene/);
   assert.match(app, /const TITLE_WIDTH = 512/);
   assert.match(app, /drawBitmapGlyph/);
+  assert.match(app, /wasd\+mouse or gamepad/);
+  assert.match(app, /'\+':/);
   assert.match(app, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(app, /document\.body\.classList\.remove\('title-active'\)/);
 });
