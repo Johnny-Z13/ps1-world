@@ -118,3 +118,16 @@ test('adds gamepad movement, look, jump, sprint, and menu bindings', () => {
   assert.match(app, /buttonPressed\(gamepad,\s*9\)/);
   assert.match(app, /gamepadInput\.sprint/);
 });
+
+test('adds roaming zombie enemies that can kill the player', () => {
+  assert.match(index, /id="zombies"/);
+  assert.match(index, /Zombies/);
+  assert.match(app, /createZombieEnemies/);
+  assert.match(app, /updateZombieEnemies/);
+  assert.match(app, /isPlayerTouchedByZombie/);
+  assert.match(app, /createZombieMesh/);
+  assert.match(app, /updateZombieMesh/);
+  assert.match(app, /drawZombieTexture/);
+  assert.match(app, /effects\.zombies/);
+  assert.match(app, /startDeathSequence\(now\)/);
+});

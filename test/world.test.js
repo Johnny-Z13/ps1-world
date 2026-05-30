@@ -157,7 +157,7 @@ test('builds a 1-bit polygon cathedral with black and white texture mapping', ()
   assert.equal(world.label, '1-bit cathedral');
   assert.equal(world.oneBitStyle, 'dithered-gradient');
   assert.ok(world.floor);
-  assert.ok(world.textures.every((texture) => texture.id.startsWith('oneBit')));
+  assert.ok(world.textures.every((texture) => texture.id.startsWith('oneBit') || texture.id === 'zombie'));
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
   assert.ok(world.clearColor[0] > 0);
   assert.ok(world.walls.length >= 28);
@@ -215,5 +215,32 @@ test('spawns every scene in open floor space outside colliders', () => {
       ));
 
     assert.deepEqual(blocking.map((item) => item.name), [], definition.id);
+  }
+});
+
+test('dots every scene with two or three zombie spawn points away from the player', () => {
+  const playerRadius = 1.6;
+  const zombieRadius = 0.38;
+
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+
+    assert.ok(world.zombieSpawns.length >= 2, definition.id);
+    assert.ok(world.zombieSpawns.length <= 3, definition.id);
+
+    for (const spawn of world.zombieSpawns) {
+      const distanceFromPlayer = Math.hypot(spawn.x - world.playerSpawn.x, spawn.z - world.playerSpawn.z);
+      const blocking = [...world.walls, ...world.crates, ...world.platforms]
+        .filter((item) => item.collider)
+        .filter((item) => (
+          spawn.x + zombieRadius > item.collider.minX
+          && spawn.x - zombieRadius < item.collider.maxX
+          && spawn.z + zombieRadius > item.collider.minZ
+          && spawn.z - zombieRadius < item.collider.maxZ
+        ));
+
+      assert.ok(distanceFromPlayer > playerRadius, definition.id);
+      assert.deepEqual(blocking.map((item) => item.name), [], definition.id);
+    }
   }
 });

@@ -27,6 +27,7 @@ test('starts with PS1/CRT effects enabled and adjustable', () => {
   assert.equal(DEFAULT_EFFECTS.warping, true);
   assert.equal(DEFAULT_EFFECTS.colorBleed, true);
   assert.equal(DEFAULT_EFFECTS.playerTorch, true);
+  assert.equal(DEFAULT_EFFECTS.zombies, true);
 });
 
 test('includes a stronger portable CRT preset for 1999 TV feel', () => {

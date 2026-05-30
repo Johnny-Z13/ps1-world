@@ -79,7 +79,7 @@ export function createWarehouseWorld() {
     box('office roof jump ledge', -7.8, -4.5, 3.2, 2.2, 1.45, 'metal'),
   ];
 
-  return {
+  return withZombies({
     id: 'dungeon',
     label: 'Dungeon',
     clearColor: [0.035, 0.034, 0.03, 1],
@@ -99,7 +99,11 @@ export function createWarehouseWorld() {
     playerSpawn: { x: -9.5, y: 1.45, z: 9.5, yaw: 2.35 },
     killY: -8,
     textures,
-  };
+  }, [
+    { x: -10.2, z: -2.8 },
+    { x: 8.4, z: 1.5 },
+    { x: 4, z: -10 },
+  ]);
 }
 
 function crate(x, z, width, depth, height) {
@@ -138,7 +142,7 @@ function createAlienLandscapeWorld() {
     box('signal ridge lookout', 10, -13, 5.0, 4.0, 1.55, 'alienRock'),
   ];
 
-  return {
+  return withZombies({
     id: 'alien-landscape',
     label: 'Alien landscape',
     clearColor: [0.11, 0.065, 0.14, 1],
@@ -183,7 +187,11 @@ function createAlienLandscapeWorld() {
     playerSpawn: { x: 0, y: 1.45, z: 15, yaw: 3.12 },
     killY: -10,
     textures,
-  };
+  }, [
+    { x: -14, z: 12 },
+    { x: 12, z: 12 },
+    { x: 0, z: -12 },
+  ]);
 }
 
 function createAlienStars() {
@@ -279,7 +287,7 @@ function createRotwoodForestWorld() {
     cards.push(card(`falling leaf card ${i + 1}`, -22 + (i % 6) * 8.5, 6.8 + hash(i, 11, 12) * 2.6, -18 + Math.floor(i / 6) * 22, 0.55, 0.72, 'fallingLeaf', 'falling-leaf'));
   }
 
-  return {
+  return withZombies({
     id: 'rotwood-forest',
     label: 'Polygonal Rotwood Forest',
     clearColor: [0.025, 0.032, 0.023, 1],
@@ -311,7 +319,11 @@ function createRotwoodForestWorld() {
     playerSpawn: { x: 0, y: 1.45, z: 20, yaw: 3.08 },
     killY: -9,
     textures,
-  };
+  }, [
+    { x: -18, z: 18 },
+    { x: 16, z: 14 },
+    { x: 2, z: -22 },
+  ]);
 }
 
 function createAstralGeometryGardenWorld() {
@@ -360,7 +372,7 @@ function createAstralGeometryGardenWorld() {
     crates.push(box(`orbit cube ${i + 1}`, Math.cos(angle) * 7.2, -7 + Math.sin(angle) * 7.2, 1.1, 1.1, 1.1, i % 2 ? 'astralMagenta' : 'astralCyan', 2.2, false, 'orbit'));
   }
 
-  return {
+  return withZombies({
     id: 'astral-geometry-garden',
     label: 'Astral Geometry Garden',
     clearColor: [0.01, 0.0, 0.035, 1],
@@ -393,7 +405,11 @@ function createAstralGeometryGardenWorld() {
     playerSpawn: { x: 0, y: 1.45, z: 8.5, yaw: 3.08 },
     killY: -12,
     textures,
-  };
+  }, [
+    { x: -10, z: -2 },
+    { x: 12, z: -5 },
+    { x: 0, z: -24 },
+  ]);
 }
 
 function createMotelMirageWorld() {
@@ -456,7 +472,7 @@ function createMotelMirageWorld() {
     cards.push(card(`repeating motel door ${i + 1}`, -18 + i * 4, 1.55, -21.1, 1.1, 2.3, 'motelDoor', null));
   }
 
-  return {
+  return withZombies({
     id: 'motel-mirage',
     label: 'Liminal Motel Mirage',
     clearColor: [0.018, 0.018, 0.03, 1],
@@ -483,7 +499,11 @@ function createMotelMirageWorld() {
     playerSpawn: { x: -7.5, y: 1.45, z: 18, yaw: 3.03 },
     killY: -9,
     textures,
-  };
+  }, [
+    { x: -18, z: 14 },
+    { x: 18, z: 16 },
+    { x: 0, z: -14 },
+  ]);
 }
 
 function card(name, x, y, z, width, height, texture, motion = null) {
@@ -498,7 +518,7 @@ function createDerelictStarshipWorld() {
     { id: 'metal', size: 128 },
   ];
 
-  return {
+  return withZombies({
     id: 'derelict-starship',
     label: 'Derelict starship',
     clearColor: [0.025, 0.035, 0.05, 1],
@@ -539,7 +559,11 @@ function createDerelictStarshipWorld() {
     playerSpawn: { x: 0, y: 1.45, z: 13, yaw: 3.14 },
     killY: -8,
     textures,
-  };
+  }, [
+    { x: -11, z: 12 },
+    { x: 11, z: 12 },
+    { x: 0, z: -10 },
+  ]);
 }
 
 function createNeonBackstreetsWorld() {
@@ -599,7 +623,7 @@ function createNeonBackstreetsWorld() {
     mountain('cloud low violet', -25, 23, 20, 5, 2.2, 'neonCloud'),
   ];
 
-  return {
+  return withZombies({
     id: 'neon-backstreets',
     label: 'Neon backstreets',
     skyMode: 'psychedelic',
@@ -660,7 +684,11 @@ function createNeonBackstreetsWorld() {
     playerSpawn: { x: 0, y: 1.45, z: 24, yaw: 3.12 },
     killY: -14,
     textures,
-  };
+  }, [
+    { x: -6, z: 21 },
+    { x: 9, z: 3 },
+    { x: -2, z: -16 },
+  ]);
 }
 
 function createSunkenTempleWorld() {
@@ -685,7 +713,7 @@ function createSunkenTempleWorld() {
     }
   }
 
-  return {
+  return withZombies({
     id: 'sunken-temple',
     label: 'Sunken temple',
     clearColor: [0.04, 0.08, 0.09, 1],
@@ -732,7 +760,11 @@ function createSunkenTempleWorld() {
     playerSpawn: { x: 0, y: 1.45, z: 22, yaw: 3.14 },
     killY: -9,
     textures,
-  };
+  }, [
+    { x: -16, z: 18 },
+    { x: 16, z: 18 },
+    { x: 0, z: -16 },
+  ]);
 }
 
 function createOneBitCathedralWorld() {
@@ -799,7 +831,7 @@ function createOneBitCathedralWorld() {
     crates.push(box(`right circuit plinth ${i + 1}`, 16.8 - i * 0.7, z, 2.8, 0.7, 1.1 + i * 0.18, 'oneBitCircuit'));
   }
 
-  return {
+  return withZombies({
     id: 'one-bit-cathedral',
     label: '1-bit cathedral',
     oneBit: true,
@@ -825,7 +857,11 @@ function createOneBitCathedralWorld() {
     playerSpawn: { x: 0, y: 1.45, z: 21, yaw: 3.14 },
     killY: -8,
     textures,
-  };
+  }, [
+    { x: -18, z: 20 },
+    { x: 18, z: 20 },
+    { x: 0, z: 12 },
+  ]);
 }
 
 function box(name, x, z, width, depth, height, texture, y = 0, noCollider = false, motion = null) {
@@ -847,5 +883,15 @@ function box(name, x, z, width, depth, height, texture, y = 0, noCollider = fals
       minZ: z - depth / 2,
       maxZ: z + depth / 2,
     },
+  };
+}
+
+function withZombies(scene, zombieSpawns) {
+  return {
+    ...scene,
+    zombieSpawns,
+    textures: scene.textures.some((texture) => texture.id === 'zombie')
+      ? scene.textures
+      : [...scene.textures, { id: 'zombie', size: 64 }],
   };
 }

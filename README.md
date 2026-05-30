@@ -22,9 +22,9 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173).
 
 On touch devices, press the left side to spawn a floating movement joystick, drag the right side to look, and use the jump button for platforming.
 
-Scenes include jumpable blocks, stepped platforms, and fall zones. Dropping deep below a scene's kill plane triggers a red death tint and impact sound, holds the fallen camera briefly, then respawns you at that scene's start.
+Scenes include jumpable blocks, stepped platforms, fall zones, and roaming zombies. Dropping deep below a scene's kill plane or letting a zombie touch you triggers a red death tint and impact sound, holds the fallen camera briefly, then respawns you at that scene's start.
 
-The options menu also includes CRT/post effects, reticule visibility, pixel scale, inverted mouse Y, and the player torch toggle.
+The options menu also includes CRT/post effects, reticule visibility, pixel scale, inverted mouse Y, the player torch toggle, and a zombies toggle.
 
 ## Tests
 

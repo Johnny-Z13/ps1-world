@@ -8,6 +8,7 @@ import {
 } from './ps1Display.js';
 import { cameraView } from './cameraMath.js';
 import {
+  PLAYER_EYE_HEIGHT,
   applyJumpPhysics,
   applyMouseLook,
   createMouseLookDelta,
@@ -19,6 +20,11 @@ import {
   resolveMovement,
 } from './playerPhysics.js';
 import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
+import {
+  createZombieEnemies,
+  isPlayerTouchedByZombie,
+  updateZombieEnemies,
+} from './zombies.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
@@ -50,6 +56,7 @@ let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
 let colliders = getSceneColliders(world);
 let walkableSurfaces = getSceneWalkableSurfaces(world);
+let zombies = createZombieEnemies(world);
 const player = {
   x: world.playerSpawn.x,
   y: world.playerSpawn.y,
@@ -86,6 +93,7 @@ let lastMousePosition = null;
 let sceneProgram;
 let postProgram;
 let warehouseMesh;
+let zombieMesh;
 let quad;
 let atlasTexture;
 let renderTarget;
@@ -153,6 +161,18 @@ function updatePlayer(dt, now) {
 
   if (isBelowKillPlane(player, getVoidDeathY(world.killY ?? -8))) {
     startDeathSequence(now);
+    return;
+  }
+
+  if (effects.zombies) {
+    zombies = updateZombieEnemies(zombies, player, {
+      colliders,
+      walkableSurfaces,
+      dt,
+    });
+  }
+  if (effects.zombies && isPlayerTouchedByZombie(player, zombies)) {
+    startDeathSequence(now);
   }
 }
 
@@ -186,6 +206,10 @@ function render(time, now = performance.now()) {
   gl.uniform1f(sceneProgram.uniforms.uTorchEnabled, effects.playerTorch && world.playerTorch ? 1 : 0);
   gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection());
   drawMesh(gl, sceneProgram, warehouseMesh);
+  if (effects.zombies) {
+    updateZombieMesh(gl, zombieMesh, zombies, textureIndices);
+    drawMesh(gl, sceneProgram, zombieMesh);
+  }
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.disable(gl.DEPTH_TEST);
@@ -770,7 +794,7 @@ function setupOptions() {
     titleButtonState.active = false;
   });
 
-  const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise', 'playerTorch'];
+  const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise', 'playerTorch', 'zombies'];
   for (const id of bindings) {
     const input = document.querySelector(`#${id}`);
     input.checked = Boolean(effects[id]);
@@ -1063,8 +1087,10 @@ function setScene(id) {
   resetPlayerToSpawn();
 
   deleteMeshBuffers(gl, warehouseMesh);
+  deleteMeshBuffers(gl, zombieMesh);
   gl.deleteTexture(atlasTexture);
   warehouseMesh = createWarehouseMesh(gl, world, textureIndices);
+  zombieMesh = createZombieMesh(gl);
   atlasTexture = createTextureAtlas(gl, world.textures);
   syncSceneSelect();
 }
@@ -1080,6 +1106,7 @@ function resetPlayerToSpawn() {
   player.velocityY = 0;
   player.grounded = true;
   player.groundY = getGroundYAt(player, walkableSurfaces) ?? world.playerSpawn.y;
+  zombies = createZombieEnemies(world);
 }
 
 function getSceneColliders(scene) {
@@ -1167,6 +1194,55 @@ function createWarehouseMesh(glContext, scene, indices) {
     shade: createBuffer(glContext, new Float32Array(geometry.shades)),
     motion: createBuffer(glContext, new Float32Array(geometry.motions)),
   };
+}
+
+function createZombieMesh(glContext) {
+  return {
+    count: 0,
+    position: createDynamicBuffer(glContext),
+    uv: createDynamicBuffer(glContext),
+    textureId: createDynamicBuffer(glContext),
+    shade: createDynamicBuffer(glContext),
+    motion: createDynamicBuffer(glContext),
+  };
+}
+
+function updateZombieMesh(glContext, mesh, zombieList, indices) {
+  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+  for (const zombie of zombieList) {
+    addZombieCard(geometry, zombie, indices);
+  }
+
+  mesh.count = geometry.positions.length / 3;
+  updateBuffer(glContext, mesh.position, new Float32Array(geometry.positions));
+  updateBuffer(glContext, mesh.uv, new Float32Array(geometry.uvs));
+  updateBuffer(glContext, mesh.textureId, new Float32Array(geometry.textureIds));
+  updateBuffer(glContext, mesh.shade, new Float32Array(geometry.shades));
+  updateBuffer(glContext, mesh.motion, new Float32Array(geometry.motions));
+}
+
+function addZombieCard(geometry, zombie, indices) {
+  const textureId = indices.get('zombie') ?? 0;
+  const motion = motionCode('zombie-walk');
+  const width = 0.95;
+  const height = 1.75;
+  const halfWidth = width / 2;
+  const feetY = zombie.y - PLAYER_EYE_HEIGHT;
+  const minY = feetY;
+  const maxY = feetY + height;
+
+  face(geometry, textureId, 1.05, [
+    [zombie.x - halfWidth, minY, zombie.z],
+    [zombie.x + halfWidth, minY, zombie.z],
+    [zombie.x + halfWidth, maxY, zombie.z],
+    [zombie.x - halfWidth, maxY, zombie.z],
+  ], 1, 1, motion);
+  face(geometry, textureId, 0.92, [
+    [zombie.x, minY, zombie.z - halfWidth],
+    [zombie.x, minY, zombie.z + halfWidth],
+    [zombie.x, maxY, zombie.z + halfWidth],
+    [zombie.x, maxY, zombie.z - halfWidth],
+  ], 1, 1, motion);
 }
 
 function addBox(geometry, item, indices, options = {}) {
@@ -1333,6 +1409,8 @@ function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat, motion 
 }
 
 function drawMesh(glContext, program, mesh) {
+  if (!mesh || mesh.count <= 0) return;
+
   bindAttribute(glContext, program.attributes.aPosition, mesh.position, 3);
   bindAttribute(glContext, program.attributes.aUv, mesh.uv, 2);
   bindAttribute(glContext, program.attributes.aTextureId, mesh.textureId, 1);
@@ -1402,11 +1480,17 @@ function motionCode(name) {
     'window-pulse': 9,
     'sign-flicker': 10,
     'water-shimmer': 11,
+    'zombie-walk': 12,
   };
   return codes[name] ?? 0;
 }
 
 function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
+  if (id === 'zombie') {
+    drawZombieTexture(ctx, x, y, tile);
+    return;
+  }
+
   if (id === 'star') {
     drawStarTexture(ctx, x, y, tile);
     return;
@@ -1517,6 +1601,28 @@ function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
     ctx.fillStyle = gradient;
     ctx.fillRect(x, y, tile, tile);
   }
+}
+
+function drawZombieTexture(ctx, x, y, tile) {
+  ctx.fillStyle = '#121612';
+  ctx.fillRect(x, y, tile, tile);
+  ctx.fillStyle = '#6f8d5e';
+  ctx.fillRect(x + tile * 0.32, y + tile * 0.08, tile * 0.36, tile * 0.22);
+  ctx.fillStyle = '#273822';
+  ctx.fillRect(x + tile * 0.28, y + tile * 0.3, tile * 0.44, tile * 0.32);
+  ctx.fillStyle = '#4b3128';
+  ctx.fillRect(x + tile * 0.2, y + tile * 0.32, tile * 0.16, tile * 0.42);
+  ctx.fillRect(x + tile * 0.64, y + tile * 0.32, tile * 0.16, tile * 0.42);
+  ctx.fillStyle = '#1c1a1a';
+  ctx.fillRect(x + tile * 0.33, y + tile * 0.62, tile * 0.13, tile * 0.32);
+  ctx.fillRect(x + tile * 0.55, y + tile * 0.62, tile * 0.13, tile * 0.32);
+  ctx.fillStyle = '#f2e6a6';
+  ctx.fillRect(x + tile * 0.39, y + tile * 0.16, tile * 0.07, tile * 0.05);
+  ctx.fillRect(x + tile * 0.55, y + tile * 0.16, tile * 0.07, tile * 0.05);
+  ctx.fillStyle = '#9b2d2d';
+  ctx.fillRect(x + tile * 0.44, y + tile * 0.25, tile * 0.14, tile * 0.04);
+  ctx.fillStyle = 'rgba(150, 185, 120, 0.28)';
+  ctx.fillRect(x + tile * 0.24, y + tile * 0.04, tile * 0.52, tile * 0.9);
 }
 
 function drawStarTexture(ctx, x, y, tile) {
@@ -1858,6 +1964,18 @@ function createBuffer(glContext, data) {
   return buffer;
 }
 
+function createDynamicBuffer(glContext) {
+  const buffer = glContext.createBuffer();
+  glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
+  glContext.bufferData(glContext.ARRAY_BUFFER, 0, glContext.DYNAMIC_DRAW);
+  return buffer;
+}
+
+function updateBuffer(glContext, buffer, data) {
+  glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
+  glContext.bufferData(glContext.ARRAY_BUFFER, data, glContext.DYNAMIC_DRAW);
+}
+
 function bindAttribute(glContext, location, buffer, size) {
   glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
   glContext.enableVertexAttribArray(location);
@@ -1901,6 +2019,7 @@ function start() {
   sceneProgram = createProgram(gl, sceneVertexShader, sceneFragmentShader);
   postProgram = createProgram(gl, postVertexShader, postFragmentShader);
   warehouseMesh = createWarehouseMesh(gl, world, textureIndices);
+  zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);
   atlasTexture = createTextureAtlas(gl, world.textures);
   renderTarget = createRenderTarget(gl, renderResolution.width, renderResolution.height);
@@ -1945,6 +2064,7 @@ void main() {
   float cometMask = 1.0 - step(0.5, abs(aMotion - 7.0));
   float palmMask = 1.0 - step(0.5, abs(aMotion - 8.0));
   float waterMask = 1.0 - step(0.5, abs(aMotion - 11.0));
+  float zombieMask = 1.0 - step(0.5, abs(aMotion - 12.0));
   warped.x += sin(uTime * 1.5 + aPosition.z * 1.8) * 0.24 * swayMask;
   warped.x += sin(uTime * 2.8 + aPosition.y * 3.0) * 0.7 * fireflyMask;
   warped.y += sin(uTime * 3.2 + aPosition.x * 2.0) * 0.36 * fireflyMask;
@@ -1962,6 +2082,8 @@ void main() {
   warped.x += floor(mod(uTime * 2.0 + aPosition.y, 2.0)) * 1.1 * cometMask;
   warped.x += floor(mod(uTime * 2.0 + aPosition.x, 3.0)) * 0.22 * palmMask;
   warped.y += sin(uTime * 5.0 + aPosition.x) * 0.04 * waterMask;
+  warped.x += sin(uTime * 6.5 + aPosition.y * 7.0) * 0.08 * zombieMask;
+  warped.y += abs(sin(uTime * 5.5 + aPosition.x)) * 0.08 * zombieMask;
   float wobble = sin((aPosition.x + aPosition.z) * 8.0 + uTime * 6.0) * 0.006;
   warped.xz += vec2(wobble, -wobble) * uWarping;
 
