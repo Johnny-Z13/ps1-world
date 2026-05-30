@@ -25,6 +25,7 @@ import {
   isPlayerTouchedByZombie,
   updateZombieEnemies,
 } from './zombies.js';
+import { loadZombieGlb } from './zombieModel.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
@@ -51,6 +52,7 @@ const effects = createEffectState();
 effects.sceneId = 'dungeon';
 const DEATH_RESPAWN_DELAY_MS = 2000;
 const GAMEPAD_DEADZONE = 0.18;
+const ZOMBIE_MODEL_SCALE = 1.75;
 let world = createSceneWorld(effects.sceneId);
 let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
@@ -94,6 +96,7 @@ let sceneProgram;
 let postProgram;
 let warehouseMesh;
 let zombieMesh;
+let zombieModel = null;
 let quad;
 let atlasTexture;
 let renderTarget;
@@ -207,7 +210,7 @@ function render(time, now = performance.now()) {
   gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection());
   drawMesh(gl, sceneProgram, warehouseMesh);
   if (effects.zombies) {
-    updateZombieMesh(gl, zombieMesh, zombies, textureIndices);
+    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, zombieModel);
     drawMesh(gl, sceneProgram, zombieMesh);
   }
 
@@ -878,8 +881,13 @@ const TITLE_FONT = Object.freeze({
   '2': ['11110', '00010', '00010', '11110', '10000', '10000', '11110'],
   '5': ['11110', '10000', '10000', '11110', '00010', '00010', '11110'],
   a: ['01100', '10010', '10010', '11110', '10010', '10010', '10010'],
+  b: ['11100', '10010', '10010', '11100', '10010', '10010', '11100'],
+  c: ['01110', '10000', '10000', '10000', '10000', '10000', '01110'],
   d: ['11100', '10010', '10010', '10010', '10010', '10010', '11100'],
+  e: ['11110', '10000', '10000', '11100', '10000', '10000', '11110'],
+  f: ['11110', '10000', '10000', '11100', '10000', '10000', '10000'],
   g: ['01110', '10000', '10000', '10110', '10010', '10010', '01110'],
+  h: ['10010', '10010', '10010', '11110', '10010', '10010', '10010'],
   i: ['11100', '01000', '01000', '01000', '01000', '01000', '11100'],
   l: ['10000', '10000', '10000', '10000', '10000', '10000', '11110'],
   m: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
@@ -891,6 +899,7 @@ const TITLE_FONT = Object.freeze({
   t: ['11110', '00100', '00100', '00100', '00100', '00100', '00100'],
   u: ['10010', '10010', '10010', '10010', '10010', '10010', '01100'],
   w: ['10001', '10001', '10001', '10101', '10101', '11011', '10001'],
+  z: ['11110', '00010', '00100', '01000', '10000', '10000', '11110'],
 });
 
 function renderTitleScreen(time) {
@@ -902,8 +911,30 @@ function renderTitleScreen(time) {
   drawCenteredBitmapText('ps1-world', 176, 9, '#1ca6a5', time, { x: -2, y: 1 });
   drawCenteredBitmapText('ps1-world', 176, 9, '#b42638', time, { x: 3, y: 0 });
   drawCenteredBitmapText('ps1-world', 176, 9, '#f3dc92', time);
+  drawBloodWarningText(time);
   drawBitmapButton(time);
   drawCenteredBitmapText('wasd+mouse or gamepad', 360, 2, '#cfc7aa', time);
+}
+
+function drawBloodWarningText(time) {
+  const text = 'watch out for the zombies';
+  const y = 268;
+  const scale = 2;
+  drawCenteredBitmapText(text, y + 2, scale, '#280205', time, { x: 1, y: 1 });
+  drawCenteredBitmapText(text, y + 1, scale, '#5e0b16', time, { x: Math.sin(time * 9) > 0.72 ? 1 : 0, y: 0 });
+  drawCenteredBitmapText(text, y, scale, '#b42638', time);
+  drawBloodDrips(text, y, scale, time);
+}
+
+function drawBloodDrips(text, y, scale, time) {
+  const width = measureBitmapText(text, scale);
+  const x = Math.floor((TITLE_WIDTH - width) / 2);
+  const dripColumns = [20, 82, 142, 198];
+  titleContext.fillStyle = '#5e0b16';
+  for (const column of dripColumns) {
+    const length = 4 + Math.floor(Math.abs(Math.sin(time * 3.2 + column)) * 6);
+    titleContext.fillRect(x + column, y + 15, scale, length);
+  }
 }
 
 function drawTitleBackdrop(time) {
@@ -1207,10 +1238,14 @@ function createZombieMesh(glContext) {
   };
 }
 
-function updateZombieMesh(glContext, mesh, zombieList, indices) {
+function updateZombieMesh(glContext, mesh, zombieList, indices, model = null) {
   const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
   for (const zombie of zombieList) {
-    addZombieCard(geometry, zombie, indices);
+    if (model) {
+      addZombieModel(geometry, zombie, model, indices);
+    } else {
+      addZombieCard(geometry, zombie, indices);
+    }
   }
 
   mesh.count = geometry.positions.length / 3;
@@ -1219,6 +1254,29 @@ function updateZombieMesh(glContext, mesh, zombieList, indices) {
   updateBuffer(glContext, mesh.textureId, new Float32Array(geometry.textureIds));
   updateBuffer(glContext, mesh.shade, new Float32Array(geometry.shades));
   updateBuffer(glContext, mesh.motion, new Float32Array(geometry.motions));
+}
+
+function addZombieModel(geometry, zombie, model, indices) {
+  const textureId = indices.get('zombie') ?? 0;
+  const motion = motionCode('zombie-walk');
+  const sin = Math.sin(zombie.yaw);
+  const cos = Math.cos(zombie.yaw);
+  const feetY = zombie.y - PLAYER_EYE_HEIGHT;
+
+  for (const vertex of model.vertices) {
+    const localX = vertex.x * ZOMBIE_MODEL_SCALE;
+    const localY = vertex.y * ZOMBIE_MODEL_SCALE;
+    const localZ = vertex.z * ZOMBIE_MODEL_SCALE;
+    geometry.positions.push(
+      zombie.x + localX * cos + localZ * sin,
+      feetY + localY,
+      zombie.z + localZ * cos - localX * sin,
+    );
+    geometry.uvs.push(vertex.u, vertex.v);
+    geometry.textureIds.push(textureId);
+    geometry.shades.push(0.98);
+    geometry.motions.push(motion);
+  }
 }
 
 function addZombieCard(geometry, zombie, indices) {
@@ -2028,6 +2086,11 @@ function start() {
   setupInput();
   resize();
   renderTitleScreen(0);
+  loadZombieGlb().then((model) => {
+    zombieModel = model;
+  }).catch(() => {
+    zombieModel = null;
+  });
   requestAnimationFrame(frame);
 }
 

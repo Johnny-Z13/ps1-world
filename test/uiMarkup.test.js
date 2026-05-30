@@ -24,7 +24,10 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(app, /const TITLE_WIDTH = 512/);
   assert.match(app, /drawBitmapGlyph/);
   assert.match(app, /wasd\+mouse or gamepad/);
+  assert.match(app, /watch out for the zombies/);
+  assert.match(app, /drawBloodWarningText/);
   assert.match(app, /'\+':/);
+  assert.match(app, /z:/);
   assert.match(app, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(app, /document\.body\.classList\.remove\('title-active'\)/);
 });
@@ -122,6 +125,9 @@ test('adds gamepad movement, look, jump, sprint, and menu bindings', () => {
 test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(index, /id="zombies"/);
   assert.match(index, /Zombies/);
+  assert.match(app, /loadZombieGlb/);
+  assert.match(app, /zombieModel/);
+  assert.match(app, /addZombieModel/);
   assert.match(app, /createZombieEnemies/);
   assert.match(app, /updateZombieEnemies/);
   assert.match(app, /isPlayerTouchedByZombie/);
