@@ -1,3 +1,5 @@
+export const PLAYER_EYE_HEIGHT = 1.45;
+
 export function createInputVector(input) {
   let x = 0;
   let z = 0;
@@ -28,16 +30,16 @@ export function createMovementDelta(inputVector, yaw, speed, dt) {
 
 export function resolveMovement(start, desired, colliders, radius) {
   const xOnly = { x: desired.x, z: start.z };
-  const afterX = isBlocked(xOnly, colliders, radius) ? start : xOnly;
+  const afterX = isBlocked(xOnly, colliders, radius, start.y) ? start : xOnly;
   const zOnly = { x: afterX.x, z: desired.z };
 
-  if (!isBlocked(zOnly, colliders, radius)) {
+  if (!isBlocked(zOnly, colliders, radius, start.y)) {
     return zOnly;
   }
 
   return {
     x: afterX.x,
-    z: clampAgainstZ(afterX, desired.z, colliders, radius),
+    z: clampAgainstZ(afterX, desired.z, colliders, radius, start.y),
   };
 }
 
@@ -95,8 +97,31 @@ export function applyJumpPhysics(state, options) {
   return { y, velocityY, grounded };
 }
 
-function isBlocked(position, colliders, radius) {
+export function getGroundYAt(position, surfaces, eyeHeight = PLAYER_EYE_HEIGHT) {
+  let topY = null;
+
+  for (const surface of surfaces) {
+    const withinX = position.x >= surface.minX && position.x <= surface.maxX;
+    const withinZ = position.z >= surface.minZ && position.z <= surface.maxZ;
+    if (!withinX || !withinZ) continue;
+    if (topY === null || surface.topY > topY) topY = surface.topY;
+  }
+
+  return topY === null ? null : topY + eyeHeight;
+}
+
+export function isBelowKillPlane(state, killY) {
+  return state.y < killY;
+}
+
+export function getVoidDeathY(killY) {
+  return killY * 3;
+}
+
+function isBlocked(position, colliders, radius, playerY = null) {
   return colliders.some((collider) => (
+    blocksAtPlayerHeight(collider, playerY)
+    &&
     position.x + radius > collider.minX
     && position.x - radius < collider.maxX
     && position.z + radius > collider.minZ
@@ -104,10 +129,19 @@ function isBlocked(position, colliders, radius) {
   ));
 }
 
-function clampAgainstZ(position, desiredZ, colliders, radius) {
+function blocksAtPlayerHeight(collider, playerY) {
+  if (!Number.isFinite(playerY) || !Number.isFinite(collider.maxY)) return true;
+
+  const feetY = playerY - PLAYER_EYE_HEIGHT;
+  return feetY < collider.maxY - 0.08;
+}
+
+function clampAgainstZ(position, desiredZ, colliders, radius, playerY = null) {
   let nextZ = position.z;
 
   for (const collider of colliders) {
+    if (!blocksAtPlayerHeight(collider, playerY)) continue;
+
     const overlapsX = position.x + radius > collider.minX && position.x - radius < collider.maxX;
     if (!overlapsX) continue;
 

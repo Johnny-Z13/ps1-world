@@ -13,6 +13,9 @@ import {
   createMouseLookDelta,
   createMovementDelta,
   createInputVector,
+  getGroundYAt,
+  getVoidDeathY,
+  isBelowKillPlane,
   resolveMovement,
 } from './playerPhysics.js';
 import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
@@ -23,6 +26,9 @@ const titleScreen = document.querySelector('#titleScreen');
 const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
 const optionsDialog = document.querySelector('#options');
+const touchMove = document.querySelector('#touchMove');
+const touchMoveStick = document.querySelector('#touchMoveStick');
+const touchJump = document.querySelector('#touchJump');
 const titleContext = titleCanvas.getContext('2d');
 const gl = canvas.getContext('webgl', {
   antialias: false,
@@ -37,10 +43,12 @@ if (!gl) {
 
 const effects = createEffectState();
 effects.sceneId = 'dungeon';
+const DEATH_RESPAWN_DELAY_MS = 2000;
 let world = createSceneWorld(effects.sceneId);
 let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
 let colliders = getSceneColliders(world);
+let walkableSurfaces = getSceneWalkableSurfaces(world);
 const player = {
   x: world.playerSpawn.x,
   y: world.playerSpawn.y,
@@ -53,6 +61,10 @@ const player = {
 };
 
 const keys = new Set();
+const deathState = { active: false, startedAt: 0 };
+const touchMovement = { active: false, pointerId: null, originX: 0, originY: 0, x: 0, z: 0 };
+const touchLook = { active: false, pointerId: null, x: 0, y: 0 };
+let touchJumpActive = false;
 let titleActive = true;
 const titleButtonState = { active: false };
 let mouseLookActive = false;
@@ -77,22 +89,29 @@ function frame(now) {
   lastTime = now;
 
   updateContinuousMouseLook(dt);
-  updatePlayer(dt);
-  render(now / 1000);
+  updatePlayer(dt, now);
+  render(now / 1000, now);
   requestAnimationFrame(frame);
 }
 
-function updatePlayer(dt) {
+function updatePlayer(dt, now) {
+  if (deathState.active) {
+    updateDeathSequence(now);
+    return;
+  }
+
   const local = createInputVector({
-    forward: keys.has('KeyW'),
-    back: keys.has('KeyS'),
-    left: keys.has('KeyA'),
-    right: keys.has('KeyD'),
+    forward: keys.has('KeyW') || touchMovement.z > 0.12,
+    back: keys.has('KeyS') || touchMovement.z < -0.12,
+    left: keys.has('KeyA') || touchMovement.x < -0.12,
+    right: keys.has('KeyD') || touchMovement.x > 0.12,
   });
+  local.x = Math.abs(touchMovement.x) > 0.12 ? touchMovement.x : local.x;
+  local.z = Math.abs(touchMovement.z) > 0.12 ? touchMovement.z : local.z;
   const speed = keys.has('ShiftLeft') ? 4.4 : 2.8;
   const movement = createMovementDelta(local, player.yaw, speed, dt);
   const next = resolveMovement(
-    { x: player.x, z: player.z },
+    { x: player.x, y: player.y, z: player.z },
     { x: player.x + movement.dx, z: player.z + movement.dz },
     colliders,
     0.32,
@@ -101,17 +120,29 @@ function updatePlayer(dt) {
   player.x = next.x;
   player.z = next.z;
 
+  const groundY = getGroundYAt(player, walkableSurfaces);
+  if (groundY === null || (player.grounded && player.y > groundY + 0.08)) {
+    player.grounded = false;
+  } else if (player.grounded) {
+    player.groundY = groundY;
+  }
+
   const jump = applyJumpPhysics(player, {
-    jump: keys.has('Space'),
+    jump: keys.has('Space') || touchJumpActive,
     dt,
-    groundY: player.groundY,
+    groundY: groundY ?? -Infinity,
   });
   player.y = jump.y;
   player.velocityY = jump.velocityY;
   player.grounded = jump.grounded;
+  player.groundY = jump.grounded ? jump.y : groundY ?? player.groundY;
+
+  if (isBelowKillPlane(player, getVoidDeathY(world.killY ?? -8))) {
+    startDeathSequence(now);
+  }
 }
 
-function render(time) {
+function render(time, now = performance.now()) {
   const lightningStrength = getLightningStrength(time, world.lightning);
   updateSceneAudio(time, lightningStrength);
 
@@ -134,6 +165,11 @@ function render(time) {
   gl.uniform1f(sceneProgram.uniforms.uRainTextureId, getTextureIndex(world.rain?.texture));
   gl.uniform1f(sceneProgram.uniforms.uShootingStarTextureId, getTextureIndex(world.shootingStar?.texture));
   gl.uniform1f(sceneProgram.uniforms.uWarping, effects.warping ? 1 : 0);
+  gl.uniform3f(sceneProgram.uniforms.uTorchPosition, player.x, player.y + 0.25, player.z);
+  gl.uniform3f(sceneProgram.uniforms.uTorchColor, ...(world.playerTorch?.color ?? [1, 0.55, 0.22]));
+  gl.uniform1f(sceneProgram.uniforms.uTorchRadius, world.playerTorch?.radius ?? 0);
+  gl.uniform1f(sceneProgram.uniforms.uTorchIntensity, world.playerTorch?.intensity ?? 0);
+  gl.uniform1f(sceneProgram.uniforms.uTorchEnabled, effects.playerTorch && world.playerTorch ? 1 : 0);
   gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection());
   drawMesh(gl, sceneProgram, warehouseMesh);
 
@@ -166,6 +202,7 @@ function render(time) {
   gl.uniform1f(postProgram.uniforms.uFlipFramebufferY, effects.flipFramebufferY ? 1 : 0);
   gl.uniform1f(postProgram.uniforms.uOneBit, world.oneBit ? 1 : 0);
   gl.uniform1f(postProgram.uniforms.uLightningStrength, lightningStrength);
+  gl.uniform1f(postProgram.uniforms.uDeathTint, getDeathTint(now));
   drawQuad(gl, postProgram, quad);
 
   if (titleActive) {
@@ -191,12 +228,10 @@ function getLightningStrength(time, lightning) {
   return Math.min(1, Math.max(0, envelope * strobe));
 }
 
-function ensureSceneAudio() {
-  if (!world.audio) return;
-
+function ensureAudioState() {
   if (!audioState) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
+    if (!AudioContextClass) return null;
 
     const context = new AudioContextClass();
     const windGain = context.createGain();
@@ -225,6 +260,14 @@ function ensureSceneAudio() {
   if (audioState.context.state === 'suspended') {
     audioState.context.resume();
   }
+
+  return audioState;
+}
+
+function ensureSceneAudio() {
+  if (!world.audio) return;
+
+  ensureAudioState();
 }
 
 function createNoiseBuffer(context, seconds) {
@@ -286,6 +329,42 @@ function playLightningSound(context) {
   rumble.stop(now + 0.8);
 }
 
+function playDeathSound() {
+  const state = ensureAudioState();
+  if (!state) return;
+
+  const context = state.context;
+  const now = context.currentTime;
+  const impact = context.createOscillator();
+  const impactGain = context.createGain();
+  const hiss = context.createBufferSource();
+  const hissFilter = context.createBiquadFilter();
+  const hissGain = context.createGain();
+
+  impact.type = 'sawtooth';
+  impact.frequency.setValueAtTime(74, now);
+  impact.frequency.exponentialRampToValueAtTime(28, now + 0.5);
+  impactGain.gain.setValueAtTime(0.0, now);
+  impactGain.gain.linearRampToValueAtTime(0.18, now + 0.025);
+  impactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.72);
+  impact.connect(impactGain);
+  impactGain.connect(context.destination);
+  impact.start(now);
+  impact.stop(now + 0.76);
+
+  hiss.buffer = createNoiseBuffer(context, 0.34);
+  hissFilter.type = 'lowpass';
+  hissFilter.frequency.setValueAtTime(480, now);
+  hissGain.gain.setValueAtTime(0.0, now);
+  hissGain.gain.linearRampToValueAtTime(0.12, now + 0.02);
+  hissGain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+  hiss.connect(hissFilter);
+  hissFilter.connect(hissGain);
+  hissGain.connect(context.destination);
+  hiss.start(now);
+  hiss.stop(now + 0.34);
+}
+
 function createViewProjection() {
   const projection = perspective(Math.PI / 3.2, PS1_RENDER_TARGET.aspect, 0.08, 80);
   const view = cameraView(player);
@@ -338,6 +417,16 @@ function setupInput() {
       }
       return;
     }
+    const shortcutIndex = getSceneShortcutIndex(event.code);
+    if (shortcutIndex !== -1 && !optionsDialog.open) {
+      const shortcutScene = SCENE_DEFINITIONS[shortcutIndex];
+      if (shortcutScene) {
+        event.preventDefault();
+        setScene(shortcutScene.id);
+        syncSceneSelect();
+      }
+      return;
+    }
     if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'Space'].includes(event.code)) {
       event.preventDefault();
     }
@@ -345,6 +434,7 @@ function setupInput() {
   }, { capture: true });
   document.addEventListener('keyup', (event) => keys.delete(event.code), { capture: true });
   canvas.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'touch') return;
     if (titleActive) return;
     ensureSceneAudio();
     if (optionsDialog.open) return;
@@ -363,6 +453,109 @@ function setupInput() {
     player.pitch = look.pitch;
     updateSoftMouseEdgeTurn(event);
   });
+  setupTouchControls();
+}
+
+function setupTouchControls() {
+  document.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'touch') return;
+    if (titleActive || optionsDialog.open || deathState.active) return;
+    if (event.target === touchJump) return;
+
+    ensureSceneAudio();
+    enterGameMode({ requestLock: false });
+    event.preventDefault();
+
+    if (event.clientX <= window.innerWidth * 0.52 && !touchMovement.active) {
+      touchMovement.active = true;
+      touchMovement.pointerId = event.pointerId;
+      touchMovement.originX = event.clientX;
+      touchMovement.originY = event.clientY;
+      touchMove.style.left = `${event.clientX}px`;
+      touchMove.style.top = `${event.clientY}px`;
+      touchMove.classList.add('active');
+      updateTouchMovement(event);
+    } else if (!touchLook.active) {
+      touchLook.active = true;
+      touchLook.pointerId = event.pointerId;
+      touchLook.x = event.clientX;
+      touchLook.y = event.clientY;
+    }
+  }, { passive: false });
+
+  document.addEventListener('pointermove', (event) => {
+    if (event.pointerId === touchMovement.pointerId) {
+      event.preventDefault();
+      updateTouchMovement(event);
+    } else if (event.pointerId === touchLook.pointerId) {
+      event.preventDefault();
+      updateTouchLook(event);
+    }
+  }, { passive: false });
+
+  document.addEventListener('pointerup', endTouchPointer, { passive: false });
+  document.addEventListener('pointercancel', endTouchPointer, { passive: false });
+  touchJump.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'touch') return;
+    if (titleActive || optionsDialog.open || deathState.active) return;
+    ensureSceneAudio();
+    enterGameMode({ requestLock: false });
+    touchJumpActive = true;
+    event.preventDefault();
+  }, { passive: false });
+  touchJump.addEventListener('pointerup', () => {
+    touchJumpActive = false;
+  });
+  touchJump.addEventListener('pointercancel', () => {
+    touchJumpActive = false;
+  });
+}
+
+function updateTouchMovement(event) {
+  const maxDistance = 48;
+  const dx = event.clientX - touchMovement.originX;
+  const dy = event.clientY - touchMovement.originY;
+  const distance = Math.min(maxDistance, Math.hypot(dx, dy));
+  const angle = Math.atan2(dy, dx);
+  const stickX = Math.cos(angle) * distance;
+  const stickY = Math.sin(angle) * distance;
+
+  touchMovement.x = stickX / maxDistance;
+  touchMovement.z = -stickY / maxDistance;
+  touchMoveStick.style.transform = `translate(${stickX}px, ${stickY}px)`;
+}
+
+function updateTouchLook(event) {
+  const delta = {
+    movementX: event.clientX - touchLook.x,
+    movementY: event.clientY - touchLook.y,
+  };
+  const look = applyMouseLook(player, delta, {
+    invertY: effects.invertY,
+    yawSensitivity: 0.0042,
+    pitchSensitivity: 0.0032,
+  });
+
+  player.yaw = look.yaw;
+  player.pitch = look.pitch;
+  touchLook.x = event.clientX;
+  touchLook.y = event.clientY;
+}
+
+function endTouchPointer(event) {
+  if (event.pointerId === touchMovement.pointerId) {
+    touchMovement.active = false;
+    touchMovement.pointerId = null;
+    touchMovement.x = 0;
+    touchMovement.z = 0;
+    touchMove.classList.remove('active');
+    touchMoveStick.style.transform = 'translate(0, 0)';
+  }
+
+  if (event.pointerId === touchLook.pointerId) {
+    touchLook.active = false;
+    touchLook.pointerId = null;
+  }
 }
 
 function requestPointerLockSafely() {
@@ -483,7 +676,7 @@ function setupOptions() {
     titleButtonState.active = false;
   });
 
-  const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise'];
+  const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise', 'playerTorch'];
   for (const id of bindings) {
     const input = document.querySelector(`#${id}`);
     input.checked = Boolean(effects[id]);
@@ -507,7 +700,7 @@ function setupOptions() {
     option.textContent = definition.label;
     return option;
   }));
-  scene.value = effects.sceneId;
+  syncSceneSelect();
   scene.addEventListener('change', () => {
     setScene(scene.value);
   });
@@ -546,8 +739,7 @@ function startRandomScene() {
 
   const randomScene = SCENE_DEFINITIONS[Math.floor(Math.random() * SCENE_DEFINITIONS.length)];
   setScene(randomScene.id);
-  const scene = document.querySelector('#scene');
-  scene.value = effects.sceneId;
+  syncSceneSelect();
 
   titleActive = false;
   titleScreen.hidden = true;
@@ -709,6 +901,45 @@ function syncReticule() {
   reticule.hidden = !effects.showReticule;
 }
 
+function startDeathSequence(now) {
+  if (deathState.active) return;
+
+  deathState.active = true;
+  deathState.startedAt = now;
+  keys.clear();
+  player.velocityY = 0;
+  player.grounded = false;
+  playDeathSound();
+}
+
+function updateDeathSequence(now) {
+  if (now - deathState.startedAt < DEATH_RESPAWN_DELAY_MS) return;
+
+  deathState.active = false;
+  resetPlayerToSpawn();
+}
+
+function getDeathTint(now) {
+  if (!deathState.active) return 0;
+
+  const elapsed = now - deathState.startedAt;
+  const pulse = Math.sin(elapsed * 0.018) * 0.08;
+  return Math.max(0, Math.min(0.62, 0.48 + pulse));
+}
+
+function syncSceneSelect() {
+  const scene = document.querySelector('#scene');
+  if (scene) scene.value = effects.sceneId;
+}
+
+function getSceneShortcutIndex(code) {
+  const match = code.match(/^(?:Digit([0-9])|Numpad([0-9]))$/);
+  if (!match) return -1;
+
+  const keyNumber = Number(match[1] ?? match[2]);
+  return keyNumber === 0 ? 9 : keyNumber - 1;
+}
+
 function setRenderResolution(id) {
   const next = getResolutionMode(id);
   if (renderResolution.id === next.id) return;
@@ -721,21 +952,28 @@ function setRenderResolution(id) {
 
 function setScene(id) {
   const nextWorld = createSceneWorld(id);
-  if (world.id === nextWorld.id) return;
+  if (world.id === nextWorld.id) {
+    syncSceneSelect();
+    return;
+  }
 
   effects.sceneId = nextWorld.id;
   world = nextWorld;
   textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
   colliders = getSceneColliders(world);
+  walkableSurfaces = getSceneWalkableSurfaces(world);
   resetPlayerToSpawn();
 
   deleteMeshBuffers(gl, warehouseMesh);
   gl.deleteTexture(atlasTexture);
   warehouseMesh = createWarehouseMesh(gl, world, textureIndices);
   atlasTexture = createTextureAtlas(gl, world.textures);
+  syncSceneSelect();
 }
 
 function resetPlayerToSpawn() {
+  deathState.active = false;
+  deathState.startedAt = 0;
   player.x = world.playerSpawn.x;
   player.y = world.playerSpawn.y;
   player.z = world.playerSpawn.z;
@@ -743,13 +981,26 @@ function resetPlayerToSpawn() {
   player.pitch = 0;
   player.velocityY = 0;
   player.grounded = true;
-  player.groundY = world.playerSpawn.y;
+  player.groundY = getGroundYAt(player, walkableSurfaces) ?? world.playerSpawn.y;
 }
 
 function getSceneColliders(scene) {
-  return [...scene.walls, ...scene.crates]
+  return [...scene.walls, ...scene.crates, ...(scene.platforms ?? [])]
     .map((item) => item.collider)
     .filter(Boolean);
+}
+
+function getSceneWalkableSurfaces(scene) {
+  const floorPieces = scene.floorPieces ?? [scene.floor];
+  return [...floorPieces, ...(scene.platforms ?? []), ...scene.walls, ...scene.crates]
+    .filter(Boolean)
+    .map((item) => ({
+      minX: item.x - item.width / 2,
+      maxX: item.x + item.width / 2,
+      minZ: item.z - item.depth / 2,
+      maxZ: item.z + item.depth / 2,
+      topY: item.y + item.height,
+    }));
 }
 
 function createWarehouseMesh(glContext, scene, indices) {
@@ -764,6 +1015,10 @@ function createWarehouseMesh(glContext, scene, indices) {
 
   for (const wall of scene.walls) {
     addBox(geometry, wall, indices, { shade: wall.height < 2 ? 0.72 : 0.88, uvScale: 1.0, motion: motionCode(wall.motion) });
+  }
+
+  for (const platform of scene.platforms ?? []) {
+    addBox(geometry, platform, indices, { shade: 0.76, uvScale: 1.0, motion: motionCode(platform.motion) });
   }
 
   for (const crateItem of scene.crates) {
@@ -1575,6 +1830,7 @@ varying vec2 vUv;
 varying float vTextureId;
 varying float vShade;
 varying float vMotion;
+varying vec3 vWorldPosition;
 
 void main() {
   vec3 warped = aPosition;
@@ -1620,6 +1876,7 @@ void main() {
   vTextureId = aTextureId;
   vShade = aShade;
   vMotion = aMotion;
+  vWorldPosition = warped;
 }
 `;
 
@@ -1634,11 +1891,17 @@ uniform float uLightningTextureId;
 uniform float uLightningStrength;
 uniform float uRainTextureId;
 uniform highp float uShootingStarTextureId;
+uniform vec3 uTorchPosition;
+uniform vec3 uTorchColor;
+uniform float uTorchRadius;
+uniform float uTorchIntensity;
+uniform float uTorchEnabled;
 
 varying vec2 vUv;
 varying float vTextureId;
 varying float vShade;
 varying float vMotion;
+varying vec3 vWorldPosition;
 
 float orderedDither(vec2 p) {
   vec2 q = mod(floor(p), 4.0);
@@ -1696,6 +1959,11 @@ void main() {
 
   float posterize = floor(vShade * 5.0) / 5.0;
   vec3 color = texel.rgb * posterize;
+  float torchDistance = distance(vWorldPosition, uTorchPosition);
+  float torchFalloff = clamp(1.0 - torchDistance / max(uTorchRadius, 0.001), 0.0, 1.0);
+  torchFalloff *= torchFalloff * uTorchEnabled;
+  color *= 1.0 + torchFalloff * 0.38;
+  color += uTorchColor * torchFalloff * uTorchIntensity * 0.34;
   color *= mix(1.0, step(0.0, sin(uTime * 2.5 + gl_FragCoord.x * 0.03)) * 0.85 + 0.15, windowMask);
   float lightningMask = 1.0 - step(0.5, abs(id - uLightningTextureId));
   color = mix(color, vec3(0.15 + uLightningStrength * 1.7), lightningMask);
@@ -1740,6 +2008,7 @@ uniform vec2 uSourceResolution;
 uniform float uFlipFramebufferY;
 uniform float uOneBit;
 uniform float uLightningStrength;
+uniform float uDeathTint;
 
 varying vec2 vUv;
 
@@ -1817,6 +2086,7 @@ void main() {
   vec3 oneBitInk = vec3(0.09, 0.075, 0.055);
   vec3 oneBitPaper = vec3(0.86, 0.82, 0.67);
   color = mix(color, mix(oneBitInk, oneBitPaper, step(oneBitThreshold, oneBitTone)), uOneBit);
+  color = mix(color, vec3(0.78, 0.02, 0.02), uDeathTint);
 
   gl_FragColor = vec4(color, 1.0);
 }

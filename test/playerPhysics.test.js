@@ -7,6 +7,9 @@ import {
   createMouseLookDelta,
   createInputVector,
   createMovementDelta,
+  getGroundYAt,
+  getVoidDeathY,
+  isBelowKillPlane,
   resolveMovement,
 } from '../src/playerPhysics.js';
 
@@ -81,6 +84,36 @@ test('lands back on the scene ground height', () => {
   const landed = applyJumpPhysics({ y: 1.5, velocityY: -10, grounded: false }, { jump: false, dt: 0.2, groundY: 1.45 });
 
   assert.deepEqual(landed, { y: 1.45, velocityY: 0, grounded: true });
+});
+
+test('uses the highest walkable surface under the player as ground height', () => {
+  const surfaces = [
+    { minX: -5, maxX: 5, minZ: -5, maxZ: 5, topY: 0 },
+    { minX: -1, maxX: 1, minZ: -1, maxZ: 1, topY: 1.2 },
+  ];
+
+  assert.equal(getGroundYAt({ x: 0, z: 0 }, surfaces), 2.65);
+  assert.equal(getGroundYAt({ x: 3, z: 0 }, surfaces), 1.45);
+});
+
+test('allows horizontal movement into a block when jumping above its top', () => {
+  const blocks = [{ minX: -1, maxX: 1, minZ: 2, maxZ: 3, minY: 0, maxY: 0.8 }];
+  const start = { x: 0, y: 2.6, z: 0 };
+  const desired = { x: 0, z: 2.5 };
+
+  const next = resolveMovement(start, desired, blocks, 0.25);
+
+  assert.deepEqual(next, desired);
+});
+
+test('detects when the player has fallen below the scene kill plane', () => {
+  assert.equal(isBelowKillPlane({ y: -8.1 }, -8), true);
+  assert.equal(isBelowKillPlane({ y: -7.9 }, -8), false);
+});
+
+test('places the death plane three times deeper than the scene fall boundary', () => {
+  assert.equal(getVoidDeathY(-8), -24);
+  assert.equal(getVoidDeathY(-12), -36);
 });
 
 function roundGround(delta) {

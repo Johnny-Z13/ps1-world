@@ -73,6 +73,12 @@ export function createWarehouseWorld() {
     crate(-3.5, -2.2, 1.0, 1.4, 1.0),
   ];
 
+  const platforms = [
+    box('loading crate step low', -4.6, 7.2, 2.4, 2.0, 0.55, 'crate'),
+    box('loading crate step high', -2.0, 7.2, 2.2, 2.0, 1.1, 'crate'),
+    box('office roof jump ledge', -7.8, -4.5, 3.2, 2.2, 1.45, 'metal'),
+  ];
+
   return {
     id: 'dungeon',
     label: 'Dungeon',
@@ -81,6 +87,7 @@ export function createWarehouseWorld() {
     ceiling: box('ceiling', 0, 0, 25.6, 23.6, 0.08, 'metal', WALL_HEIGHT),
     walls,
     crates,
+    platforms,
     mountains: [],
     sun: null,
     lights: [
@@ -90,6 +97,7 @@ export function createWarehouseWorld() {
       { x: 8, y: 2.8, z: 8, color: [0.85, 0.95, 1.0] },
     ],
     playerSpawn: { x: -9.5, y: 1.45, z: 9.5, yaw: 2.35 },
+    killY: -8,
     textures,
   };
 }
@@ -124,6 +132,12 @@ function createAlienLandscapeWorld() {
     box('broken pylon', 13, 4, 1.2, 1.2, 2.2, 'metal'),
   ];
 
+  const platforms = [
+    box('purple basalt stair low', -4, 8, 5.4, 3.0, 0.55, 'alienRock'),
+    box('purple basalt stair high', -8, 5.2, 4.2, 3.0, 1.2, 'alienRock'),
+    box('signal ridge lookout', 10, -13, 5.0, 4.0, 1.55, 'alienRock'),
+  ];
+
   return {
     id: 'alien-landscape',
     label: 'Alien landscape',
@@ -137,6 +151,7 @@ function createAlienLandscapeWorld() {
       box('south map edge', 0, 40.5, 80, 0.6, 1.2, 'alienRock'),
     ],
     crates,
+    platforms,
     mountains,
     stars: createAlienStars(),
     sun: {
@@ -166,6 +181,7 @@ function createAlienLandscapeWorld() {
       { x: 0, y: 5, z: 20, color: [0.55, 1.0, 0.78] },
     ],
     playerSpawn: { x: 0, y: 1.45, z: 15, yaw: 3.12 },
+    killY: -10,
     textures,
   };
 }
@@ -244,6 +260,12 @@ function createRotwoodForestWorld() {
     crates.push(box(`stone circle marker ${i + 1}`, Math.cos(angle) * 5.5 + 4, Math.sin(angle) * 5.5 - 13, 0.7, 0.7, 1.2 + (i % 2) * 0.4, 'mossStone'));
   }
 
+  const platforms = [
+    box('mossy root stair low', -6, 15, 4.8, 2.2, 0.55, 'rotRoot'),
+    box('mossy root stair high', -9, 12.5, 4.0, 2.2, 1.1, 'rotRoot'),
+    box('fallen trunk overlook', 9.5, -4.5, 7.2, 2.1, 1.25, 'deadWood'),
+  ];
+
   const cards = [];
   for (let i = 0; i < 28; i += 1) {
     const x = -28 + (i % 7) * 9.4 + (hash(i, 7, 8) - 0.5) * 2.5;
@@ -265,6 +287,7 @@ function createRotwoodForestWorld() {
     ceiling: null,
     walls,
     crates,
+    platforms,
     mountains: [
       mountain('fogged treeline west', -24, -38, 16, 8, 8, 'rotBark'),
       mountain('fogged treeline center', -5, -40, 20, 8, 9, 'rotBark'),
@@ -275,12 +298,18 @@ function createRotwoodForestWorld() {
       card('sliding pale moon behind treeline', -18, 15, -36, 5.8, 5.8, 'paleMoon', 'moon-slide'),
     ],
     sun: null,
+    playerTorch: {
+      radius: 12,
+      intensity: 1.45,
+      color: [1.0, 0.52, 0.22],
+    },
     lights: [
       { x: -18, y: 10, z: -28, color: [0.55, 0.68, 0.85] },
       { x: 7, y: 3.4, z: -12, color: [0.48, 0.72, 0.42] },
       { x: 14, y: 2.4, z: 8, color: [0.36, 0.5, 0.28] },
     ],
     playerSpawn: { x: 0, y: 1.45, z: 20, yaw: 3.08 },
+    killY: -9,
     textures,
   };
 }
@@ -312,6 +341,11 @@ function createAstralGeometryGardenWorld() {
     box('left platform rail', -24.5, -19, 0.45, 13, 1.2, 'astralCyan'),
     box('right platform rail', 25.5, -17, 0.45, 15, 1.2, 'astralMagenta'),
   ];
+  const platforms = [
+    box('central ziggurat step one', -4.5, 4, 3.8, 3.2, 0.6, 'astralYellow'),
+    box('central ziggurat step two', 0, 4, 3.8, 3.2, 1.2, 'astralMagenta'),
+    box('central ziggurat step three', 4.5, 4, 3.8, 3.2, 1.8, 'astralCyan'),
+  ];
   const crates = [
     box('central mirrored obelisk', 0, -7, 2.6, 2.6, 8.8, 'astralCyan'),
     box('cyan rotating diamond north', -7, -24, 2.8, 2.8, 3.8, 'astralCyan', 3.5, false, 'bob'),
@@ -320,9 +354,6 @@ function createAstralGeometryGardenWorld() {
     box('black rotating diamond rear', 7, -31, 2.8, 2.8, 3.8, 'astralBlack', 3.7, false, 'bob'),
     box('mirrored monolith left', -20, -23, 2, 4, 6.5, 'oneBitGrid'),
     box('mirrored monolith right', 22, -20, 2, 4, 6.5, 'oneBitGrid'),
-    box('ziggurat base', 0, 4, 8, 5, 1.0, 'astralYellow'),
-    box('ziggurat step', 0, 4, 5.8, 3.6, 1.0, 'astralMagenta', 0.95),
-    box('ziggurat cap', 0, 4, 3.3, 2.1, 1.0, 'astralCyan', 1.9),
   ];
   for (let i = 0; i < 10; i += 1) {
     const angle = i / 10 * Math.PI * 2;
@@ -338,6 +369,7 @@ function createAstralGeometryGardenWorld() {
     ceiling: null,
     walls,
     crates,
+    platforms,
     mountains: [
       mountain('cyan pyramid shard', -16, -31, 8, 7, 7, 'astralCyan'),
       mountain('magenta pyramid shard', 15, -30, 8, 7, 7, 'astralMagenta'),
@@ -359,6 +391,7 @@ function createAstralGeometryGardenWorld() {
       { x: 18, y: 6, z: -17, color: [1.0, 0.9, 0.18] },
     ],
     playerSpawn: { x: 0, y: 1.45, z: 8.5, yaw: 3.08 },
+    killY: -12,
     textures,
   };
 }
@@ -401,6 +434,11 @@ function createMotelMirageWorld() {
     box('parked car b', 20, 9, 4.0, 2.1, 1.2, 'car'),
     box('warped rear room block', 13, -33, 10, 2.4, 5.8, 'motelWall'),
   ];
+  const platforms = [
+    box('pool basin step low', -4.5, -0.5, 3.6, 2.4, 0.5, 'motelWall'),
+    box('pool basin step high', 0, -0.5, 3.6, 2.4, 1.0, 'motelWall'),
+    box('parking curb jump pad', 15, 16, 5.2, 2.4, 0.75, 'wetAsphalt'),
+  ];
   for (let i = 0; i < 8; i += 1) {
     crates.push(box(`palm trunk ${i + 1}`, -21 + (i % 4) * 14, 13 - Math.floor(i / 4) * 28, 0.8, 0.8, 4.4, 'palm'));
   }
@@ -426,6 +464,7 @@ function createMotelMirageWorld() {
     ceiling: null,
     walls,
     crates,
+    platforms,
     mountains: [
       mountain('strange rear roofline left', -17, -39, 10, 6, 5, 'motelWall'),
       mountain('strange rear roofline right', 18, -39, 10, 6, 5, 'motelWall'),
@@ -442,6 +481,7 @@ function createMotelMirageWorld() {
       { x: 10, y: 5, z: -8, color: [1.0, 0.38, 0.28] },
     ],
     playerSpawn: { x: -7.5, y: 1.45, z: 18, yaw: 3.03 },
+    killY: -9,
     textures,
   };
 }
@@ -483,6 +523,11 @@ function createDerelictStarshipWorld() {
       box('server rack', 11, -5.5, 1.2, 3.0, 2.2, 'panel'),
       box('cargo pallet', 9.8, 10.5, 3.2, 1.7, 1.2, 'metal'),
     ],
+    platforms: [
+      box('cargo stair low', 6.4, 10.5, 2.6, 1.7, 0.55, 'metal'),
+      box('cargo stair high', 8.2, 10.5, 2.6, 1.7, 1.1, 'metal'),
+      box('reactor service platform', -2.8, 6.8, 2.4, 2.2, 1.35, 'warning'),
+    ],
     mountains: [],
     sun: null,
     lights: [
@@ -492,6 +537,7 @@ function createDerelictStarshipWorld() {
       { x: 10, y: 2.5, z: 10, color: [1.0, 0.68, 0.32] },
     ],
     playerSpawn: { x: 0, y: 1.45, z: 13, yaw: 3.14 },
+    killY: -8,
     textures,
   };
 }
@@ -537,10 +583,13 @@ function createNeonBackstreetsWorld() {
     box('tree leaf crown rear', 10.7, -5.2, 4.8, 3.4, 2.8, 'neonLeaf', 7.8),
     box('glass platform railing left', -9.5, 17.5, 0.45, 9.5, 1.2, 'neonGlass', 0.8),
     box('glass platform railing right', 9.5, 17.5, 0.45, 9.5, 1.2, 'neonGlass', 0.8),
-    box('floating platform step a', -15.5, 8.0, 5.0, 3.0, 0.5, 'neonTile', 1.4, true),
-    box('floating platform step b', -19.0, 2.4, 4.0, 3.0, 0.5, 'neonTile', 2.4, true),
-    box('floating platform step c', -23.0, -3.2, 3.5, 2.6, 0.5, 'neonTile', 3.4, true),
-    box('floating platform step d', 22.0, 10.0, 5.5, 3.0, 0.5, 'neonTile', 2.2, true),
+  ];
+
+  const platforms = [
+    box('neon stair low solid', -15.5, 8.0, 5.0, 3.0, 0.5, 'neonTile', 1.4),
+    box('neon stair mid solid', -19.0, 2.4, 4.0, 3.0, 0.5, 'neonTile', 2.4),
+    box('neon stair high solid', -23.0, -3.2, 3.5, 2.6, 0.5, 'neonTile', 3.4),
+    box('neon right jump island solid', 22.0, 10.0, 5.5, 3.0, 0.5, 'neonTile', 2.2),
   ];
 
   const clouds = [
@@ -559,6 +608,7 @@ function createNeonBackstreetsWorld() {
     ceiling: null,
     walls,
     crates,
+    platforms,
     mountains: clouds,
     sun: null,
     lightning: {
@@ -608,6 +658,7 @@ function createNeonBackstreetsWorld() {
       { x: -10, y: 5, z: 18, color: [1.0, 0.25, 0.92] },
     ],
     playerSpawn: { x: 0, y: 1.45, z: 24, yaw: 3.12 },
+    killY: -14,
     textures,
   };
 }
@@ -658,6 +709,11 @@ function createSunkenTempleWorld() {
       box('altar', 0, 0, 4.0, 3.0, 1.2, 'templeStone'),
       box('fallen lintel', -1, 15, 9, 1.2, 0.8, 'mossStone'),
     ],
+    platforms: [
+      box('submerged stair low', -7, 14, 4.0, 2.6, 0.55, 'templeStone'),
+      box('submerged stair high', -3, 14, 4.0, 2.6, 1.1, 'templeStone'),
+      box('altar upper landing', 3.6, 0, 3.2, 3.0, 1.7, 'mossStone'),
+    ],
     mountains: [
       mountain('distant jungle mound west', -22, -32, 14, 8, 5, 'mossStone'),
       mountain('distant jungle mound east', 21, -31, 16, 9, 6, 'mossStone'),
@@ -674,6 +730,7 @@ function createSunkenTempleWorld() {
       { x: -18, y: 14, z: -28, color: [0.75, 0.85, 1.0] },
     ],
     playerSpawn: { x: 0, y: 1.45, z: 22, yaw: 3.14 },
+    killY: -9,
     textures,
   };
 }
@@ -723,6 +780,11 @@ function createOneBitCathedralWorld() {
     box('tower crown spike', 0, -17.4, 2.0, 1.4, 3.7, 'oneBitCross', 7.8),
     box('center aisle dark strip', 0, 10.4, 2.1, 22.4, 0.18, 'oneBitVoid', 0, true),
   ];
+  const platforms = [
+    box('pixel stair low', -3.5, 14, 3.0, 2.2, 0.55, 'oneBitStripe'),
+    box('pixel stair high', 0, 14, 3.0, 2.2, 1.1, 'oneBitCross'),
+    box('altar side platform', 4.2, -2.6, 2.6, 3.1, 1.65, 'oneBitGrid'),
+  ];
 
   for (let i = 0; i < 8; i += 1) {
     const z = -16 + i * 4.8;
@@ -747,6 +809,7 @@ function createOneBitCathedralWorld() {
     ceiling: null,
     walls,
     crates,
+    platforms,
     mountains: [
       mountain('left raster skyline', -18, -31, 14, 8, 7, 'oneBitCircuit'),
       mountain('center raster skyline', 0, -33, 18, 9, 9, 'oneBitCross'),
@@ -760,6 +823,7 @@ function createOneBitCathedralWorld() {
       { x: 0, y: 4, z: 18, color: [1, 1, 1] },
     ],
     playerSpawn: { x: 0, y: 1.45, z: 21, yaw: 3.14 },
+    killY: -8,
     textures,
   };
 }
@@ -778,6 +842,8 @@ function box(name, x, z, width, depth, height, texture, y = 0, noCollider = fals
     collider: noCollider ? null : {
       minX: x - width / 2,
       maxX: x + width / 2,
+      minY: y,
+      maxY: y + height,
       minZ: z - depth / 2,
       maxZ: z + depth / 2,
     },
