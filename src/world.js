@@ -7,6 +7,9 @@ export const SCENE_DEFINITIONS = Object.freeze([
   Object.freeze({ id: 'neon-backstreets', label: 'Neon backstreets' }),
   Object.freeze({ id: 'sunken-temple', label: 'Sunken temple' }),
   Object.freeze({ id: 'one-bit-cathedral', label: '1-bit cathedral' }),
+  Object.freeze({ id: 'rotwood-forest', label: 'Polygonal Rotwood Forest' }),
+  Object.freeze({ id: 'astral-geometry-garden', label: 'Astral Geometry Garden' }),
+  Object.freeze({ id: 'motel-mirage', label: 'Liminal Motel Mirage' }),
 ]);
 
 export function createSceneWorld(id) {
@@ -15,6 +18,9 @@ export function createSceneWorld(id) {
   if (id === 'neon-backstreets') return createNeonBackstreetsWorld();
   if (id === 'sunken-temple') return createSunkenTempleWorld();
   if (id === 'one-bit-cathedral') return createOneBitCathedralWorld();
+  if (id === 'rotwood-forest') return createRotwoodForestWorld();
+  if (id === 'astral-geometry-garden') return createAstralGeometryGardenWorld();
+  if (id === 'motel-mirage') return createMotelMirageWorld();
   return createWarehouseWorld();
 }
 
@@ -97,6 +103,8 @@ function createAlienLandscapeWorld() {
     { id: 'alienGround', size: 128 },
     { id: 'alienRock', size: 64 },
     { id: 'sun', size: 64 },
+    { id: 'star', size: 64 },
+    { id: 'shootingStar', size: 128 },
     { id: 'metal', size: 128 },
   ];
 
@@ -130,6 +138,7 @@ function createAlienLandscapeWorld() {
     ],
     crates,
     mountains,
+    stars: createAlienStars(),
     sun: {
       name: 'small red sun',
       x: 16,
@@ -138,6 +147,17 @@ function createAlienLandscapeWorld() {
       width: 7,
       height: 7,
       texture: 'sun',
+    },
+    shootingStar: {
+      texture: 'shootingStar',
+      x: -31,
+      y: 22,
+      z: -38.5,
+      width: 18,
+      height: 2.0,
+      interval: 9,
+      delay: 1.25,
+      duration: 2.4,
     },
     lights: [
       { x: 16, y: 18, z: -30, color: [1.0, 0.48, 0.22] },
@@ -150,8 +170,284 @@ function createAlienLandscapeWorld() {
   };
 }
 
+function createAlienStars() {
+  const stars = [];
+  for (let i = 0; i < 42; i += 1) {
+    const n = hash(i * 9.13, i * 2.71, 17);
+    const x = -36 + (i % 14) * 5.45 + (n - 0.5) * 2.2;
+    const y = 11.5 + Math.floor(i / 14) * 5.1 + hash(i, 5, 31) * 4.4;
+    const z = -36.2 - hash(i, 11, 23) * 2.0;
+    const size = 0.5 + hash(i, 19, 7) * 0.58;
+
+    stars.push({
+      name: `alien star ${i + 1}`,
+      x,
+      y,
+      z,
+      width: size,
+      height: size,
+      texture: 'star',
+    });
+  }
+  return stars;
+}
+
 function mountain(name, x, z, width, depth, height, texture) {
   return { name, x, y: 0, z, width, depth, height, texture };
+}
+
+function hash(x, y, seed) {
+  return Math.abs(Math.sin(x * 12.9898 + y * 78.233 + seed * 37.719) * 43758.5453) % 1;
+}
+
+function createRotwoodForestWorld() {
+  const textures = [
+    { id: 'rotMud', size: 128 },
+    { id: 'rotBark', size: 64 },
+    { id: 'rotPine', size: 64 },
+    { id: 'rotRoot', size: 64 },
+    { id: 'mossStone', size: 64 },
+    { id: 'blackWater', size: 64 },
+    { id: 'deadWood', size: 64 },
+    { id: 'paleMoon', size: 64 },
+    { id: 'firefly', size: 64 },
+    { id: 'fallingLeaf', size: 64 },
+  ];
+
+  const walls = [
+    box('north fog wall', 0, -34, 68, 0.7, 2.2, 'rotBark'),
+    box('south root wall', 0, 34, 68, 0.7, 2.2, 'rotRoot'),
+    box('west bramble wall', -34, 0, 0.7, 68, 2.2, 'rotRoot'),
+    box('east bramble wall', 34, 0, 0.7, 68, 2.2, 'rotRoot'),
+  ];
+  const crates = [
+    box('dead hollow tree trunk', -9, -13, 3.4, 3.0, 7.6, 'rotBark'),
+    box('dead hollow tree split crown', -9.5, -14.4, 4.8, 1.0, 2.4, 'deadWood', 6.3),
+    box('crooked root arch left', -5.7, -6.2, 1.4, 5.8, 2.7, 'rotRoot'),
+    box('crooked root arch right', -1.8, -6.1, 1.2, 5.3, 2.4, 'rotRoot'),
+    box('crooked root arch cap', -3.7, -8.8, 4.8, 1.0, 1.2, 'rotRoot', 2.2),
+    box('sunken footbridge plank a', 10, -4, 8.8, 1.0, 0.22, 'deadWood', 0.05, true),
+    box('sunken footbridge plank b', 10, -2.5, 7.5, 1.0, 0.2, 'deadWood', 0.03, true),
+    box('black pond mirror', 13.5, 7.4, 9.5, 6.4, 0.08, 'blackWater', -0.03, true),
+  ];
+
+  for (let i = 0; i < 18; i += 1) {
+    const x = -27 + (i % 6) * 10.5 + (hash(i, 2, 1) - 0.5) * 3;
+    const z = -25 + Math.floor(i / 6) * 14 + (hash(i, 3, 2) - 0.5) * 5;
+    if (Math.abs(x) < 5 && z > 8) continue;
+    crates.push(box(`black tree trunk ${i + 1}`, x, z, 1.2 + hash(i, 4, 3), 1.2 + hash(i, 5, 4), 5.5 + hash(i, 6, 5) * 2, 'rotBark'));
+    crates.push(box(`root cluster ${i + 1}`, x + 1.4, z + 0.8, 3.2, 0.8, 0.65, 'rotRoot'));
+  }
+
+  for (let i = 0; i < 10; i += 1) {
+    const angle = i / 10 * Math.PI * 2;
+    crates.push(box(`stone circle marker ${i + 1}`, Math.cos(angle) * 5.5 + 4, Math.sin(angle) * 5.5 - 13, 0.7, 0.7, 1.2 + (i % 2) * 0.4, 'mossStone'));
+  }
+
+  const cards = [];
+  for (let i = 0; i < 28; i += 1) {
+    const x = -28 + (i % 7) * 9.4 + (hash(i, 7, 8) - 0.5) * 2.5;
+    const z = -27 + Math.floor(i / 7) * 12.4 + (hash(i, 8, 9) - 0.5) * 3.5;
+    cards.push(card(`flat pine bough ${i + 1}`, x, 6.2 + hash(i, 9, 10) * 2.4, z, 4.8, 3.2, 'rotPine', 'sway'));
+  }
+  for (let i = 0; i < 16; i += 1) {
+    cards.push(card(`firefly pixel ${i + 1}`, -17 + (i % 8) * 4.8, 1.7 + hash(i, 10, 11) * 2.0, -11 + Math.floor(i / 8) * 17, 0.42, 0.42, 'firefly', 'firefly'));
+  }
+  for (let i = 0; i < 12; i += 1) {
+    cards.push(card(`falling leaf card ${i + 1}`, -22 + (i % 6) * 8.5, 6.8 + hash(i, 11, 12) * 2.6, -18 + Math.floor(i / 6) * 22, 0.55, 0.72, 'fallingLeaf', 'falling-leaf'));
+  }
+
+  return {
+    id: 'rotwood-forest',
+    label: 'Polygonal Rotwood Forest',
+    clearColor: [0.025, 0.032, 0.023, 1],
+    floor: box('muddy path clearing floor', 0, 0, 68, 68, 0.08, 'rotMud', -0.08),
+    ceiling: null,
+    walls,
+    crates,
+    mountains: [
+      mountain('fogged treeline west', -24, -38, 16, 8, 8, 'rotBark'),
+      mountain('fogged treeline center', -5, -40, 20, 8, 9, 'rotBark'),
+      mountain('fogged treeline east', 17, -38, 18, 8, 8, 'rotBark'),
+    ],
+    cards,
+    movingBillboards: [
+      card('sliding pale moon behind treeline', -18, 15, -36, 5.8, 5.8, 'paleMoon', 'moon-slide'),
+    ],
+    sun: null,
+    lights: [
+      { x: -18, y: 10, z: -28, color: [0.55, 0.68, 0.85] },
+      { x: 7, y: 3.4, z: -12, color: [0.48, 0.72, 0.42] },
+      { x: 14, y: 2.4, z: 8, color: [0.36, 0.5, 0.28] },
+    ],
+    playerSpawn: { x: 0, y: 1.45, z: 20, yaw: 3.08 },
+    textures,
+  };
+}
+
+function createAstralGeometryGardenWorld() {
+  const textures = [
+    { id: 'astralGrid', size: 128 },
+    { id: 'astralCyan', size: 64 },
+    { id: 'astralMagenta', size: 64 },
+    { id: 'astralYellow', size: 64 },
+    { id: 'astralBlack', size: 64 },
+    { id: 'oneBitGrid', size: 128 },
+    { id: 'shootingStar', size: 128 },
+    { id: 'flickerComet', size: 64 },
+  ];
+  const floorPieces = [
+    box('central checker platform', 0, 0, 18, 18, 0.45, 'astralGrid', -0.1),
+    box('cyan bridge north', 0, -17, 5, 16, 0.35, 'astralCyan', -0.08),
+    box('yellow left platform', -17, -19, 15, 13, 0.38, 'astralYellow', -0.06),
+    box('magenta right platform', 18, -17, 15, 15, 0.38, 'astralMagenta', -0.06),
+    box('one-bit rear dais', 0, -32, 18, 11, 0.4, 'oneBitGrid', -0.05),
+    box('black bridge east', 11, 0, 12, 4.2, 0.33, 'astralBlack', -0.05),
+  ];
+  const walls = [
+    box('west void lip', -28, -12, 0.6, 52, 1.5, 'astralBlack'),
+    box('east void lip', 29, -12, 0.6, 52, 1.5, 'astralBlack'),
+    box('north void lip', 0, -39, 58, 0.6, 1.5, 'astralBlack'),
+    box('south void lip', 0, 11, 58, 0.6, 1.5, 'astralBlack'),
+    box('left platform rail', -24.5, -19, 0.45, 13, 1.2, 'astralCyan'),
+    box('right platform rail', 25.5, -17, 0.45, 15, 1.2, 'astralMagenta'),
+  ];
+  const crates = [
+    box('central mirrored obelisk', 0, -7, 2.6, 2.6, 8.8, 'astralCyan'),
+    box('cyan rotating diamond north', -7, -24, 2.8, 2.8, 3.8, 'astralCyan', 3.5, false, 'bob'),
+    box('magenta rotating diamond east', 16, -11, 2.8, 2.8, 3.8, 'astralMagenta', 3.2, false, 'bob'),
+    box('yellow rotating diamond west', -16, -11, 2.8, 2.8, 3.8, 'astralYellow', 3.0, false, 'bob'),
+    box('black rotating diamond rear', 7, -31, 2.8, 2.8, 3.8, 'astralBlack', 3.7, false, 'bob'),
+    box('mirrored monolith left', -20, -23, 2, 4, 6.5, 'oneBitGrid'),
+    box('mirrored monolith right', 22, -20, 2, 4, 6.5, 'oneBitGrid'),
+    box('ziggurat base', 0, 4, 8, 5, 1.0, 'astralYellow'),
+    box('ziggurat step', 0, 4, 5.8, 3.6, 1.0, 'astralMagenta', 0.95),
+    box('ziggurat cap', 0, 4, 3.3, 2.1, 1.0, 'astralCyan', 1.9),
+  ];
+  for (let i = 0; i < 10; i += 1) {
+    const angle = i / 10 * Math.PI * 2;
+    crates.push(box(`orbit cube ${i + 1}`, Math.cos(angle) * 7.2, -7 + Math.sin(angle) * 7.2, 1.1, 1.1, 1.1, i % 2 ? 'astralMagenta' : 'astralCyan', 2.2, false, 'orbit'));
+  }
+
+  return {
+    id: 'astral-geometry-garden',
+    label: 'Astral Geometry Garden',
+    clearColor: [0.01, 0.0, 0.035, 1],
+    floor: floorPieces[0],
+    floorPieces,
+    ceiling: null,
+    walls,
+    crates,
+    mountains: [
+      mountain('cyan pyramid shard', -16, -31, 8, 7, 7, 'astralCyan'),
+      mountain('magenta pyramid shard', 15, -30, 8, 7, 7, 'astralMagenta'),
+      mountain('yellow pyramid shard', -11, -6, 7, 6, 5.5, 'astralYellow'),
+      mountain('black pyramid shard', 18, -4, 7, 6, 5.5, 'astralBlack'),
+    ],
+    cards: [
+      card('distant polygon comet 1', -24, 12, -35, 3.5, 1.0, 'flickerComet', 'flicker-comet'),
+      card('distant polygon comet 2', -6, 15, -38, 3.5, 1.0, 'flickerComet', 'flicker-comet'),
+      card('distant polygon comet 3', 18, 13, -36, 3.5, 1.0, 'flickerComet', 'flicker-comet'),
+      card('distant polygon comet 4', 27, 10, -30, 3.5, 1.0, 'flickerComet', 'flicker-comet'),
+    ],
+    movingBillboards: [],
+    sun: null,
+    shootingStar: { texture: 'shootingStar', x: -26, y: 17, z: -37, width: 15, height: 1.5, interval: 10, delay: 1, duration: 2.0 },
+    lights: [
+      { x: 0, y: 9, z: -7, color: [0.45, 1.0, 1.0] },
+      { x: -18, y: 6, z: -18, color: [1.0, 0.2, 0.9] },
+      { x: 18, y: 6, z: -17, color: [1.0, 0.9, 0.18] },
+    ],
+    playerSpawn: { x: 0, y: 1.45, z: 8.5, yaw: 3.08 },
+    textures,
+  };
+}
+
+function createMotelMirageWorld() {
+  const textures = [
+    { id: 'wetAsphalt', size: 128 },
+    { id: 'motelWall', size: 128 },
+    { id: 'motelDoor', size: 64 },
+    { id: 'motelWindow', size: 64 },
+    { id: 'poolWater', size: 64 },
+    { id: 'vending', size: 64 },
+    { id: 'palm', size: 64 },
+    { id: 'motelSign', size: 128 },
+    { id: 'car', size: 64 },
+    { id: 'paleMoon', size: 64 },
+    { id: 'shootingStar', size: 128 },
+  ];
+  const walls = [
+    box('rear motel block', 0, -23, 46, 3.2, 5.2, 'motelWall'),
+    box('left motel wing', -24, -6, 3.2, 34, 4.6, 'motelWall'),
+    box('right covered walkway', 24, -5, 3.2, 34, 3.3, 'motelWall'),
+    box('covered walkway roof', 8, -8, 35, 3.0, 0.45, 'motelWall', 3.2),
+    box('north fence', 0, -38, 58, 0.55, 2.0, 'motelWall'),
+    box('south parking curb', 0, 23, 58, 0.55, 1.0, 'wetAsphalt'),
+    box('west parking curb', -30, -7, 0.55, 60, 1.0, 'wetAsphalt'),
+    box('east parking curb', 30, -7, 0.55, 60, 1.0, 'wetAsphalt'),
+  ];
+  const crates = [
+    box('empty pool north edge', 0, -5.9, 14.5, 0.65, 0.75, 'motelWall'),
+    box('empty pool south edge', 0, 4.9, 14.5, 0.65, 0.75, 'motelWall'),
+    box('empty pool west edge', -7.6, -0.5, 0.65, 11.3, 0.75, 'motelWall'),
+    box('empty pool east edge', 7.6, -0.5, 0.65, 11.3, 0.75, 'motelWall'),
+    box('mostly empty pool water shimmer', 0, -0.5, 12.6, 8.8, 0.08, 'poolWater', -0.04, true),
+    box('flickering vending machine red', -18, 6, 1.4, 1.0, 2.4, 'vending'),
+    box('flickering vending machine blue', -15.8, 6.2, 1.4, 1.0, 2.4, 'vending'),
+    box('buzzing sign pole', -7.2, 16, 0.7, 0.7, 5.5, 'motelWall'),
+    box('buzzing sign board', -7.2, 16, 5.8, 0.6, 2.2, 'motelSign', 5.0),
+    box('parked car a', 13, 12, 4.2, 2.1, 1.25, 'car'),
+    box('parked car b', 20, 9, 4.0, 2.1, 1.2, 'car'),
+    box('warped rear room block', 13, -33, 10, 2.4, 5.8, 'motelWall'),
+  ];
+  for (let i = 0; i < 8; i += 1) {
+    crates.push(box(`palm trunk ${i + 1}`, -21 + (i % 4) * 14, 13 - Math.floor(i / 4) * 28, 0.8, 0.8, 4.4, 'palm'));
+  }
+
+  const cards = [
+    card('oversized moon reflection billboard', 17, 10, -34, 8, 8, 'paleMoon', 'moon-slide'),
+    card('buzzing sign letters', -7.2, 7.0, 15.6, 5.8, 1.4, 'motelSign', 'sign-flicker'),
+    card('shallow pool water shimmer card', 0, 0.15, -0.5, 12, 8, 'poolWater', 'water-shimmer'),
+  ];
+  for (let i = 0; i < 12; i += 1) {
+    cards.push(card(`palm frond snap ${i + 1}`, -21 + (i % 4) * 14 + (i % 3 - 1) * 0.7, 6.0, 13 - Math.floor(i / 4) * 14, 4.2, 1.6, 'palm', 'palm-snap'));
+  }
+  for (let i = 0; i < 10; i += 1) {
+    cards.push(card(`pulsing motel room window ${i + 1}`, -18 + i * 4, 2.8, -21.3, 1.4, 1.0, 'motelWindow', 'window-pulse'));
+    cards.push(card(`repeating motel door ${i + 1}`, -18 + i * 4, 1.55, -21.1, 1.1, 2.3, 'motelDoor', null));
+  }
+
+  return {
+    id: 'motel-mirage',
+    label: 'Liminal Motel Mirage',
+    clearColor: [0.018, 0.018, 0.03, 1],
+    floor: box('wet asphalt courtyard', 0, 0, 60, 60, 0.08, 'wetAsphalt', -0.08),
+    ceiling: null,
+    walls,
+    crates,
+    mountains: [
+      mountain('strange rear roofline left', -17, -39, 10, 6, 5, 'motelWall'),
+      mountain('strange rear roofline right', 18, -39, 10, 6, 5, 'motelWall'),
+    ],
+    cards,
+    movingBillboards: [
+      card('giant motel moon', 18, 15, -35, 7.8, 7.8, 'paleMoon', 'moon-slide'),
+    ],
+    sun: null,
+    shootingStar: { texture: 'shootingStar', x: -25, y: 12, z: -36, width: 12, height: 1.2, interval: 11, delay: 2, duration: 2.1 },
+    lights: [
+      { x: -7, y: 6, z: 13, color: [1.0, 0.72, 0.28] },
+      { x: -17, y: 3, z: 6, color: [0.38, 0.72, 1.0] },
+      { x: 10, y: 5, z: -8, color: [1.0, 0.38, 0.28] },
+    ],
+    playerSpawn: { x: -7.5, y: 1.45, z: 18, yaw: 3.03 },
+    textures,
+  };
+}
+
+function card(name, x, y, z, width, height, texture, motion = null) {
+  return { name, x, y, z, width, height, texture, motion };
 }
 
 function createDerelictStarshipWorld() {
@@ -468,7 +764,7 @@ function createOneBitCathedralWorld() {
   };
 }
 
-function box(name, x, z, width, depth, height, texture, y = 0, noCollider = false) {
+function box(name, x, z, width, depth, height, texture, y = 0, noCollider = false, motion = null) {
   return {
     name,
     x,
@@ -478,6 +774,7 @@ function box(name, x, z, width, depth, height, texture, y = 0, noCollider = fals
     depth,
     height,
     texture,
+    motion,
     collider: noCollider ? null : {
       minX: x - width / 2,
       maxX: x + width / 2,

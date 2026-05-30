@@ -14,10 +14,15 @@ test('renders a center reticule with an options toggle', () => {
 
 test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(index, /id="titleScreen"/);
+  assert.match(index, /id="titleCanvas"/);
   assert.match(index, /id="startButton"/);
-  assert.match(index, />\[start\]</);
+  assert.match(index, /aria-label="\[start\]"/);
   assert.match(styles, /\.title-screen/);
+  assert.match(styles, /\.title-canvas/);
+  assert.match(styles, /image-rendering:\s*pixelated/);
   assert.match(app, /function startRandomScene/);
+  assert.match(app, /const TITLE_WIDTH = 512/);
+  assert.match(app, /drawBitmapGlyph/);
   assert.match(app, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(app, /document\.body\.classList\.remove\('title-active'\)/);
 });
@@ -38,4 +43,12 @@ test('renders one-bit scenes with ordered dithering instead of hard clipping', (
   assert.match(app, /orderedDither/);
   assert.match(app, /oneBitPaper/);
   assert.match(app, /oneBitInk/);
+});
+
+test('renders scene cards and motion flags for animated preset props', () => {
+  assert.match(app, /scene\.floorPieces/);
+  assert.match(app, /scene\.cards/);
+  assert.match(app, /scene\.movingBillboards/);
+  assert.match(app, /function motionCode/);
+  assert.match(app, /attribute float aMotion/);
 });

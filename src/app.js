@@ -20,8 +20,10 @@ import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
 const titleScreen = document.querySelector('#titleScreen');
+const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
 const optionsDialog = document.querySelector('#options');
+const titleContext = titleCanvas.getContext('2d');
 const gl = canvas.getContext('webgl', {
   antialias: false,
   alpha: false,
@@ -52,6 +54,7 @@ const player = {
 
 const keys = new Set();
 let titleActive = true;
+const titleButtonState = { active: false };
 let mouseLookActive = false;
 let gameModeRequested = false;
 let lastPointerUnlockAt = 0;
@@ -129,6 +132,7 @@ function render(time) {
   gl.uniform1f(sceneProgram.uniforms.uLightningTextureId, getTextureIndex(world.lightning?.texture));
   gl.uniform1f(sceneProgram.uniforms.uLightningStrength, lightningStrength);
   gl.uniform1f(sceneProgram.uniforms.uRainTextureId, getTextureIndex(world.rain?.texture));
+  gl.uniform1f(sceneProgram.uniforms.uShootingStarTextureId, getTextureIndex(world.shootingStar?.texture));
   gl.uniform1f(sceneProgram.uniforms.uWarping, effects.warping ? 1 : 0);
   gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection());
   drawMesh(gl, sceneProgram, warehouseMesh);
@@ -163,6 +167,10 @@ function render(time) {
   gl.uniform1f(postProgram.uniforms.uOneBit, world.oneBit ? 1 : 0);
   gl.uniform1f(postProgram.uniforms.uLightningStrength, lightningStrength);
   drawQuad(gl, postProgram, quad);
+
+  if (titleActive) {
+    renderTitleScreen(time);
+  }
 }
 
 function getTextureIndex(id) {
@@ -462,6 +470,18 @@ function setupOptions() {
   startButton.addEventListener('click', () => {
     startRandomScene();
   });
+  startButton.addEventListener('pointerenter', () => {
+    titleButtonState.active = true;
+  });
+  startButton.addEventListener('pointerleave', () => {
+    titleButtonState.active = false;
+  });
+  startButton.addEventListener('focus', () => {
+    titleButtonState.active = true;
+  });
+  startButton.addEventListener('blur', () => {
+    titleButtonState.active = false;
+  });
 
   const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise'];
   for (const id of bindings) {
@@ -534,6 +554,116 @@ function startRandomScene() {
   document.body.classList.remove('title-active');
   ensureSceneAudio();
   enterGameMode({ requestLock: true });
+}
+
+const TITLE_WIDTH = 512;
+const TITLE_HEIGHT = 480;
+const TITLE_FONT = Object.freeze({
+  ' ': ['0', '0', '0', '0', '0', '0', '0'],
+  '-': ['00000', '00000', '00000', '11110', '00000', '00000', '00000'],
+  '[': ['111', '100', '100', '100', '100', '100', '111'],
+  ']': ['111', '001', '001', '001', '001', '001', '111'],
+  '1': ['01100', '11100', '01100', '01100', '01100', '01100', '11110'],
+  '2': ['11110', '00010', '00010', '11110', '10000', '10000', '11110'],
+  '5': ['11110', '10000', '10000', '11110', '00010', '00010', '11110'],
+  a: ['01100', '10010', '10010', '11110', '10010', '10010', '10010'],
+  d: ['11100', '10010', '10010', '10010', '10010', '10010', '11100'],
+  g: ['01110', '10000', '10000', '10110', '10010', '10010', '01110'],
+  i: ['11100', '01000', '01000', '01000', '01000', '01000', '11100'],
+  l: ['10000', '10000', '10000', '10000', '10000', '10000', '11110'],
+  n: ['10010', '11010', '10110', '10010', '10010', '10010', '10010'],
+  o: ['01100', '10010', '10010', '10010', '10010', '10010', '01100'],
+  p: ['11100', '10010', '10010', '11100', '10000', '10000', '10000'],
+  r: ['11100', '10010', '10010', '11100', '10100', '10010', '10010'],
+  s: ['01110', '10000', '10000', '01100', '00010', '00010', '11100'],
+  t: ['11110', '00100', '00100', '00100', '00100', '00100', '00100'],
+  w: ['10001', '10001', '10001', '10101', '10101', '11011', '10001'],
+});
+
+function renderTitleScreen(time) {
+  titleContext.imageSmoothingEnabled = false;
+  titleContext.clearRect(0, 0, TITLE_WIDTH, TITLE_HEIGHT);
+  drawTitleBackdrop(time);
+  drawCenteredBitmapText('512i signal', 44, 3, '#cfc7aa', time);
+  drawCenteredBitmapText('ps1-world', 176, 9, '#17100b', time, { x: 7, y: 8 });
+  drawCenteredBitmapText('ps1-world', 176, 9, '#1ca6a5', time, { x: -2, y: 1 });
+  drawCenteredBitmapText('ps1-world', 176, 9, '#b42638', time, { x: 3, y: 0 });
+  drawCenteredBitmapText('ps1-world', 176, 9, '#f3dc92', time);
+  drawBitmapButton(time);
+}
+
+function drawTitleBackdrop(time) {
+  const pulse = Math.sin(time * 1.7) * 10;
+  const gradient = titleContext.createRadialGradient(256, 218, 12, 256, 218, 260);
+  gradient.addColorStop(0, '#321316');
+  gradient.addColorStop(0.34, '#180b0c');
+  gradient.addColorStop(1, '#050505');
+  titleContext.fillStyle = gradient;
+  titleContext.fillRect(0, 0, TITLE_WIDTH, TITLE_HEIGHT);
+
+  titleContext.fillStyle = 'rgba(242, 213, 138, 0.035)';
+  for (let y = 0; y < TITLE_HEIGHT; y += 4) {
+    titleContext.fillRect(0, y, TITLE_WIDTH, 1);
+  }
+
+  titleContext.fillStyle = 'rgba(42, 176, 181, 0.07)';
+  for (let x = 0; x < TITLE_WIDTH; x += 32) {
+    const jitter = Math.floor(Math.sin(time * 2 + x) * 2);
+    titleContext.fillRect(x + jitter, 0, 1, TITLE_HEIGHT);
+  }
+
+  titleContext.fillStyle = 'rgba(190, 38, 54, 0.12)';
+  titleContext.fillRect(132, 186 + Math.floor(pulse / 8), 248, 94);
+}
+
+function drawBitmapButton(time) {
+  const x = 168;
+  const y = 298;
+  const width = 176;
+  const height = 40;
+  const active = titleButtonState.active || Math.sin(time * 5) > 0.74;
+  titleContext.fillStyle = active ? '#f0d38a' : '#17110d';
+  titleContext.fillRect(x, y, width, height);
+  titleContext.fillStyle = active ? '#17110d' : '#f0d38a';
+  titleContext.fillRect(x, y, width, 3);
+  titleContext.fillRect(x, y + height - 3, width, 3);
+  titleContext.fillRect(x, y, 3, height);
+  titleContext.fillRect(x + width - 3, y, 3, height);
+  drawCenteredBitmapText('[start]', y + 12, 3, active ? '#17110d' : '#f7e9b7', time);
+}
+
+function drawCenteredBitmapText(text, y, scale, color, time, offset = { x: 0, y: 0 }) {
+  const width = measureBitmapText(text, scale);
+  const snap = Math.sin(time * 24 + y) > 0.92 ? 1 : 0;
+  drawBitmapText(text, Math.floor((TITLE_WIDTH - width) / 2 + offset.x + snap), y + offset.y, scale, color);
+}
+
+function drawBitmapText(text, x, y, scale, color) {
+  let cursor = x;
+  titleContext.fillStyle = color;
+
+  for (const character of text) {
+    const glyph = TITLE_FONT[character] ?? TITLE_FONT[' '];
+    drawBitmapGlyph(glyph, cursor, y, scale);
+    cursor += (glyph[0].length + 1) * scale;
+  }
+}
+
+function drawBitmapGlyph(glyph, x, y, scale) {
+  for (let row = 0; row < glyph.length; row += 1) {
+    for (let column = 0; column < glyph[row].length; column += 1) {
+      if (glyph[row][column] === '1') {
+        titleContext.fillRect(x + column * scale, y + row * scale, scale, scale);
+      }
+    }
+  }
+}
+
+function measureBitmapText(text, scale) {
+  return [...text].reduce((width, character, index) => {
+    const glyph = TITLE_FONT[character] ?? TITLE_FONT[' '];
+    return width + glyph[0].length * scale + (index === text.length - 1 ? 0 : scale);
+  }, 0);
 }
 
 function toggleOptions() {
@@ -623,22 +753,45 @@ function getSceneColliders(scene) {
 }
 
 function createWarehouseMesh(glContext, scene, indices) {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [] };
-  addBox(geometry, scene.floor, indices, { floor: true, shade: 0.72, uvScale: 2.5 });
+  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+  const floorPieces = scene.floorPieces ?? [scene.floor];
+  for (const floorPiece of floorPieces) {
+    addBox(geometry, floorPiece, indices, { floor: true, shade: 0.72, uvScale: 2.5, motion: motionCode(floorPiece.motion) });
+  }
   if (scene.ceiling) {
     addBox(geometry, scene.ceiling, indices, { ceiling: true, shade: 0.42, uvScale: 2.0 });
   }
 
   for (const wall of scene.walls) {
-    addBox(geometry, wall, indices, { shade: wall.height < 2 ? 0.72 : 0.88, uvScale: 1.0 });
+    addBox(geometry, wall, indices, { shade: wall.height < 2 ? 0.72 : 0.88, uvScale: 1.0, motion: motionCode(wall.motion) });
   }
 
   for (const crateItem of scene.crates) {
-    addBox(geometry, crateItem, indices, { shade: 0.8, uvScale: 1.0 });
+    addBox(geometry, crateItem, indices, { shade: 0.8, uvScale: 1.0, motion: motionCode(crateItem.motion) });
   }
 
   for (const mountainItem of scene.mountains) {
     addMountain(geometry, mountainItem, indices);
+  }
+
+  if (scene.cards) {
+    for (const item of scene.cards) {
+      addCard(geometry, item, indices);
+    }
+  }
+
+  if (scene.movingBillboards) {
+    for (const item of scene.movingBillboards) {
+      addCard(geometry, item, indices);
+    }
+  }
+
+  if (scene.stars) {
+    addStars(geometry, scene.stars, indices);
+  }
+
+  if (scene.shootingStar) {
+    addShootingStar(geometry, scene.shootingStar, indices);
   }
 
   if (scene.lightning) {
@@ -659,6 +812,7 @@ function createWarehouseMesh(glContext, scene, indices) {
     uv: createBuffer(glContext, new Float32Array(geometry.uvs)),
     textureId: createBuffer(glContext, new Float32Array(geometry.textureIds)),
     shade: createBuffer(glContext, new Float32Array(geometry.shades)),
+    motion: createBuffer(glContext, new Float32Array(geometry.motions)),
   };
 }
 
@@ -672,22 +826,23 @@ function addBox(geometry, item, indices, options = {}) {
   const textureId = indices.get(item.texture) ?? 0;
   const shade = options.shade ?? 0.85;
   const uvScale = options.uvScale ?? 1;
+  const motion = options.motion ?? 0;
 
   face(geometry, textureId, shade * 0.92, [
     [minX, minY, maxZ], [maxX, minY, maxZ], [maxX, maxY, maxZ], [minX, maxY, maxZ],
-  ], item.width / uvScale, item.height / uvScale);
+  ], item.width / uvScale, item.height / uvScale, motion);
   face(geometry, textureId, shade * 0.72, [
     [maxX, minY, minZ], [minX, minY, minZ], [minX, maxY, minZ], [maxX, maxY, minZ],
-  ], item.width / uvScale, item.height / uvScale);
+  ], item.width / uvScale, item.height / uvScale, motion);
   face(geometry, textureId, shade * 0.82, [
     [minX, minY, minZ], [minX, minY, maxZ], [minX, maxY, maxZ], [minX, maxY, minZ],
-  ], item.depth / uvScale, item.height / uvScale);
+  ], item.depth / uvScale, item.height / uvScale, motion);
   face(geometry, textureId, shade, [
     [maxX, minY, maxZ], [maxX, minY, minZ], [maxX, maxY, minZ], [maxX, maxY, maxZ],
-  ], item.depth / uvScale, item.height / uvScale);
+  ], item.depth / uvScale, item.height / uvScale, motion);
   face(geometry, textureId, shade * 1.08, [
     [minX, maxY, maxZ], [maxX, maxY, maxZ], [maxX, maxY, minZ], [minX, maxY, minZ],
-  ], item.width / uvScale, item.depth / uvScale);
+  ], item.width / uvScale, item.depth / uvScale, motion);
 }
 
 function addMountain(geometry, item, indices) {
@@ -711,6 +866,46 @@ function addSun(geometry, item, indices) {
   const textureId = indices.get(item.texture) ?? 0;
 
   face(geometry, textureId, 1.35, [
+    [item.x - halfWidth, item.y - halfHeight, item.z],
+    [item.x + halfWidth, item.y - halfHeight, item.z],
+    [item.x + halfWidth, item.y + halfHeight, item.z],
+    [item.x - halfWidth, item.y + halfHeight, item.z],
+  ], 1, 1);
+}
+
+function addCard(geometry, item, indices) {
+  const halfWidth = item.width / 2;
+  const halfHeight = item.height / 2;
+  const textureId = indices.get(item.texture) ?? 0;
+  face(geometry, textureId, 1.18, [
+    [item.x - halfWidth, item.y - halfHeight, item.z],
+    [item.x + halfWidth, item.y - halfHeight, item.z],
+    [item.x + halfWidth, item.y + halfHeight, item.z],
+    [item.x - halfWidth, item.y + halfHeight, item.z],
+  ], 1, 1, motionCode(item.motion));
+}
+
+function addStars(geometry, stars, indices) {
+  const textureId = indices.get('star') ?? 0;
+
+  for (const star of stars) {
+    const halfWidth = star.width / 2;
+    const halfHeight = star.height / 2;
+    face(geometry, textureId, 1.4, [
+      [star.x - halfWidth, star.y - halfHeight, star.z],
+      [star.x + halfWidth, star.y - halfHeight, star.z],
+      [star.x + halfWidth, star.y + halfHeight, star.z],
+      [star.x - halfWidth, star.y + halfHeight, star.z],
+    ], 1, 1);
+  }
+}
+
+function addShootingStar(geometry, item, indices) {
+  const halfWidth = item.width / 2;
+  const halfHeight = item.height / 2;
+  const textureId = indices.get(item.texture) ?? 0;
+
+  face(geometry, textureId, 1.6, [
     [item.x - halfWidth, item.y - halfHeight, item.z],
     [item.x + halfWidth, item.y - halfHeight, item.z],
     [item.x + halfWidth, item.y + halfHeight, item.z],
@@ -758,7 +953,7 @@ function addRain(geometry, rain, indices) {
   }
 }
 
-function face(geometry, textureId, shade, corners, uRepeat, vRepeat) {
+function face(geometry, textureId, shade, corners, uRepeat, vRepeat, motion = 0) {
   const uv = [[0, vRepeat], [uRepeat, vRepeat], [uRepeat, 0], [0, 0]];
   const order = [0, 1, 2, 0, 2, 3];
 
@@ -767,10 +962,11 @@ function face(geometry, textureId, shade, corners, uRepeat, vRepeat) {
     geometry.uvs.push(...uv[index]);
     geometry.textureIds.push(textureId);
     geometry.shades.push(shade);
+    geometry.motions.push(motion);
   }
 }
 
-function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat) {
+function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat, motion = 0) {
   const corners = [a, b, c];
   const uv = [[0, vRepeat], [uRepeat, vRepeat], [uRepeat * 0.5, 0]];
 
@@ -779,6 +975,7 @@ function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat) {
     geometry.uvs.push(...uv[index]);
     geometry.textureIds.push(textureId);
     geometry.shades.push(shade);
+    geometry.motions.push(motion);
   }
 }
 
@@ -787,6 +984,7 @@ function drawMesh(glContext, program, mesh) {
   bindAttribute(glContext, program.attributes.aUv, mesh.uv, 2);
   bindAttribute(glContext, program.attributes.aTextureId, mesh.textureId, 1);
   bindAttribute(glContext, program.attributes.aShade, mesh.shade, 1);
+  bindAttribute(glContext, program.attributes.aMotion, mesh.motion, 1);
   glContext.drawArrays(glContext.TRIANGLES, 0, mesh.count);
 }
 
@@ -835,9 +1033,72 @@ function deleteMeshBuffers(glContext, mesh) {
   glContext.deleteBuffer(mesh.uv);
   glContext.deleteBuffer(mesh.textureId);
   glContext.deleteBuffer(mesh.shade);
+  glContext.deleteBuffer(mesh.motion);
+}
+
+function motionCode(name) {
+  const codes = {
+    sway: 1,
+    firefly: 2,
+    'falling-leaf': 3,
+    'moon-slide': 4,
+    bob: 5,
+    orbit: 6,
+    'flicker-comet': 7,
+    'palm-snap': 8,
+    'window-pulse': 9,
+    'sign-flicker': 10,
+    'water-shimmer': 11,
+  };
+  return codes[name] ?? 0;
 }
 
 function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
+  if (id === 'star') {
+    drawStarTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'shootingStar') {
+    drawShootingStarTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'paleMoon') {
+    drawMoonTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'firefly') {
+    drawFireflyTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'fallingLeaf') {
+    drawLeafTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'flickerComet') {
+    drawCometTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'blackWater' || id === 'poolWater') {
+    drawWaterPlaneTexture(ctx, id, x, y, tile);
+    return;
+  }
+
+  if (id === 'motelSign') {
+    drawMotelSignTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'motelWindow') {
+    drawMotelWindowTexture(ctx, x, y, tile);
+    return;
+  }
+
   if (id === 'rain') {
     drawRainTexture(ctx, x, y, tile);
     return;
@@ -903,6 +1164,98 @@ function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
     ctx.fillStyle = gradient;
     ctx.fillRect(x, y, tile, tile);
   }
+}
+
+function drawStarTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = '#f9f0c4';
+  const center = x + tile / 2;
+  const middle = y + tile / 2;
+  const size = Math.max(14, Math.floor(tile / 4.8));
+  ctx.fillRect(center - size / 2, middle - size / 2, size, size);
+  ctx.fillStyle = 'rgba(117, 233, 238, 0.65)';
+  ctx.fillRect(center - size * 1.2, middle - size / 2, size, size);
+  ctx.fillStyle = 'rgba(255, 98, 142, 0.58)';
+  ctx.fillRect(center + size * 0.2, middle - size / 2, size, size);
+}
+
+function drawShootingStarTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const middle = y + tile / 2;
+  const head = x + tile * 0.78;
+  const height = Math.max(8, Math.floor(tile / 10));
+
+  const tail = ctx.createLinearGradient(x + tile * 0.08, middle, head, middle);
+  tail.addColorStop(0, 'rgba(255, 255, 255, 0)');
+  tail.addColorStop(0.45, 'rgba(88, 220, 232, 0.68)');
+  tail.addColorStop(1, 'rgba(255, 245, 194, 1)');
+  ctx.fillStyle = tail;
+  ctx.fillRect(x + tile * 0.08, middle - height / 2, tile * 0.7, height);
+
+  ctx.fillStyle = '#fff7c8';
+  ctx.fillRect(head, middle - height, height * 2, height * 2);
+}
+
+function drawMoonTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = '#d9d1b5';
+  ctx.fillRect(x + tile * 0.26, y + tile * 0.18, tile * 0.46, tile * 0.58);
+  ctx.fillStyle = '#9f9a8d';
+  ctx.fillRect(x + tile * 0.48, y + tile * 0.24, tile * 0.12, tile * 0.1);
+  ctx.fillRect(x + tile * 0.38, y + tile * 0.52, tile * 0.16, tile * 0.12);
+}
+
+function drawFireflyTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = '#d8ff72';
+  ctx.fillRect(x + tile * 0.36, y + tile * 0.36, tile * 0.28, tile * 0.28);
+  ctx.fillStyle = 'rgba(105, 255, 170, 0.38)';
+  ctx.fillRect(x + tile * 0.26, y + tile * 0.26, tile * 0.48, tile * 0.48);
+}
+
+function drawLeafTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = '#75602e';
+  ctx.fillRect(x + tile * 0.34, y + tile * 0.18, tile * 0.26, tile * 0.54);
+  ctx.fillStyle = '#2f3b1d';
+  ctx.fillRect(x + tile * 0.46, y + tile * 0.2, tile * 0.12, tile * 0.48);
+}
+
+function drawCometTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = '#ffff4d';
+  ctx.fillRect(x + tile * 0.62, y + tile * 0.42, tile * 0.18, tile * 0.18);
+  ctx.fillStyle = '#15e8ff';
+  ctx.fillRect(x + tile * 0.25, y + tile * 0.46, tile * 0.4, tile * 0.1);
+}
+
+function drawWaterPlaneTexture(ctx, id, x, y, tile) {
+  ctx.fillStyle = id === 'blackWater' ? '#030506' : '#07131a';
+  ctx.fillRect(x, y, tile, tile);
+  ctx.fillStyle = id === 'blackWater' ? 'rgba(61, 76, 58, 0.5)' : 'rgba(94, 214, 230, 0.5)';
+  for (let row = 0; row < 8; row += 1) {
+    ctx.fillRect(x + ((row % 2) * 12), y + row * tile / 8, tile * 0.75, 3);
+  }
+}
+
+function drawMotelSignTexture(ctx, x, y, tile) {
+  ctx.fillStyle = '#160909';
+  ctx.fillRect(x, y, tile, tile);
+  ctx.fillStyle = '#f2c25d';
+  ctx.fillRect(x + 10, y + 18, tile - 20, 18);
+  ctx.fillRect(x + 16, y + 48, tile - 32, 14);
+  ctx.fillStyle = '#451818';
+  ctx.fillRect(x + 24, y + 22, tile - 48, 6);
+  ctx.fillRect(x + 30, y + 52, tile - 60, 4);
+}
+
+function drawMotelWindowTexture(ctx, x, y, tile) {
+  ctx.fillStyle = '#080808';
+  ctx.fillRect(x, y, tile, tile);
+  ctx.fillStyle = '#ff9b43';
+  ctx.fillRect(x + 12, y + 12, tile - 24, tile - 24);
+  ctx.fillStyle = '#2a1309';
+  ctx.fillRect(x + tile / 2 - 2, y + 12, 4, tile - 24);
 }
 
 function drawRainTexture(ctx, x, y, tile) {
@@ -1025,10 +1378,27 @@ function palette(id, n) {
     warning: ['#2d2b25', '#413b2d', '#1f1e1b', '#6b5523'],
     alienGround: ['#293f37', '#4a5541', '#5e3c5f', '#1e282c'],
     alienRock: ['#3a3048', '#5d526d', '#2b2435', '#74678b'],
+    rotMud: ['#1b2012', '#30301b', '#4a3d24', '#152012'],
+    rotBark: ['#050505', '#11100c', '#1a1711', '#241d15'],
+    rotPine: ['#07110a', '#102116', '#1f321e', '#26321b'],
+    rotRoot: ['#16100b', '#2a1d13', '#3a2818', '#0b0906'],
+    deadWood: ['#2b2116', '#47341e', '#17110d', '#5c442b'],
+    blackWater: ['#030506', '#0c1511', '#111c17', '#030506'],
     sun: ['#ffb044', '#d84a54', '#fff0a6', '#77284a'],
+    astralGrid: ['#05050a', '#23f6ff', '#ff2fd0', '#f8f14a'],
+    astralCyan: ['#00e8ff', '#12243a', '#aaffff', '#008e9a'],
+    astralMagenta: ['#ff2fd0', '#32102d', '#ffd1fb', '#9b197e'],
+    astralYellow: ['#f8f14a', '#3a3512', '#fff6a3', '#a79d12'],
+    astralBlack: ['#020208', '#101022', '#05050a', '#222244'],
     starshipFloor: ['#1f2b32', '#34454a', '#162026', '#4f5f64'],
     panel: ['#263238', '#3f4b52', '#181f25', '#59656b'],
+    motelWall: ['#2c2b31', '#4b4851', '#17171d', '#6a6264'],
+    motelDoor: ['#181012', '#39212a', '#5f3141', '#101010'],
+    vending: ['#161624', '#e43f65', '#2ed6ff', '#f7e45a'],
+    palm: ['#173019', '#2d5b2f', '#75602e', '#0d160b'],
+    car: ['#101319', '#303b45', '#672b38', '#aeb1a4'],
     wetAsphalt: ['#11151d', '#1e2430', '#262042', '#101016'],
+    poolWater: ['#07131a', '#0d2c35', '#3dbeca', '#13202a'],
     neon: ['#ff2bbd', '#27d8ff', '#f6e85f', '#5635ff'],
     neonSky: ['#2539ff', '#6841ff', '#e0207d', '#ff3b1f'],
     neonTile: ['#53fff2', '#f8fff2', '#2332ff', '#ff44d6'],
@@ -1185,6 +1555,7 @@ function start() {
   setupOptions();
   setupInput();
   resize();
+  renderTitleScreen(0);
   requestAnimationFrame(frame);
 }
 
@@ -1193,17 +1564,50 @@ attribute vec3 aPosition;
 attribute vec2 aUv;
 attribute float aTextureId;
 attribute float aShade;
+attribute float aMotion;
 
 uniform mat4 uViewProjection;
 uniform float uTime;
 uniform float uWarping;
+uniform highp float uShootingStarTextureId;
 
 varying vec2 vUv;
 varying float vTextureId;
 varying float vShade;
+varying float vMotion;
 
 void main() {
   vec3 warped = aPosition;
+  float shootingStarMask = 1.0 - step(0.5, abs(aTextureId - uShootingStarTextureId));
+  float shootingStarPhase = mod(uTime, 9.0);
+  float shootingStarTravel = clamp((shootingStarPhase - 1.25) / 2.4, 0.0, 1.0);
+  warped += vec3(shootingStarTravel * 52.0, -shootingStarTravel * 9.0, 0.0) * shootingStarMask;
+  float swayMask = 1.0 - step(0.5, abs(aMotion - 1.0));
+  float fireflyMask = 1.0 - step(0.5, abs(aMotion - 2.0));
+  float leafMask = 1.0 - step(0.5, abs(aMotion - 3.0));
+  float moonMask = 1.0 - step(0.5, abs(aMotion - 4.0));
+  float bobMask = 1.0 - step(0.5, abs(aMotion - 5.0));
+  float orbitMask = 1.0 - step(0.5, abs(aMotion - 6.0));
+  float cometMask = 1.0 - step(0.5, abs(aMotion - 7.0));
+  float palmMask = 1.0 - step(0.5, abs(aMotion - 8.0));
+  float waterMask = 1.0 - step(0.5, abs(aMotion - 11.0));
+  warped.x += sin(uTime * 1.5 + aPosition.z * 1.8) * 0.24 * swayMask;
+  warped.x += sin(uTime * 2.8 + aPosition.y * 3.0) * 0.7 * fireflyMask;
+  warped.y += sin(uTime * 3.2 + aPosition.x * 2.0) * 0.36 * fireflyMask;
+  warped.y -= mod(floor(uTime * 3.0 + aPosition.x * 0.7), 5.0) * 0.45 * leafMask;
+  warped.x += floor(mod(uTime * 0.8, 5.0)) * 0.22 * moonMask;
+  warped.y += sin(uTime * 1.3 + aPosition.x) * 0.55 * bobMask;
+  vec2 orbitCenter = vec2(0.0, -7.0);
+  vec2 localOrbit = warped.xz - orbitCenter;
+  float orbitAngle = uTime * 0.75;
+  vec2 rotatedOrbit = vec2(
+    localOrbit.x * cos(orbitAngle) - localOrbit.y * sin(orbitAngle),
+    localOrbit.x * sin(orbitAngle) + localOrbit.y * cos(orbitAngle)
+  ) + orbitCenter;
+  warped.xz = mix(warped.xz, rotatedOrbit, orbitMask);
+  warped.x += floor(mod(uTime * 2.0 + aPosition.y, 2.0)) * 1.1 * cometMask;
+  warped.x += floor(mod(uTime * 2.0 + aPosition.x, 3.0)) * 0.22 * palmMask;
+  warped.y += sin(uTime * 5.0 + aPosition.x) * 0.04 * waterMask;
   float wobble = sin((aPosition.x + aPosition.z) * 8.0 + uTime * 6.0) * 0.006;
   warped.xz += vec2(wobble, -wobble) * uWarping;
 
@@ -1215,6 +1619,7 @@ void main() {
   vUv = aUv;
   vTextureId = aTextureId;
   vShade = aShade;
+  vMotion = aMotion;
 }
 `;
 
@@ -1228,10 +1633,12 @@ uniform float uOneBit;
 uniform float uLightningTextureId;
 uniform float uLightningStrength;
 uniform float uRainTextureId;
+uniform highp float uShootingStarTextureId;
 
 varying vec2 vUv;
 varying float vTextureId;
 varying float vShade;
+varying float vMotion;
 
 float orderedDither(vec2 p) {
   vec2 q = mod(floor(p), 4.0);
@@ -1263,13 +1670,33 @@ float orderedDither(vec2 p) {
 
 void main() {
   float id = floor(vTextureId + 0.5);
+  float signMask = 1.0 - step(0.5, abs(vMotion - 10.0));
+  float windowMask = 1.0 - step(0.5, abs(vMotion - 9.0));
+  float cometMask = 1.0 - step(0.5, abs(vMotion - 7.0));
+  if (signMask > 0.5 && sin(uTime * 18.0) < -0.58) {
+    discard;
+  }
+  if (cometMask > 0.5 && floor(mod(uTime * 3.0, 2.0)) < 0.5) {
+    discard;
+  }
+  float shootingStarMask = 1.0 - step(0.5, abs(id - uShootingStarTextureId));
+  float shootingStarPhase = mod(uTime, 9.0);
+  if (shootingStarMask > 0.5 && (shootingStarPhase < 1.25 || shootingStarPhase > 3.65)) {
+    discard;
+  }
+
   vec2 tiled = fract(vUv);
   float rainMask = 1.0 - step(0.5, abs(id - uRainTextureId));
   tiled.y = fract(tiled.y + uTime * 2.4 * rainMask);
   vec2 atlasUv = vec2((id + tiled.x) / uTextureCount, tiled.y);
   vec4 texel = texture2D(uAtlas, atlasUv);
+  if (texel.a < 0.1) {
+    discard;
+  }
+
   float posterize = floor(vShade * 5.0) / 5.0;
   vec3 color = texel.rgb * posterize;
+  color *= mix(1.0, step(0.0, sin(uTime * 2.5 + gl_FragCoord.x * 0.03)) * 0.85 + 0.15, windowMask);
   float lightningMask = 1.0 - step(0.5, abs(id - uLightningTextureId));
   color = mix(color, vec3(0.15 + uLightningStrength * 1.7), lightningMask);
   color = mix(color, color + vec3(0.18, 0.32, 0.34), rainMask);

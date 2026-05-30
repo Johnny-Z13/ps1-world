@@ -17,6 +17,9 @@ test('registers the selectable scene options', () => {
       ['neon-backstreets', 'Neon backstreets'],
       ['sunken-temple', 'Sunken temple'],
       ['one-bit-cathedral', '1-bit cathedral'],
+      ['rotwood-forest', 'Polygonal Rotwood Forest'],
+      ['astral-geometry-garden', 'Astral Geometry Garden'],
+      ['motel-mirage', 'Liminal Motel Mirage'],
     ],
   );
 });
@@ -51,14 +54,19 @@ test('builds an alien landscape with sun, distant mountains, and low-res texture
 
   assert.equal(world.id, 'alien-landscape');
   assert.ok(world.sun);
+  assert.ok(world.stars.length >= 30);
+  assert.equal(world.shootingStar.texture, 'shootingStar');
+  assert.ok(world.shootingStar.duration > 1);
   assert.ok(world.mountains.length >= 6);
   assert.ok(world.floor.width >= 70);
   assert.ok(world.textures.some((texture) => texture.id === 'sun' && texture.size === 64));
+  assert.ok(world.textures.some((texture) => texture.id === 'star' && texture.size === 64));
+  assert.ok(world.textures.some((texture) => texture.id === 'shootingStar' && texture.size === 128));
   assert.ok(world.textures.some((texture) => texture.id === 'alienGround' && texture.size === 128));
 });
 
 test('builds three additional PS1-style wanderable scenes', () => {
-  for (const id of ['derelict-starship', 'neon-backstreets', 'sunken-temple']) {
+  for (const id of ['derelict-starship', 'neon-backstreets', 'sunken-temple', 'rotwood-forest', 'astral-geometry-garden', 'motel-mirage']) {
     const world = createSceneWorld(id);
     const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
 
@@ -68,6 +76,56 @@ test('builds three additional PS1-style wanderable scenes', () => {
     assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
     assert.ok(colliders.length >= 8);
   }
+});
+
+test('builds rotwood forest with dark-fantasy landmarks and living cards', () => {
+  const world = createSceneWorld('rotwood-forest');
+  const objects = [...world.walls, ...world.crates, ...world.cards];
+
+  assert.equal(world.id, 'rotwood-forest');
+  assert.ok(objects.some((item) => item.name.includes('hollow tree')));
+  assert.ok(objects.some((item) => item.name.includes('stone circle')));
+  assert.ok(objects.some((item) => item.name.includes('sunken footbridge')));
+  assert.ok(objects.some((item) => item.name.includes('black pond')));
+  assert.ok(world.cards.filter((item) => item.motion === 'sway').length >= 12);
+  assert.ok(world.cards.filter((item) => item.motion === 'firefly').length >= 8);
+  assert.ok(world.cards.filter((item) => item.motion === 'falling-leaf').length >= 8);
+  assert.ok(world.movingBillboards.some((item) => item.name.includes('moon') && item.motion === 'moon-slide'));
+  assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
+});
+
+test('builds astral geometry garden as a navigable haunted demo-disc sculpture park', () => {
+  const world = createSceneWorld('astral-geometry-garden');
+  const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
+
+  assert.equal(world.id, 'astral-geometry-garden');
+  assert.ok(world.floorPieces.length >= 5);
+  assert.ok(world.crates.filter((item) => item.motion === 'bob').length >= 4);
+  assert.ok(world.crates.filter((item) => item.motion === 'orbit').length >= 8);
+  assert.ok(world.mountains.filter((item) => item.name.includes('pyramid')).length >= 4);
+  assert.ok(world.cards.filter((item) => item.motion === 'flicker-comet').length >= 4);
+  assert.equal(world.shootingStar.interval, 10);
+  assert.ok(colliders.length >= 12);
+  assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
+});
+
+test('builds motel mirage with a lonely walkable courtyard and flickering props', () => {
+  const world = createSceneWorld('motel-mirage');
+  const objects = [...world.walls, ...world.crates, ...world.cards];
+  const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
+
+  assert.equal(world.id, 'motel-mirage');
+  assert.ok(objects.some((item) => item.name.includes('empty pool')));
+  assert.ok(objects.some((item) => item.name.includes('covered walkway')));
+  assert.ok(objects.some((item) => item.name.includes('vending')));
+  assert.ok(objects.some((item) => item.name.includes('buzzing sign')));
+  assert.ok(world.cards.filter((item) => item.motion === 'palm-snap').length >= 8);
+  assert.ok(world.cards.filter((item) => item.motion === 'window-pulse').length >= 6);
+  assert.ok(world.cards.some((item) => item.motion === 'sign-flicker'));
+  assert.ok(world.cards.some((item) => item.motion === 'water-shimmer'));
+  assert.ok(world.shootingStar);
+  assert.ok(colliders.length >= 20);
+  assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
 });
 
 test('builds neon backstreets as a psychedelic floating sky scene', () => {
