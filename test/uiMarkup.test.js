@@ -104,3 +104,15 @@ test('adds mobile floating joystick, look drag, and jump touch controls', () => 
   assert.match(app, /function updateTouchLook/);
   assert.match(app, /touchJumpActive/);
 });
+
+test('adds gamepad movement, look, jump, sprint, and menu bindings', () => {
+  assert.match(index, /Gamepad/);
+  assert.match(app, /navigator\.getGamepads/);
+  assert.match(app, /const gamepadInput/);
+  assert.match(app, /function updateGamepadInput/);
+  assert.match(app, /function applyGamepadLook/);
+  assert.match(app, /function normalizeGamepadAxis/);
+  assert.match(app, /buttonPressed\(gamepad,\s*0\)/);
+  assert.match(app, /buttonPressed\(gamepad,\s*9\)/);
+  assert.match(app, /gamepadInput\.sprint/);
+});

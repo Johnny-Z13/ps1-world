@@ -16,6 +16,7 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173).
 - **Mouse** — look (pointer lock)
 - **Space** — jump
 - **Shift** — sprint
+- **Gamepad** — left stick move, right stick look, south button jump, shoulder/trigger sprint, Start/Menu options
 - **1-9 / numpad 1-9** — switch scenes
 - **Esc** — video options (preset, scene, resolution)
 
