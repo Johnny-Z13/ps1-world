@@ -23,6 +23,8 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(app, /function startRandomScene/);
   assert.match(app, /const TITLE_WIDTH = 512/);
   assert.match(app, /drawBitmapGlyph/);
+  assert.match(app, /wasd\+mouse or gamepad/);
+  assert.match(app, /'\+':/);
   assert.match(app, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(app, /document\.body\.classList\.remove\('title-active'\)/);
 });
@@ -103,4 +105,16 @@ test('adds mobile floating joystick, look drag, and jump touch controls', () => 
   assert.match(app, /function updateTouchMovement/);
   assert.match(app, /function updateTouchLook/);
   assert.match(app, /touchJumpActive/);
+});
+
+test('adds gamepad movement, look, jump, sprint, and menu bindings', () => {
+  assert.match(index, /Gamepad/);
+  assert.match(app, /navigator\.getGamepads/);
+  assert.match(app, /const gamepadInput/);
+  assert.match(app, /function updateGamepadInput/);
+  assert.match(app, /function applyGamepadLook/);
+  assert.match(app, /function normalizeGamepadAxis/);
+  assert.match(app, /buttonPressed\(gamepad,\s*0\)/);
+  assert.match(app, /buttonPressed\(gamepad,\s*9\)/);
+  assert.match(app, /gamepadInput\.sprint/);
 });

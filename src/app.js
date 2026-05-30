@@ -44,6 +44,7 @@ if (!gl) {
 const effects = createEffectState();
 effects.sceneId = 'dungeon';
 const DEATH_RESPAWN_DELAY_MS = 2000;
+const GAMEPAD_DEADZONE = 0.18;
 let world = createSceneWorld(effects.sceneId);
 let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
@@ -64,6 +65,15 @@ const keys = new Set();
 const deathState = { active: false, startedAt: 0 };
 const touchMovement = { active: false, pointerId: null, originX: 0, originY: 0, x: 0, z: 0 };
 const touchLook = { active: false, pointerId: null, x: 0, y: 0 };
+const gamepadInput = {
+  x: 0,
+  z: 0,
+  lookX: 0,
+  lookY: 0,
+  jump: false,
+  sprint: false,
+  previousButtons: new Set(),
+};
 let touchJumpActive = false;
 let titleActive = true;
 const titleButtonState = { active: false };
@@ -88,6 +98,8 @@ function frame(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
 
+  updateGamepadInput();
+  applyGamepadLook(dt);
   updateContinuousMouseLook(dt);
   updatePlayer(dt, now);
   render(now / 1000, now);
@@ -108,7 +120,9 @@ function updatePlayer(dt, now) {
   });
   local.x = Math.abs(touchMovement.x) > 0.12 ? touchMovement.x : local.x;
   local.z = Math.abs(touchMovement.z) > 0.12 ? touchMovement.z : local.z;
-  const speed = keys.has('ShiftLeft') ? 4.4 : 2.8;
+  local.x = Math.abs(gamepadInput.x) > 0 ? gamepadInput.x : local.x;
+  local.z = Math.abs(gamepadInput.z) > 0 ? gamepadInput.z : local.z;
+  const speed = keys.has('ShiftLeft') || gamepadInput.sprint ? 4.4 : 2.8;
   const movement = createMovementDelta(local, player.yaw, speed, dt);
   const next = resolveMovement(
     { x: player.x, y: player.y, z: player.z },
@@ -128,7 +142,7 @@ function updatePlayer(dt, now) {
   }
 
   const jump = applyJumpPhysics(player, {
-    jump: keys.has('Space') || touchJumpActive,
+    jump: keys.has('Space') || touchJumpActive || gamepadInput.jump,
     dt,
     groundY: groundY ?? -Infinity,
   });
@@ -558,6 +572,86 @@ function endTouchPointer(event) {
   }
 }
 
+function updateGamepadInput() {
+  const gamepad = getPrimaryGamepad();
+  if (!gamepad) {
+    resetGamepadInput();
+    return;
+  }
+
+  const pressedButtons = new Set();
+  for (let index = 0; index < gamepad.buttons.length; index += 1) {
+    if (buttonPressed(gamepad, index)) pressedButtons.add(index);
+  }
+
+  const jumpPressed = buttonPressed(gamepad, 0);
+  const menuButtonPressed = buttonPressed(gamepad, 9);
+  const menuPressed = menuButtonPressed && !gamepadInput.previousButtons.has(9);
+  const startPressed = (jumpPressed || menuButtonPressed)
+    && !gamepadInput.previousButtons.has(0)
+    && !gamepadInput.previousButtons.has(9);
+
+  if (titleActive) {
+    if (startPressed) startRandomScene();
+    gamepadInput.previousButtons = pressedButtons;
+    return;
+  }
+
+  gamepadInput.x = normalizeGamepadAxis(gamepad.axes[0] ?? 0);
+  gamepadInput.z = -normalizeGamepadAxis(gamepad.axes[1] ?? 0);
+  gamepadInput.lookX = normalizeGamepadAxis(gamepad.axes[2] ?? 0);
+  gamepadInput.lookY = normalizeGamepadAxis(gamepad.axes[3] ?? 0);
+  gamepadInput.jump = jumpPressed;
+  gamepadInput.sprint = pressedButtons.has(4) || pressedButtons.has(5) || pressedButtons.has(6) || pressedButtons.has(7);
+
+  if (menuPressed) {
+    ensureSceneAudio();
+    toggleOptions();
+  }
+
+  gamepadInput.previousButtons = pressedButtons;
+}
+
+function applyGamepadLook(dt) {
+  if (titleActive || optionsDialog.open || deathState.active) return;
+  if (Math.abs(gamepadInput.lookX) <= 0 && Math.abs(gamepadInput.lookY) <= 0) return;
+
+  const look = applyMouseLook(player, {
+    movementX: gamepadInput.lookX * dt * 920,
+    movementY: gamepadInput.lookY * dt * 760,
+  }, { invertY: effects.invertY });
+
+  player.yaw = look.yaw;
+  player.pitch = look.pitch;
+}
+
+function getPrimaryGamepad() {
+  const pads = navigator.getGamepads?.() ?? [];
+  return [...pads].find((pad) => pad?.connected) ?? null;
+}
+
+function normalizeGamepadAxis(value) {
+  if (Math.abs(value) < GAMEPAD_DEADZONE) return 0;
+
+  const sign = Math.sign(value);
+  return sign * Math.min(1, (Math.abs(value) - GAMEPAD_DEADZONE) / (1 - GAMEPAD_DEADZONE));
+}
+
+function buttonPressed(gamepad, index) {
+  const button = gamepad.buttons[index];
+  return Boolean(button?.pressed || button?.value > 0.5);
+}
+
+function resetGamepadInput() {
+  gamepadInput.x = 0;
+  gamepadInput.z = 0;
+  gamepadInput.lookX = 0;
+  gamepadInput.lookY = 0;
+  gamepadInput.jump = false;
+  gamepadInput.sprint = false;
+  gamepadInput.previousButtons.clear();
+}
+
 function requestPointerLockSafely() {
   if (optionsDialog.open || document.pointerLockElement === canvas || softMouseLockActive) return;
 
@@ -753,6 +847,7 @@ const TITLE_HEIGHT = 480;
 const TITLE_FONT = Object.freeze({
   ' ': ['0', '0', '0', '0', '0', '0', '0'],
   '-': ['00000', '00000', '00000', '11110', '00000', '00000', '00000'],
+  '+': ['00000', '00100', '00100', '11111', '00100', '00100', '00000'],
   '[': ['111', '100', '100', '100', '100', '100', '111'],
   ']': ['111', '001', '001', '001', '001', '001', '111'],
   '1': ['01100', '11100', '01100', '01100', '01100', '01100', '11110'],
@@ -763,12 +858,14 @@ const TITLE_FONT = Object.freeze({
   g: ['01110', '10000', '10000', '10110', '10010', '10010', '01110'],
   i: ['11100', '01000', '01000', '01000', '01000', '01000', '11100'],
   l: ['10000', '10000', '10000', '10000', '10000', '10000', '11110'],
+  m: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
   n: ['10010', '11010', '10110', '10010', '10010', '10010', '10010'],
   o: ['01100', '10010', '10010', '10010', '10010', '10010', '01100'],
   p: ['11100', '10010', '10010', '11100', '10000', '10000', '10000'],
   r: ['11100', '10010', '10010', '11100', '10100', '10010', '10010'],
   s: ['01110', '10000', '10000', '01100', '00010', '00010', '11100'],
   t: ['11110', '00100', '00100', '00100', '00100', '00100', '00100'],
+  u: ['10010', '10010', '10010', '10010', '10010', '10010', '01100'],
   w: ['10001', '10001', '10001', '10101', '10101', '11011', '10001'],
 });
 
@@ -782,6 +879,7 @@ function renderTitleScreen(time) {
   drawCenteredBitmapText('ps1-world', 176, 9, '#b42638', time, { x: 3, y: 0 });
   drawCenteredBitmapText('ps1-world', 176, 9, '#f3dc92', time);
   drawBitmapButton(time);
+  drawCenteredBitmapText('wasd+mouse or gamepad', 360, 2, '#cfc7aa', time);
 }
 
 function drawTitleBackdrop(time) {
