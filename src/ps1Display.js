@@ -26,6 +26,7 @@ export const DEFAULT_EFFECTS = Object.freeze({
   colorBleed: true,
   noise: true,
   wobble: true,
+  playerTorch: true,
 });
 
 export const CRT_PRESETS = Object.freeze({

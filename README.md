@@ -14,7 +14,16 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173).
 
 - **WASD** — move
 - **Mouse** — look (pointer lock)
+- **Space** — jump
+- **Shift** — sprint
+- **1-9 / numpad 1-9** — switch scenes
 - **Esc** — video options (preset, scene, resolution)
+
+On touch devices, press the left side to spawn a floating movement joystick, drag the right side to look, and use the jump button for platforming.
+
+Scenes include jumpable blocks, stepped platforms, and fall zones. Dropping deep below a scene's kill plane triggers a red death tint and impact sound, holds the fallen camera briefly, then respawns you at that scene's start.
+
+The options menu also includes CRT/post effects, reticule visibility, pixel scale, inverted mouse Y, and the player torch toggle.
 
 ## Tests
 

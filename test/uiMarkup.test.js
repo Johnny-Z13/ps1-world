@@ -52,3 +52,55 @@ test('renders scene cards and motion flags for animated preset props', () => {
   assert.match(app, /function motionCode/);
   assert.match(app, /attribute float aMotion/);
 });
+
+test('offers a player torch toggle and sends torch uniforms to the scene shader', () => {
+  assert.match(index, /id="playerTorch"/);
+  assert.match(index, /Player torch/);
+  assert.match(app, /playerTorch/);
+  assert.match(app, /uTorchPosition/);
+  assert.match(app, /uTorchEnabled/);
+  assert.match(app, /distance\(vWorldPosition,\s*uTorchPosition\)/);
+});
+
+test('maps number keys to selectable scene shortcuts', () => {
+  assert.match(app, /function getSceneShortcutIndex/);
+  assert.match(app, /Digit\(\[0-9\]\)/);
+  assert.match(app, /Numpad\(\[0-9\]\)/);
+  assert.match(app, /SCENE_DEFINITIONS\[shortcutIndex\]/);
+  assert.match(app, /syncSceneSelect\(\)/);
+});
+
+test('updates vertical ground collision and respawns after falling below the scene', () => {
+  assert.match(app, /getGroundYAt/);
+  assert.match(app, /getVoidDeathY/);
+  assert.match(app, /isBelowKillPlane/);
+  assert.match(app, /walkableSurfaces/);
+  assert.match(app, /getSceneWalkableSurfaces/);
+  assert.match(app, /world\.killY/);
+  assert.match(app, /resetPlayerToSpawn\(\)/);
+});
+
+test('holds the dead camera briefly with red tint and death audio before respawn', () => {
+  assert.match(app, /const DEATH_RESPAWN_DELAY_MS = 2000/);
+  assert.match(app, /deathState/);
+  assert.match(app, /function startDeathSequence/);
+  assert.match(app, /function updateDeathSequence/);
+  assert.match(app, /function getDeathTint/);
+  assert.match(app, /function playDeathSound/);
+  assert.match(app, /uDeathTint/);
+  assert.match(app, /mix\(color,\s*vec3\(0\.78,\s*0\.02,\s*0\.02\),\s*uDeathTint\)/);
+});
+
+test('adds mobile floating joystick, look drag, and jump touch controls', () => {
+  assert.match(index, /id="touchMove"/);
+  assert.match(index, /id="touchMoveStick"/);
+  assert.match(index, /id="touchJump"/);
+  assert.match(styles, /\.touch-move/);
+  assert.match(styles, /@media \(pointer: coarse\)/);
+  assert.match(styles, /touch-action:\s*none/);
+  assert.match(app, /const touchMovement/);
+  assert.match(app, /function setupTouchControls/);
+  assert.match(app, /function updateTouchMovement/);
+  assert.match(app, /function updateTouchLook/);
+  assert.match(app, /touchJumpActive/);
+});

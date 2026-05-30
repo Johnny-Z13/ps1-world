@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PS1 World</title>
-    <link rel="stylesheet" href="./styles.css?v=6">
+    <link rel="stylesheet" href="./styles.css?v=7">
   </head>
   <body class="title-active">
-    <canvas id="screen" aria-label="PS1 warehouse test renderer"></canvas>
+    <canvas id="screen" aria-label="PS1 world renderer"></canvas>
     <div id="reticule" class="reticule" aria-hidden="true"></div>
 
     <main id="titleScreen" class="title-screen">
@@ -20,8 +20,14 @@
       <div>Mouse look</div>
       <div>Space jump</div>
       <div>Shift sprint</div>
+      <div>1-9 scenes</div>
       <div>Esc options</div>
     </div>
+
+    <div id="touchMove" class="touch-move" aria-hidden="true">
+      <div id="touchMoveStick" class="touch-move-stick"></div>
+    </div>
+    <button id="touchJump" class="touch-jump" type="button" aria-label="Jump">Jump</button>
 
     <dialog id="options" class="options">
       <form method="dialog">
@@ -54,6 +60,7 @@
         <label><input id="warping" type="checkbox" checked> Polygon wobble</label>
         <label><input id="colorBleed" type="checkbox" checked> Color bleed</label>
         <label><input id="noise" type="checkbox" checked> RF noise</label>
+        <label><input id="playerTorch" type="checkbox" checked> Player torch</label>
         <label><input id="showReticule" type="checkbox" checked> Reticule</label>
 
         <label>
@@ -69,6 +76,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./src/app.js?v=28"></script>
+    <script type="module" src="./src/app.js?v=33"></script>
   </body>
 </html>

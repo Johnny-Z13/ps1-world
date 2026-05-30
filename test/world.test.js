@@ -91,6 +91,11 @@ test('builds rotwood forest with dark-fantasy landmarks and living cards', () =>
   assert.ok(world.cards.filter((item) => item.motion === 'firefly').length >= 8);
   assert.ok(world.cards.filter((item) => item.motion === 'falling-leaf').length >= 8);
   assert.ok(world.movingBillboards.some((item) => item.name.includes('moon') && item.motion === 'moon-slide'));
+  assert.deepEqual(world.playerTorch, {
+    radius: 12,
+    intensity: 1.45,
+    color: [1.0, 0.52, 0.22],
+  });
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
 });
 
@@ -173,7 +178,7 @@ test('adds non-colliding rain to the sunken temple scene', () => {
 test('keeps every scene in a positive-Y-up convention', () => {
   for (const definition of SCENE_DEFINITIONS) {
     const world = createSceneWorld(definition.id);
-    const objects = [world.floor, world.ceiling, ...world.walls, ...world.crates].filter(Boolean);
+    const objects = [world.floor, world.ceiling, ...world.walls, ...world.crates, ...world.platforms].filter(Boolean);
 
     assert.ok(world.playerSpawn.y > 0, definition.id);
     assert.ok(objects.every((item) => item.height > 0), definition.id);
@@ -183,13 +188,24 @@ test('keeps every scene in a positive-Y-up convention', () => {
   }
 });
 
+test('adds jumpable platforms or stairs and a kill plane to every scene', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+    const raisedPlatforms = world.platforms.filter((item) => item.y + item.height > 0.35);
+
+    assert.ok(raisedPlatforms.length >= 2, definition.id);
+    assert.ok(raisedPlatforms.every((item) => item.collider), definition.id);
+    assert.ok(world.killY < 0, definition.id);
+  }
+});
+
 test('spawns every scene in open floor space outside colliders', () => {
   const radius = 0.32;
 
   for (const definition of SCENE_DEFINITIONS) {
     const world = createSceneWorld(definition.id);
     const spawn = world.playerSpawn;
-    const blocking = [...world.walls, ...world.crates]
+    const blocking = [...world.walls, ...world.crates, ...world.platforms]
       .filter((item) => item.collider)
       .filter((item) => (
         spawn.x + radius > item.collider.minX
