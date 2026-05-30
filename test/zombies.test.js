@@ -41,6 +41,21 @@ test('moves zombies toward the player without changing their count', () => {
   assert.equal(updated[0].y, PLAYER_EYE_HEIGHT);
 });
 
+test('turns zombies to face the player while chasing', () => {
+  const zombies = [
+    { id: 'zombie-1', x: 0, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0, radius: 0.38, speed: 1.15 },
+  ];
+  const player = { x: 4, y: PLAYER_EYE_HEIGHT, z: 0 };
+
+  const [updated] = updateZombieEnemies(zombies, player, {
+    colliders: [],
+    walkableSurfaces: [{ minX: -100, maxX: 100, minZ: -100, maxZ: 100, topY: 0 }],
+    dt: 0.1,
+  });
+
+  assert.equal(updated.yaw, Math.PI / 2);
+});
+
 test('detects zombie contact with the player on the same level', () => {
   const player = { x: 1, y: PLAYER_EYE_HEIGHT, z: 1 };
   const zombies = [

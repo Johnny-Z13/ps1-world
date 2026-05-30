@@ -25,7 +25,7 @@ import {
   isPlayerTouchedByZombie,
   updateZombieEnemies,
 } from './zombies.js';
-import { loadZombieGlb } from './zombieModel.js';
+import { animateZombieModel, loadZombieGlb } from './zombieModel.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
@@ -53,6 +53,43 @@ effects.sceneId = 'dungeon';
 const DEATH_RESPAWN_DELAY_MS = 2000;
 const GAMEPAD_DEADZONE = 0.18;
 const ZOMBIE_MODEL_SCALE = 1.75;
+const ZOMBIE_MODEL_FRONT_ROTATION = Math.PI / 2;
+const ZOMBIE_GRUNT_LOOP_URL = './assets/audio/sfx/zombie-idle-grunt-8bit-loop.mp3?v=1';
+const LIGHTNING_SOUND_URL = './assets/audio/sfx/lightning-bolt-strike.mp3?v=1';
+const PLAYER_DEATH_SOUND_URL = './assets/audio/sfx/player-death-8bit.mp3?v=1';
+const PLAYER_DAMAGE_SOUND_URL = './assets/audio/sfx/player-damage-8bit.mp3?v=1';
+const PLAYER_WALK_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-walk-8bit-loop.mp3?v=1';
+const PLAYER_SPRINT_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-sprint-8bit-loop.mp3?v=1';
+const SCENE_AMBIENCE_URLS = Object.freeze({
+  dungeon: './assets/audio/ambience/dungeon-8bit-loop.mp3?v=1',
+  'alien-landscape': './assets/audio/ambience/alien-landscape-8bit-loop.mp3?v=1',
+  'derelict-starship': './assets/audio/ambience/derelict-starship-8bit-loop.mp3?v=1',
+  'neon-backstreets': './assets/audio/ambience/neon-backstreets-8bit-loop.mp3?v=1',
+  'sunken-temple': './assets/audio/ambience/sunken-temple-8bit-loop.mp3?v=1',
+  'one-bit-cathedral': './assets/audio/ambience/one-bit-cathedral-8bit-loop.mp3?v=1',
+  'rotwood-forest': './assets/audio/ambience/rotwood-forest-8bit-loop.mp3?v=1',
+  'astral-geometry-garden': './assets/audio/ambience/astral-geometry-garden-8bit-loop.mp3?v=1',
+  'motel-mirage': './assets/audio/ambience/motel-mirage-8bit-loop.mp3?v=1',
+});
+const SCENE_AMBIENCE_MAX_GAIN = 0.16;
+const LIGHTNING_SOUND_GAIN = 0.55;
+const PLAYER_DEATH_SOUND_GAIN = 0.72;
+const PLAYER_DAMAGE_SOUND_GAIN = 0.5;
+const PLAYER_WALK_FOOTSTEP_GAIN = 0.13;
+const PLAYER_SPRINT_FOOTSTEP_GAIN = 0.19;
+const ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE = 1.0;
+const ZOMBIE_GRUNT_MAX_DISTANCE = 22;
+const ZOMBIE_GRUNT_MAX_GAIN = 0.085;
+const ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER = 0.32;
+const ZOMBIE_GRUNT_OPEN_FILTER_HZ = 4200;
+const ZOMBIE_GRUNT_OCCLUDED_FILTER_HZ = 760;
+const SCENE_REVERB_PRESETS = Object.freeze({
+  'tight-room': Object.freeze({ duration: 0.42, decay: 2.8, wet: 0.11 }),
+  'open-air': Object.freeze({ duration: 0.28, decay: 4.6, wet: 0.045 }),
+  'metal-hall': Object.freeze({ duration: 0.68, decay: 2.2, wet: 0.16 }),
+  'stone-vault': Object.freeze({ duration: 0.86, decay: 2.5, wet: 0.19 }),
+  'dream-space': Object.freeze({ duration: 1.1, decay: 1.9, wet: 0.22 }),
+});
 let world = createSceneWorld(effects.sceneId);
 let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
@@ -97,6 +134,7 @@ let postProgram;
 let warehouseMesh;
 let zombieMesh;
 let zombieModel = null;
+let zombieTextureImage = null;
 let quad;
 let atlasTexture;
 let renderTarget;
@@ -163,7 +201,7 @@ function updatePlayer(dt, now) {
   player.groundY = jump.grounded ? jump.y : groundY ?? player.groundY;
 
   if (isBelowKillPlane(player, getVoidDeathY(world.killY ?? -8))) {
-    startDeathSequence(now);
+    startDeathSequence(now, { damage: false });
     return;
   }
 
@@ -175,7 +213,7 @@ function updatePlayer(dt, now) {
     });
   }
   if (effects.zombies && isPlayerTouchedByZombie(player, zombies)) {
-    startDeathSequence(now);
+    startDeathSequence(now, { damage: true });
   }
 }
 
@@ -210,7 +248,7 @@ function render(time, now = performance.now()) {
   gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection());
   drawMesh(gl, sceneProgram, warehouseMesh);
   if (effects.zombies) {
-    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, zombieModel);
+    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, zombieModel, time);
     drawMesh(gl, sceneProgram, zombieMesh);
   }
 
@@ -275,27 +313,61 @@ function ensureAudioState() {
     if (!AudioContextClass) return null;
 
     const context = new AudioContextClass();
-    const windGain = context.createGain();
-    const windFilter = context.createBiquadFilter();
-    const windSource = context.createBufferSource();
+    const dryGain = context.createGain();
+    const reverbInput = context.createGain();
+    const convolver = context.createConvolver();
+    const reverbWetGain = context.createGain();
+    const ambienceGain = context.createGain();
+    const lightningGain = context.createGain();
+    const playerSfxGain = context.createGain();
+    const footstepWalkGain = context.createGain();
+    const footstepSprintGain = context.createGain();
 
-    windFilter.type = 'bandpass';
-    windFilter.frequency.value = 760;
-    windFilter.Q.value = 0.65;
-    windGain.gain.value = 0;
-    windSource.buffer = createNoiseBuffer(context, 2.0);
-    windSource.loop = true;
-    windSource.connect(windFilter);
-    windFilter.connect(windGain);
-    windGain.connect(context.destination);
-    windSource.start();
+    dryGain.gain.value = 1;
+    dryGain.connect(context.destination);
+    reverbInput.gain.value = 0.8;
+    reverbInput.connect(convolver);
+    convolver.connect(reverbWetGain);
+    reverbWetGain.gain.value = 0;
+    reverbWetGain.connect(context.destination);
+    ambienceGain.gain.value = 0;
+    connectSceneAudioNode(ambienceGain, dryGain, reverbInput);
+    lightningGain.gain.value = LIGHTNING_SOUND_GAIN;
+    connectSceneAudioNode(lightningGain, dryGain, reverbInput);
+    playerSfxGain.gain.value = 1;
+    connectSceneAudioNode(playerSfxGain, dryGain, reverbInput);
+    footstepWalkGain.gain.value = 0;
+    connectSceneAudioNode(footstepWalkGain, dryGain, reverbInput);
+    footstepSprintGain.gain.value = 0;
+    connectSceneAudioNode(footstepSprintGain, dryGain, reverbInput);
 
     audioState = {
       context,
-      windGain,
-      windSource,
+      audioBuffers: new Map(),
+      audioBufferLoads: new Map(),
+      dryGain,
+      reverbInput,
+      convolver,
+      reverbWetGain,
+      activeReverbId: null,
+      ambienceGain,
+      ambienceSource: null,
+      activeAmbienceId: null,
+      loadingAmbienceId: null,
+      lightningGain,
+      playerSfxGain,
+      footstepWalkGain,
+      footstepSprintGain,
+      footstepWalkSource: null,
+      footstepSprintSource: null,
+      footstepLoopsLoading: false,
+      footstepLoopsFailed: false,
+      zombieVoices: new Map(),
+      zombieLoopLoading: false,
+      zombieLoopFailed: false,
       lastLightningIndex: -1,
     };
+    applySceneReverb(audioState);
   }
 
   if (audioState.context.state === 'suspended') {
@@ -305,105 +377,414 @@ function ensureAudioState() {
   return audioState;
 }
 
-function ensureSceneAudio() {
-  if (!world.audio) return;
-
-  ensureAudioState();
+function connectSceneAudioNode(node, dryGain, reverbInput) {
+  node.connect(dryGain);
+  node.connect(reverbInput);
 }
 
-function createNoiseBuffer(context, seconds) {
-  const length = Math.floor(context.sampleRate * seconds);
-  const buffer = context.createBuffer(1, length, context.sampleRate);
-  const data = buffer.getChannelData(0);
+function ensureSceneAudio() {
+  if (!SCENE_AMBIENCE_URLS[world.id] && !world.lightning && !effects.zombies) return;
 
-  for (let i = 0; i < length; i += 1) {
-    data[i] = Math.random() * 2 - 1;
+  const state = ensureAudioState();
+  if (!state) return;
+
+  applySceneReverb(state);
+  ensureSceneAmbienceLoop(state);
+  if (world.lightning) loadAudioBuffer(state, LIGHTNING_SOUND_URL);
+  loadAudioBuffer(state, PLAYER_DEATH_SOUND_URL);
+  loadAudioBuffer(state, PLAYER_DAMAGE_SOUND_URL);
+  ensurePlayerFootstepLoops(state);
+  ensureZombieGruntLoop(state);
+}
+
+function loadAudioBuffer(state, url) {
+  if (state.audioBuffers.has(url)) return Promise.resolve(state.audioBuffers.get(url));
+  if (state.audioBufferLoads.has(url)) return state.audioBufferLoads.get(url);
+
+  const loading = fetch(url)
+    .then((response) => {
+      if (!response.ok) throw new Error(`Could not load audio asset ${url}: ${response.status}`);
+      return response.arrayBuffer();
+    })
+    .then((arrayBuffer) => state.context.decodeAudioData(arrayBuffer))
+    .then((buffer) => {
+      state.audioBuffers.set(url, buffer);
+      state.audioBufferLoads.delete(url);
+      return buffer;
+    })
+    .catch((error) => {
+      state.audioBufferLoads.delete(url);
+      console.warn(error);
+      throw error;
+    });
+
+  state.audioBufferLoads.set(url, loading);
+  return loading;
+}
+
+function ensureSceneAmbienceLoop(state) {
+  const sceneId = world.id;
+  const url = SCENE_AMBIENCE_URLS[sceneId];
+  if (!url || state.activeAmbienceId === sceneId || state.loadingAmbienceId === sceneId) return;
+
+  state.loadingAmbienceId = sceneId;
+  loadAudioBuffer(state, url)
+    .then((buffer) => {
+      if (audioState !== state || world.id !== sceneId) return;
+
+      if (state.ambienceSource) {
+        state.ambienceSource.stop();
+      }
+
+      const source = state.context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(state.ambienceGain);
+      source.start();
+      state.ambienceSource = source;
+      state.activeAmbienceId = sceneId;
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (state.loadingAmbienceId === sceneId) state.loadingAmbienceId = null;
+    });
+}
+
+function getSceneAmbienceGain() {
+  if (titleActive || optionsDialog.open || deathState.active || !SCENE_AMBIENCE_URLS[world.id]) return 0;
+  return SCENE_AMBIENCE_MAX_GAIN;
+}
+
+function playAssetOneShot(state, url, gainNode) {
+  const buffer = state.audioBuffers.get(url);
+  if (!buffer) {
+    loadAudioBuffer(state, url).catch(() => {});
+    return;
   }
 
-  return buffer;
+  const source = state.context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(gainNode);
+  source.start();
+}
+
+function playPlayerOneShot(url, volume) {
+  const state = ensureAudioState();
+  if (!state) return;
+
+  state.playerSfxGain.gain.setValueAtTime(volume, state.context.currentTime);
+  playAssetOneShot(state, url, state.playerSfxGain);
 }
 
 function updateSceneAudio(time, lightningStrength) {
   if (!audioState) return;
 
-  const targetWind = world.audio?.wind ? 0.018 : 0;
-  audioState.windGain.gain.setTargetAtTime(targetWind, audioState.context.currentTime, 0.18);
+  updateAudioListener(audioState);
+  applySceneReverb(audioState);
+  ensureSceneAmbienceLoop(audioState);
+  ensurePlayerFootstepLoops(audioState);
+  syncPlayerFootstepAudio(audioState);
+  syncZombieSpatialAudio(audioState);
+  const targetAmbience = getSceneAmbienceGain();
+  audioState.ambienceGain.gain.setTargetAtTime(targetAmbience, audioState.context.currentTime, 0.36);
 
-  if (!world.audio?.lightning || !world.lightning || lightningStrength <= 0.6) return;
+  if (!world.lightning || lightningStrength <= 0.6) return;
 
   const index = Math.floor(time / (world.lightning.interval ?? 8));
   if (index === audioState.lastLightningIndex) return;
 
   audioState.lastLightningIndex = index;
-  playLightningSound(audioState.context);
+  playAssetOneShot(audioState, LIGHTNING_SOUND_URL, audioState.lightningGain);
 }
 
-function playLightningSound(context) {
-  const now = context.currentTime;
-  const noise = context.createBufferSource();
-  const noiseGain = context.createGain();
-  const filter = context.createBiquadFilter();
-  const rumble = context.createOscillator();
-  const rumbleGain = context.createGain();
+function ensurePlayerFootstepLoops(state) {
+  if (
+    state.footstepWalkSource
+    || state.footstepSprintSource
+    || state.footstepLoopsLoading
+    || state.footstepLoopsFailed
+  ) return;
 
-  noise.buffer = createNoiseBuffer(context, 0.45);
-  filter.type = 'highpass';
-  filter.frequency.value = 900;
-  noiseGain.gain.setValueAtTime(0.0, now);
-  noiseGain.gain.linearRampToValueAtTime(0.24, now + 0.015);
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
-  noise.connect(filter);
-  filter.connect(noiseGain);
-  noiseGain.connect(context.destination);
-  noise.start(now);
-  noise.stop(now + 0.45);
+  state.footstepLoopsLoading = true;
+  Promise.all([
+    loadAudioBuffer(state, PLAYER_WALK_FOOTSTEP_LOOP_URL),
+    loadAudioBuffer(state, PLAYER_SPRINT_FOOTSTEP_LOOP_URL),
+  ])
+    .then(([walkBuffer, sprintBuffer]) => {
+      if (audioState !== state) return;
 
-  rumble.type = 'triangle';
-  rumble.frequency.setValueAtTime(58, now);
-  rumble.frequency.exponentialRampToValueAtTime(31, now + 0.5);
-  rumbleGain.gain.setValueAtTime(0.0, now);
-  rumbleGain.gain.linearRampToValueAtTime(0.09, now + 0.04);
-  rumbleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
-  rumble.connect(rumbleGain);
-  rumbleGain.connect(context.destination);
-  rumble.start(now);
-  rumble.stop(now + 0.8);
+      const walkSource = state.context.createBufferSource();
+      walkSource.buffer = walkBuffer;
+      walkSource.loop = true;
+      walkSource.connect(state.footstepWalkGain);
+      walkSource.start();
+
+      const sprintSource = state.context.createBufferSource();
+      sprintSource.buffer = sprintBuffer;
+      sprintSource.loop = true;
+      sprintSource.connect(state.footstepSprintGain);
+      sprintSource.start();
+
+      state.footstepWalkSource = walkSource;
+      state.footstepSprintSource = sprintSource;
+    })
+    .catch((error) => {
+      state.footstepLoopsFailed = true;
+      console.warn(error);
+    })
+    .finally(() => {
+      state.footstepLoopsLoading = false;
+    });
 }
 
-function playDeathSound() {
-  const state = ensureAudioState();
-  if (!state) return;
+function syncPlayerFootstepAudio(state) {
+  const footstep = getPlayerFootstepGains();
+  state.footstepWalkGain.gain.setTargetAtTime(footstep.walk, state.context.currentTime, 0.08);
+  state.footstepSprintGain.gain.setTargetAtTime(footstep.sprint, state.context.currentTime, 0.08);
+}
 
-  const context = state.context;
-  const now = context.currentTime;
-  const impact = context.createOscillator();
-  const impactGain = context.createGain();
-  const hiss = context.createBufferSource();
-  const hissFilter = context.createBiquadFilter();
-  const hissGain = context.createGain();
+function getPlayerFootstepGains() {
+  if (titleActive || optionsDialog.open || deathState.active || !player.grounded) return { walk: 0, sprint: 0 };
 
-  impact.type = 'sawtooth';
-  impact.frequency.setValueAtTime(74, now);
-  impact.frequency.exponentialRampToValueAtTime(28, now + 0.5);
-  impactGain.gain.setValueAtTime(0.0, now);
-  impactGain.gain.linearRampToValueAtTime(0.18, now + 0.025);
-  impactGain.gain.exponentialRampToValueAtTime(0.001, now + 0.72);
-  impact.connect(impactGain);
-  impactGain.connect(context.destination);
-  impact.start(now);
-  impact.stop(now + 0.76);
+  const moving = keys.has('KeyW')
+    || keys.has('KeyA')
+    || keys.has('KeyS')
+    || keys.has('KeyD')
+    || Math.hypot(touchMovement.x, touchMovement.z) > 0.12
+    || Math.hypot(gamepadInput.x, gamepadInput.z) > 0.12;
+  if (!moving) return { walk: 0, sprint: 0 };
 
-  hiss.buffer = createNoiseBuffer(context, 0.34);
-  hissFilter.type = 'lowpass';
-  hissFilter.frequency.setValueAtTime(480, now);
-  hissGain.gain.setValueAtTime(0.0, now);
-  hissGain.gain.linearRampToValueAtTime(0.12, now + 0.02);
-  hissGain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
-  hiss.connect(hissFilter);
-  hissFilter.connect(hissGain);
-  hissGain.connect(context.destination);
-  hiss.start(now);
-  hiss.stop(now + 0.34);
+  const sprinting = keys.has('ShiftLeft') || gamepadInput.sprint;
+  return {
+    walk: sprinting ? 0 : PLAYER_WALK_FOOTSTEP_GAIN,
+    sprint: sprinting ? PLAYER_SPRINT_FOOTSTEP_GAIN : 0,
+  };
+}
+
+function ensureZombieGruntLoop(state) {
+  if (state.audioBuffers.has(ZOMBIE_GRUNT_LOOP_URL) || state.zombieLoopLoading || state.zombieLoopFailed) return;
+
+  state.zombieLoopLoading = true;
+  loadAudioBuffer(state, ZOMBIE_GRUNT_LOOP_URL)
+    .catch((error) => {
+      state.zombieLoopFailed = true;
+      console.warn(error);
+    })
+    .finally(() => {
+      state.zombieLoopLoading = false;
+    });
+}
+
+function syncZombieSpatialAudio(state) {
+  const buffer = state.audioBuffers.get(ZOMBIE_GRUNT_LOOP_URL);
+  if (!buffer) {
+    ensureZombieGruntLoop(state);
+    stopZombieVoices(state);
+    return;
+  }
+
+  const activeIds = new Set();
+  if (!titleActive && !optionsDialog.open && !deathState.active && effects.zombies) {
+    for (const zombie of zombies) {
+      const gain = getZombieGruntGain(zombie);
+      if (gain <= 0) continue;
+
+      activeIds.add(zombie.id);
+      const voice = getZombieVoice(state, zombie, buffer);
+      const occluded = isZombieAudioOccluded(zombie);
+      voice.gain.gain.setTargetAtTime(gain, state.context.currentTime, 0.32);
+      voice.filter.frequency.setTargetAtTime(
+        occluded ? ZOMBIE_GRUNT_OCCLUDED_FILTER_HZ : ZOMBIE_GRUNT_OPEN_FILTER_HZ,
+        state.context.currentTime,
+        0.18,
+      );
+      voice.panner.positionX.setTargetAtTime(zombie.x, state.context.currentTime, 0.08);
+      voice.panner.positionY.setTargetAtTime(zombie.y, state.context.currentTime, 0.08);
+      voice.panner.positionZ.setTargetAtTime(zombie.z, state.context.currentTime, 0.08);
+    }
+  }
+
+  for (const [id, voice] of state.zombieVoices) {
+    if (activeIds.has(id)) continue;
+    stopZombieVoice(state, voice);
+    state.zombieVoices.delete(id);
+  }
+}
+
+function getZombieVoice(state, zombie, buffer) {
+  if (state.zombieVoices.has(zombie.id)) return state.zombieVoices.get(zombie.id);
+
+  const source = state.context.createBufferSource();
+  const gain = state.context.createGain();
+  const filter = state.context.createBiquadFilter();
+  const panner = state.context.createPanner();
+  source.buffer = buffer;
+  source.loop = true;
+  gain.gain.value = 0;
+  filter.type = 'lowpass';
+  filter.frequency.value = ZOMBIE_GRUNT_OPEN_FILTER_HZ;
+  filter.Q.value = 0.6;
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE;
+  panner.maxDistance = ZOMBIE_GRUNT_MAX_DISTANCE;
+  panner.rolloffFactor = 2.9;
+  setAudioParam(panner.positionX, zombie.x, state.context.currentTime, 0);
+  setAudioParam(panner.positionY, zombie.y, state.context.currentTime, 0);
+  setAudioParam(panner.positionZ, zombie.z, state.context.currentTime, 0);
+  source.connect(gain);
+  gain.connect(filter);
+  filter.connect(panner);
+  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  source.start();
+
+  const voice = { source, gain, filter, panner };
+  state.zombieVoices.set(zombie.id, voice);
+  return voice;
+}
+
+function stopZombieVoices(state) {
+  for (const voice of state.zombieVoices.values()) {
+    stopZombieVoice(state, voice);
+  }
+  state.zombieVoices.clear();
+}
+
+function stopZombieVoice(state, voice) {
+  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
+  setTimeout(() => {
+    try {
+      voice.source.stop();
+    } catch {
+      // Already stopped by the browser audio engine.
+    }
+  }, 160);
+}
+
+function getZombieGruntGain(zombie) {
+  if (titleActive || optionsDialog.open || deathState.active || !effects.zombies || !zombie) return 0;
+
+  const nearestDistance = Math.hypot(player.x - zombie.x, player.z - zombie.z);
+  const occlusion = isZombieAudioOccluded(zombie) ? ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER : 1;
+
+  if (nearestDistance >= ZOMBIE_GRUNT_MAX_DISTANCE) return 0;
+  if (nearestDistance <= ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE) return ZOMBIE_GRUNT_MAX_GAIN * occlusion;
+
+  const fadeRange = ZOMBIE_GRUNT_MAX_DISTANCE - ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE;
+  const fade = 1 - (nearestDistance - ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE) / fadeRange;
+  return Math.max(0, Math.min(ZOMBIE_GRUNT_MAX_GAIN, fade * fade * ZOMBIE_GRUNT_MAX_GAIN * occlusion));
+}
+
+function isZombieAudioOccluded(zombie) {
+  return colliders.some((collider) => {
+    if (!collider) return false;
+    if (Math.max(player.y, zombie.y) < collider.minY || Math.min(player.y, zombie.y) > collider.maxY) return false;
+    return lineIntersectsCollider2D(
+      { x: player.x, z: player.z },
+      { x: zombie.x, z: zombie.z },
+      collider,
+    );
+  });
+}
+
+function lineIntersectsCollider2D(start, end, collider) {
+  if (pointInsideCollider2D(start, collider) || pointInsideCollider2D(end, collider)) return false;
+
+  const dx = end.x - start.x;
+  const dz = end.z - start.z;
+  let tMin = 0;
+  let tMax = 1;
+
+  const xHit = clipSegmentAxis(start.x, dx, collider.minX, collider.maxX, tMin, tMax);
+  if (!xHit.hit) return false;
+  tMin = xHit.tMin;
+  tMax = xHit.tMax;
+
+  const zHit = clipSegmentAxis(start.z, dz, collider.minZ, collider.maxZ, tMin, tMax);
+  return zHit.hit;
+}
+
+function clipSegmentAxis(start, delta, min, max, tMin, tMax) {
+  if (Math.abs(delta) < 0.0001) {
+    return { hit: start >= min && start <= max, tMin, tMax };
+  }
+
+  const inverse = 1 / delta;
+  let near = (min - start) * inverse;
+  let far = (max - start) * inverse;
+  if (near > far) {
+    const swap = near;
+    near = far;
+    far = swap;
+  }
+
+  const nextMin = Math.max(tMin, near);
+  const nextMax = Math.min(tMax, far);
+  return { hit: nextMin <= nextMax, tMin: nextMin, tMax: nextMax };
+}
+
+function pointInsideCollider2D(point, collider) {
+  return point.x >= collider.minX
+    && point.x <= collider.maxX
+    && point.z >= collider.minZ
+    && point.z <= collider.maxZ;
+}
+
+function updateAudioListener(state) {
+  const listener = state.context.listener;
+  const time = state.context.currentTime;
+  const forwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
+  const forwardY = Math.sin(player.pitch);
+  const forwardZ = -Math.cos(player.yaw) * Math.cos(player.pitch);
+
+  if (listener.positionX) {
+    listener.positionX.setTargetAtTime(player.x, time, 0.05);
+    listener.positionY.setTargetAtTime(player.y, time, 0.05);
+    listener.positionZ.setTargetAtTime(player.z, time, 0.05);
+    listener.forwardX.setTargetAtTime(forwardX, time, 0.05);
+    listener.forwardY.setTargetAtTime(forwardY, time, 0.05);
+    listener.forwardZ.setTargetAtTime(forwardZ, time, 0.05);
+    listener.upX.setTargetAtTime(0, time, 0.05);
+    listener.upY.setTargetAtTime(1, time, 0.05);
+    listener.upZ.setTargetAtTime(0, time, 0.05);
+  } else {
+    listener.setPosition(player.x, player.y, player.z);
+    listener.setOrientation(forwardX, forwardY, forwardZ, 0, 1, 0);
+  }
+}
+
+function applySceneReverb(state) {
+  const reverbId = world.audio.reverb;
+  const preset = SCENE_REVERB_PRESETS[reverbId] ?? SCENE_REVERB_PRESETS['tight-room'];
+  if (state.activeReverbId !== reverbId) {
+    state.convolver.buffer = createReverbImpulse(state.context, preset);
+    state.activeReverbId = reverbId;
+  }
+  state.reverbWetGain.gain.setTargetAtTime(preset.wet, state.context.currentTime, 0.8);
+}
+
+function createReverbImpulse(context, preset) {
+  const length = Math.max(1, Math.floor(context.sampleRate * preset.duration));
+  const impulse = context.createBuffer(2, length, context.sampleRate);
+
+  for (let channel = 0; channel < 2; channel += 1) {
+    const data = impulse.getChannelData(channel);
+    for (let i = 0; i < length; i += 1) {
+      const phase = i / length;
+      const bitCrush = ((i * 1103515245 + channel * 12345) & 255) / 128 - 1;
+      data[i] = bitCrush * ((1 - phase) ** preset.decay) * 0.42;
+    }
+  }
+
+  return impulse;
+}
+
+function setAudioParam(param, value, time, smoothing) {
+  if (smoothing > 0) {
+    param.setTargetAtTime(value, time, smoothing);
+  } else {
+    param.setValueAtTime(value, time);
+  }
 }
 
 function createViewProjection() {
@@ -1054,7 +1435,7 @@ function syncReticule() {
   reticule.hidden = !effects.showReticule;
 }
 
-function startDeathSequence(now) {
+function startDeathSequence(now, options = {}) {
   if (deathState.active) return;
 
   deathState.active = true;
@@ -1062,7 +1443,10 @@ function startDeathSequence(now) {
   keys.clear();
   player.velocityY = 0;
   player.grounded = false;
-  playDeathSound();
+  if (options.damage) {
+    playPlayerOneShot(PLAYER_DAMAGE_SOUND_URL, PLAYER_DAMAGE_SOUND_GAIN);
+  }
+  playPlayerOneShot(PLAYER_DEATH_SOUND_URL, PLAYER_DEATH_SOUND_GAIN);
 }
 
 function updateDeathSequence(now) {
@@ -1122,7 +1506,8 @@ function setScene(id) {
   gl.deleteTexture(atlasTexture);
   warehouseMesh = createWarehouseMesh(gl, world, textureIndices);
   zombieMesh = createZombieMesh(gl);
-  atlasTexture = createTextureAtlas(gl, world.textures);
+  atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
+  if (audioState) ensureSceneAudio();
   syncSceneSelect();
 }
 
@@ -1238,11 +1623,12 @@ function createZombieMesh(glContext) {
   };
 }
 
-function updateZombieMesh(glContext, mesh, zombieList, indices, model = null) {
+function updateZombieMesh(glContext, mesh, zombieList, indices, model = null, time = 0) {
   const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+  const animatedVertices = model ? animateZombieModel(model, time) : null;
   for (const zombie of zombieList) {
-    if (model) {
-      addZombieModel(geometry, zombie, model, indices);
+    if (animatedVertices) {
+      addZombieModel(geometry, zombie, animatedVertices, indices);
     } else {
       addZombieCard(geometry, zombie, indices);
     }
@@ -1256,14 +1642,14 @@ function updateZombieMesh(glContext, mesh, zombieList, indices, model = null) {
   updateBuffer(glContext, mesh.motion, new Float32Array(geometry.motions));
 }
 
-function addZombieModel(geometry, zombie, model, indices) {
+function addZombieModel(geometry, zombie, vertices, indices) {
   const textureId = indices.get('zombie') ?? 0;
   const motion = motionCode('zombie-walk');
-  const sin = Math.sin(zombie.yaw);
-  const cos = Math.cos(zombie.yaw);
+  const sin = Math.sin(zombie.yaw + ZOMBIE_MODEL_FRONT_ROTATION);
+  const cos = Math.cos(zombie.yaw + ZOMBIE_MODEL_FRONT_ROTATION);
   const feetY = zombie.y - PLAYER_EYE_HEIGHT;
 
-  for (const vertex of model.vertices) {
+  for (const vertex of vertices) {
     const localX = vertex.x * ZOMBIE_MODEL_SCALE;
     const localY = vertex.y * ZOMBIE_MODEL_SCALE;
     const localZ = vertex.z * ZOMBIE_MODEL_SCALE;
@@ -1493,7 +1879,7 @@ function drawQuad(glContext, program, buffer) {
   glContext.drawArrays(glContext.TRIANGLES, 0, 6);
 }
 
-function createTextureAtlas(glContext, textures) {
+function createTextureAtlas(glContext, textures, zombieImage = null) {
   const tile = 128;
   const atlasCanvas = document.createElement('canvas');
   atlasCanvas.width = tile * textures.length;
@@ -1503,7 +1889,11 @@ function createTextureAtlas(glContext, textures) {
 
   textures.forEach((texture, index) => {
     const x = index * tile;
-    drawGeneratedTexture(ctx, texture.id, x, 0, tile, texture.size);
+    if (texture.id === 'zombie' && zombieImage) {
+      drawZombieModelTexture(ctx, zombieImage, x, 0, tile);
+    } else {
+      drawGeneratedTexture(ctx, texture.id, x, 0, tile, texture.size);
+    }
   });
 
   const texture = glContext.createTexture();
@@ -1514,6 +1904,10 @@ function createTextureAtlas(glContext, textures) {
   glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_WRAP_T, glContext.CLAMP_TO_EDGE);
   glContext.texImage2D(glContext.TEXTURE_2D, 0, glContext.RGBA, glContext.RGBA, glContext.UNSIGNED_BYTE, atlasCanvas);
   return texture;
+}
+
+function drawZombieModelTexture(ctx, image, x, y, tile) {
+  ctx.drawImage(image, x, y, tile, tile);
 }
 
 function deleteMeshBuffers(glContext, mesh) {
@@ -2079,19 +2473,39 @@ function start() {
   warehouseMesh = createWarehouseMesh(gl, world, textureIndices);
   zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);
-  atlasTexture = createTextureAtlas(gl, world.textures);
+  atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
   renderTarget = createRenderTarget(gl, renderResolution.width, renderResolution.height);
 
   setupOptions();
   setupInput();
   resize();
   renderTitleScreen(0);
-  loadZombieGlb().then((model) => {
+  loadZombieGlb().then(async (model) => {
     zombieModel = model;
+    zombieTextureImage = await loadZombieTextureImage(model.texture);
+    if (zombieTextureImage) {
+      gl.deleteTexture(atlasTexture);
+      atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
+    }
   }).catch(() => {
     zombieModel = null;
+    zombieTextureImage = null;
   });
   requestAnimationFrame(frame);
+}
+
+async function loadZombieTextureImage(texture) {
+  if (!texture?.bytes) return null;
+  const blob = new Blob([texture.bytes], { type: texture.mimeType });
+  const image = new Image();
+  const url = URL.createObjectURL(blob);
+  try {
+    image.src = url;
+    await image.decode();
+    return image;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 const sceneVertexShader = `

@@ -85,13 +85,15 @@ test('updates vertical ground collision and respawns after falling below the sce
   assert.match(app, /resetPlayerToSpawn\(\)/);
 });
 
-test('holds the dead camera briefly with red tint and death audio before respawn', () => {
+test('holds the dead camera briefly with red tint and player death audio before respawn', () => {
   assert.match(app, /const DEATH_RESPAWN_DELAY_MS = 2000/);
+  assert.match(app, /PLAYER_DEATH_SOUND_URL/);
+  assert.match(app, /player-death-8bit\.mp3\?v=1/);
   assert.match(app, /deathState/);
   assert.match(app, /function startDeathSequence/);
+  assert.match(app, /playPlayerOneShot\(PLAYER_DEATH_SOUND_URL,\s*PLAYER_DEATH_SOUND_GAIN\)/);
   assert.match(app, /function updateDeathSequence/);
   assert.match(app, /function getDeathTint/);
-  assert.match(app, /function playDeathSound/);
   assert.match(app, /uDeathTint/);
   assert.match(app, /mix\(color,\s*vec3\(0\.78,\s*0\.02,\s*0\.02\),\s*uDeathTint\)/);
 });
@@ -125,9 +127,13 @@ test('adds gamepad movement, look, jump, sprint, and menu bindings', () => {
 test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(index, /id="zombies"/);
   assert.match(index, /Zombies/);
+  assert.match(app, /animateZombieModel/);
   assert.match(app, /loadZombieGlb/);
   assert.match(app, /zombieModel/);
   assert.match(app, /addZombieModel/);
+  assert.match(app, /const ZOMBIE_MODEL_FRONT_ROTATION = Math\.PI \/ 2;/);
+  assert.match(app, /zombie\.yaw \+ ZOMBIE_MODEL_FRONT_ROTATION/);
+  assert.match(app, /drawZombieModelTexture/);
   assert.match(app, /createZombieEnemies/);
   assert.match(app, /updateZombieEnemies/);
   assert.match(app, /isPlayerTouchedByZombie/);
@@ -135,5 +141,75 @@ test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(app, /updateZombieMesh/);
   assert.match(app, /drawZombieTexture/);
   assert.match(app, /effects\.zombies/);
-  assert.match(app, /startDeathSequence\(now\)/);
+  assert.match(app, /startDeathSequence\(now,\s*\{\s*damage: true\s*\}\)/);
+  assert.match(app, /PLAYER_DAMAGE_SOUND_URL/);
+  assert.match(app, /player-damage-8bit\.mp3\?v=1/);
+});
+
+test('loops zombie grunt audio when zombies are active near the player', () => {
+  assert.match(app, /ZOMBIE_GRUNT_LOOP_URL/);
+  assert.match(app, /zombie-idle-grunt-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /function ensureZombieGruntLoop/);
+  assert.match(app, /function syncZombieSpatialAudio/);
+  assert.match(app, /createPanner/);
+  assert.match(app, /zombieVoices: new Map/);
+  assert.match(app, /voice\.panner\.positionX\.setTargetAtTime/);
+  assert.match(app, /updateAudioListener/);
+  assert.match(app, /isZombieAudioOccluded/);
+  assert.match(app, /lineIntersectsCollider2D/);
+  assert.match(app, /ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER/);
+  assert.match(app, /function getZombieGruntGain/);
+  assert.match(app, /state\.zombieVoices/);
+  assert.match(app, /source\.loop = true/);
+  assert.match(app, /!effects\.zombies/);
+  assert.match(app, /Math\.hypot\(player\.x - zombie\.x,\s*player\.z - zombie\.z\)/);
+});
+
+test('routes scene audio through cheap per-scene reverb settings', () => {
+  assert.match(app, /SCENE_REVERB_PRESETS/);
+  assert.match(app, /createConvolver/);
+  assert.match(app, /createReverbImpulse/);
+  assert.match(app, /applySceneReverb/);
+  assert.match(app, /world\.audio\.reverb/);
+  assert.match(app, /reverbWetGain\.gain\.setTargetAtTime/);
+  assert.match(app, /dryGain/);
+});
+
+test('plays generated audio assets for lightning and scene ambience', () => {
+  assert.match(app, /LIGHTNING_SOUND_URL/);
+  assert.match(app, /lightning-bolt-strike\.mp3\?v=1/);
+  assert.match(app, /SCENE_AMBIENCE_URLS/);
+  for (const sceneId of [
+    'dungeon',
+    'alien-landscape',
+    'derelict-starship',
+    'neon-backstreets',
+    'sunken-temple',
+    'one-bit-cathedral',
+    'rotwood-forest',
+    'astral-geometry-garden',
+    'motel-mirage',
+  ]) {
+    assert.match(app, new RegExp(`${sceneId}-8bit-loop\\.mp3\\?v=1`));
+  }
+  assert.match(app, /function loadAudioBuffer/);
+  assert.match(app, /function ensureSceneAmbienceLoop/);
+  assert.match(app, /function playAssetOneShot/);
+  assert.match(app, /audioState\.ambienceGain\.gain\.setTargetAtTime/);
+  assert.doesNotMatch(app, /createOscillator/);
+  assert.doesNotMatch(app, /createNoiseBuffer/);
+});
+
+test('crossfades walking and sprinting player footstep loops', () => {
+  assert.match(app, /PLAYER_WALK_FOOTSTEP_LOOP_URL/);
+  assert.match(app, /player-footsteps-walk-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /PLAYER_SPRINT_FOOTSTEP_LOOP_URL/);
+  assert.match(app, /player-footsteps-sprint-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /function ensurePlayerFootstepLoops/);
+  assert.match(app, /function syncPlayerFootstepAudio/);
+  assert.match(app, /function getPlayerFootstepGains/);
+  assert.match(app, /player\.grounded/);
+  assert.match(app, /keys\.has\('ShiftLeft'\) \|\| gamepadInput\.sprint/);
+  assert.match(app, /footstepWalkGain\.gain\.setTargetAtTime/);
+  assert.match(app, /footstepSprintGain\.gain\.setTargetAtTime/);
 });

@@ -671,10 +671,6 @@ function createNeonBackstreetsWorld() {
         },
       ],
     },
-    audio: {
-      wind: true,
-      lightning: true,
-    },
     lights: [
       { x: -23, y: 12, z: -26, color: [0.5, 0.9, 1.0] },
       { x: 22, y: 10, z: -4, color: [0.35, 1.0, 1.0] },
@@ -890,8 +886,24 @@ function withZombies(scene, zombieSpawns) {
   return {
     ...scene,
     zombieSpawns,
+    audio: scene.audio ?? { reverb: getSceneReverb(scene.id) },
     textures: scene.textures.some((texture) => texture.id === 'zombie')
       ? scene.textures
       : [...scene.textures, { id: 'zombie', size: 64 }],
   };
+}
+
+function getSceneReverb(sceneId) {
+  const reverbs = {
+    dungeon: 'tight-room',
+    'alien-landscape': 'open-air',
+    'derelict-starship': 'metal-hall',
+    'neon-backstreets': 'open-air',
+    'sunken-temple': 'stone-vault',
+    'one-bit-cathedral': 'stone-vault',
+    'rotwood-forest': 'open-air',
+    'astral-geometry-garden': 'dream-space',
+    'motel-mirage': 'open-air',
+  };
+  return reverbs[sceneId] ?? 'tight-room';
 }

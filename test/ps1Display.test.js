@@ -39,8 +39,17 @@ test('includes a stronger portable CRT preset for 1999 TV feel', () => {
 test('offers the requested PlayStation resolution modes', () => {
   assert.deepEqual(
     PS1_RESOLUTION_MODES.map((mode) => `${mode.width}x${mode.height}`),
-    ['256x224', '320x240', '512x240', '640x240', '512x480', '640x480'],
+    ['256x224', '320x240', '512x240', '640x240', '512x480', '640x480', '1024x768'],
   );
+});
+
+test('includes a 1024x768 art-check mode for higher-resolution previewing', () => {
+  assert.deepEqual(getResolutionMode('1024x768'), {
+    id: '1024x768',
+    width: 1024,
+    height: 768,
+    label: '1024x768 - Year 2000 art check',
+  });
 });
 
 test('defaults to the 512x480 interlaced high-res mode and falls back to it for invalid ids', () => {

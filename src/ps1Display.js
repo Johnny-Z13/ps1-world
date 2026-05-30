@@ -11,6 +11,7 @@ export const PS1_RESOLUTION_MODES = Object.freeze([
   Object.freeze({ id: '640x240', width: 640, height: 240, label: '640x240 - Rare' }),
   Object.freeze({ id: '512x480', width: 512, height: 480, label: '512x480 - Interlaced high-res' }),
   Object.freeze({ id: '640x480', width: 640, height: 480, label: '640x480 - Very rare' }),
+  Object.freeze({ id: '1024x768', width: 1024, height: 768, label: '1024x768 - Year 2000 art check' }),
 ]);
 
 export const DEFAULT_EFFECTS = Object.freeze({

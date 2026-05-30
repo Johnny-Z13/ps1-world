@@ -143,8 +143,6 @@ test('builds neon backstreets as a psychedelic floating sky scene', () => {
   assert.ok(objects.filter((item) => item.name.includes('tree')).length >= 8);
   assert.ok(objects.filter((item) => item.name.includes('cloud')).length >= 3);
   assert.ok(world.lightning?.bolts.length >= 2);
-  assert.ok(world.audio?.wind);
-  assert.ok(world.audio?.lightning);
   assert.ok(world.textures.some((texture) => texture.id === 'neonSky' && texture.size === 128));
   assert.ok(world.textures.some((texture) => texture.id === 'neonCloud' && texture.size === 128));
 });
@@ -242,5 +240,15 @@ test('dots every scene with two or three zombie spawn points away from the playe
       assert.ok(distanceFromPlayer > playerRadius, definition.id);
       assert.deepEqual(blocking.map((item) => item.name), [], definition.id);
     }
+  }
+});
+
+test('gives every scene a cheap 90s-style audio reverb profile', () => {
+  const allowedReverbs = ['tight-room', 'open-air', 'metal-hall', 'stone-vault', 'dream-space'];
+
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+
+    assert.ok(allowedReverbs.includes(world.audio.reverb), definition.id);
   }
 });
