@@ -12,6 +12,12 @@ test('renders a center reticule with an options toggle', () => {
   assert.match(styles, /\.reticule/);
 });
 
+test('offers a clean test view video preset in the options menu', () => {
+  assert.match(app, /VIDEO_PRESETS/);
+  assert.match(app, /applyVideoPreset/);
+  assert.match(app, /syncOptionsControls/);
+});
+
 test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(index, /id="titleScreen"/);
   assert.match(index, /id="titleCanvas"/);
@@ -30,6 +36,14 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(app, /z:/);
   assert.match(app, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(app, /document\.body\.classList\.remove\('title-active'\)/);
+});
+
+test('plays a retro menu confirm sound when starting from the title screen', () => {
+  assert.match(app, /MENU_START_CONFIRM_SOUND_URL/);
+  assert.match(app, /menu-start-confirm-8bit\.mp3\?v=1/);
+  assert.match(app, /function playMenuStartConfirmSound/);
+  assert.match(app, /playPlayerOneShot\(MENU_START_CONFIRM_SOUND_URL,\s*MENU_START_CONFIRM_SOUND_GAIN\)/);
+  assert.match(app, /playMenuStartConfirmSound\(\)/);
 });
 
 test('hides the game canvas cursor during play', () => {
@@ -52,10 +66,35 @@ test('renders one-bit scenes with ordered dithering instead of hard clipping', (
 
 test('renders scene cards and motion flags for animated preset props', () => {
   assert.match(app, /scene\.floorPieces/);
+  assert.match(app, /scene\.props/);
   assert.match(app, /scene\.cards/);
   assert.match(app, /scene\.movingBillboards/);
   assert.match(app, /function motionCode/);
   assert.match(app, /attribute float aMotion/);
+});
+
+test('renders low-poly animated torches with static orange light uniforms', () => {
+  assert.match(app, /MAX_STATIC_TORCH_LIGHTS = 3/);
+  assert.match(app, /torch-flame/);
+  assert.match(app, /drawTorchFlameTexture/);
+  assert.match(app, /setStaticTorchUniforms/);
+  assert.match(app, /getTorchFlicker/);
+  assert.match(app, /uStaticTorchPosition0/);
+  assert.match(app, /uStaticTorchColor0/);
+  assert.match(app, /uStaticTorchCount/);
+  assert.match(app, /torchFlameMask/);
+});
+
+test('attaches spatial crackle audio emitters to animated torch lights', () => {
+  assert.match(app, /torchCrackleVoices: new Map/);
+  assert.match(app, /function syncTorchCrackleAudio/);
+  assert.match(app, /function getTorchCrackleVoice/);
+  assert.match(app, /function scheduleTorchCracklePulse/);
+  assert.match(app, /world\.torchLights/);
+  assert.match(app, /createPanner/);
+  assert.match(app, /panner\.positionX\.setTargetAtTime\(torchLight\.x/);
+  assert.match(app, /oscillator\.type = 'sawtooth'/);
+  assert.match(app, /torch-crackle/);
 });
 
 test('offers a player torch toggle and sends torch uniforms to the scene shader', () => {
@@ -85,17 +124,66 @@ test('updates vertical ground collision and respawns after falling below the sce
   assert.match(app, /resetPlayerToSpawn\(\)/);
 });
 
-test('holds the dead camera briefly with red tint and player death audio before respawn', () => {
-  assert.match(app, /const DEATH_RESPAWN_DELAY_MS = 2000/);
+test('plays a short death scene with camera impact, blood, and player death audio before respawn', () => {
+  assert.match(app, /const DEATH_RESPAWN_DELAY_MS = 2500/);
+  assert.match(app, /playerHealth/);
+  assert.match(app, /DEATH_SCENE_PROFILES/);
   assert.match(app, /PLAYER_DEATH_SOUND_URL/);
   assert.match(app, /player-death-8bit\.mp3\?v=1/);
   assert.match(app, /deathState/);
   assert.match(app, /function startDeathSequence/);
+  assert.match(app, /createDeathScene/);
+  assert.match(app, /getDeathSceneCamera/);
+  assert.match(app, /getDeathSceneProgress/);
+  assert.match(app, /impactBounce/);
   assert.match(app, /playPlayerOneShot\(PLAYER_DEATH_SOUND_URL,\s*PLAYER_DEATH_SOUND_GAIN\)/);
   assert.match(app, /function updateDeathSequence/);
   assert.match(app, /function getDeathTint/);
   assert.match(app, /uDeathTint/);
+  assert.match(app, /bloodParticle/);
   assert.match(app, /mix\(color,\s*vec3\(0\.78,\s*0\.02,\s*0\.02\),\s*uDeathTint\)/);
+});
+
+test('extends the death scene with final camera jitter, heavier blood, and a final death rattle', () => {
+  assert.match(app, /const DEATH_RESPAWN_DELAY_MS = 2500/);
+  assert.match(app, /finalJiggleStart/);
+  assert.match(app, /finalJiggleStrength/);
+  assert.match(app, /finalDeathRattlePlayed/);
+  assert.match(app, /playFinalDeathRattle/);
+  assert.match(app, /getDeathSceneFinalProgress/);
+  assert.match(app, /finalBlood/);
+  assert.match(app, /bloodParticle\(sourceUv,\s*vec2\(0\.32,\s*0\.54\)/);
+}
+);
+
+test('tracks player health, low-health screen pressure, and breathing audio', () => {
+  assert.match(app, /createPlayerHealth/);
+  assert.match(app, /applyPlayerDamage/);
+  assert.match(app, /restorePlayerHealth/);
+  assert.match(app, /ZOMBIE_BITE_DAMAGE/);
+  assert.match(app, /PLAYER_LOW_HEALTH_BREATHING_LOOP_URL/);
+  assert.match(app, /player-low-health-breathing-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /function getHealthEffectStrength/);
+  assert.match(app, /uHealthDanger/);
+  assert.match(app, /uHealthPulse/);
+  assert.match(app, /lowHealthBreathingGain/);
+  assert.match(app, /function damagePlayer/);
+  assert.match(app, /ZOMBIE_BITE_COOLDOWN_MS/);
+});
+
+test('renders low-poly green health flasks and restores health on pickup', () => {
+  assert.match(app, /scene\.healthPotions/);
+  assert.match(app, /healthPotion/);
+  assert.match(app, /pickup-bob/);
+  assert.match(app, /function updateHealthPotions/);
+  assert.match(app, /restorePlayerHealth/);
+  assert.match(app, /function addHealthPotionFlask/);
+  assert.match(app, /drawHealthPotionTexture/);
+  assert.match(app, /HEALTH_PICKUP_SOUND_URL/);
+  assert.match(app, /health-pickup-bing-8bit\.mp3\?v=1/);
+  assert.match(app, /uHealthPickupFlash/);
+  assert.match(app, /getHealthPickupFlash/);
+  assert.match(app, /playPlayerOneShot\(HEALTH_PICKUP_SOUND_URL,\s*HEALTH_PICKUP_SOUND_GAIN\)/);
 });
 
 test('adds mobile floating joystick, look drag, and jump touch controls', () => {
@@ -131,7 +219,7 @@ test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(app, /loadZombieGlb/);
   assert.match(app, /zombieModel/);
   assert.match(app, /addZombieModel/);
-  assert.match(app, /const ZOMBIE_MODEL_FRONT_ROTATION = Math\.PI \/ 2;/);
+  assert.match(app, /const ZOMBIE_MODEL_FRONT_ROTATION = Math\.PI;/);
   assert.match(app, /zombie\.yaw \+ ZOMBIE_MODEL_FRONT_ROTATION/);
   assert.match(app, /drawZombieModelTexture/);
   assert.match(app, /createZombieEnemies/);
@@ -141,7 +229,7 @@ test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(app, /updateZombieMesh/);
   assert.match(app, /drawZombieTexture/);
   assert.match(app, /effects\.zombies/);
-  assert.match(app, /startDeathSequence\(now,\s*\{\s*damage: true\s*\}\)/);
+  assert.match(app, /damagePlayer\(now\)/);
   assert.match(app, /PLAYER_DAMAGE_SOUND_URL/);
   assert.match(app, /player-damage-8bit\.mp3\?v=1/);
 });
@@ -175,7 +263,7 @@ test('routes scene audio through cheap per-scene reverb settings', () => {
   assert.match(app, /dryGain/);
 });
 
-test('plays generated audio assets for lightning and scene ambience', () => {
+test('plays audio assets for lightning and scene ambience', () => {
   assert.match(app, /LIGHTNING_SOUND_URL/);
   assert.match(app, /lightning-bolt-strike\.mp3\?v=1/);
   assert.match(app, /SCENE_AMBIENCE_URLS/);
@@ -196,7 +284,6 @@ test('plays generated audio assets for lightning and scene ambience', () => {
   assert.match(app, /function ensureSceneAmbienceLoop/);
   assert.match(app, /function playAssetOneShot/);
   assert.match(app, /audioState\.ambienceGain\.gain\.setTargetAtTime/);
-  assert.doesNotMatch(app, /createOscillator/);
   assert.doesNotMatch(app, /createNoiseBuffer/);
 });
 
@@ -212,4 +299,16 @@ test('crossfades walking and sprinting player footstep loops', () => {
   assert.match(app, /keys\.has\('ShiftLeft'\) \|\| gamepadInput\.sprint/);
   assert.match(app, /footstepWalkGain\.gain\.setTargetAtTime/);
   assert.match(app, /footstepSprintGain\.gain\.setTargetAtTime/);
+});
+
+test('loops a generated player heartbeat that speeds up near zombies', () => {
+  assert.match(app, /PLAYER_HEARTBEAT_BASE_INTERVAL_MS/);
+  assert.match(app, /PLAYER_HEARTBEAT_DANGER_INTERVAL_MS/);
+  assert.match(app, /heartbeatGain/);
+  assert.match(app, /function ensurePlayerHeartbeatLoop/);
+  assert.match(app, /function scheduleHeartbeatPulse/);
+  assert.match(app, /function getPlayerHeartbeatParams/);
+  assert.match(app, /getNearestZombieDistance\(\)/);
+  assert.match(app, /oscillator\.type = 'square'/);
+  assert.match(app, /heartbeatLoopTimer/);
 });

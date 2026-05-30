@@ -34,6 +34,10 @@ test('builds a warehouse test scene with rooms, corridors, crates, and low-res t
   assert.ok(world.walls.length >= 20);
   assert.ok(world.crates.length >= 10);
   assert.ok(world.lights.length >= 4);
+  assert.ok(world.props.filter((item) => item.name.includes('wall torch')).length >= 4);
+  assert.equal(world.cards.filter((item) => item.motion === 'torch-flame').length, 3);
+  assert.equal(world.torchLights.length, 3);
+  assert.ok(world.textures.some((texture) => texture.id === 'torchFlame'));
   assert.ok(world.playerSpawn);
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
 });
@@ -155,7 +159,7 @@ test('builds a 1-bit polygon cathedral with black and white texture mapping', ()
   assert.equal(world.label, '1-bit cathedral');
   assert.equal(world.oneBitStyle, 'dithered-gradient');
   assert.ok(world.floor);
-  assert.ok(world.textures.every((texture) => texture.id.startsWith('oneBit') || texture.id === 'zombie'));
+  assert.ok(world.textures.every((texture) => texture.id.startsWith('oneBit') || texture.id === 'zombie' || texture.id === 'healthPotion'));
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
   assert.ok(world.clearColor[0] > 0);
   assert.ok(world.walls.length >= 28);
@@ -239,6 +243,23 @@ test('dots every scene with two or three zombie spawn points away from the playe
 
       assert.ok(distanceFromPlayer > playerRadius, definition.id);
       assert.deepEqual(blocking.map((item) => item.name), [], definition.id);
+    }
+  }
+});
+
+test('places two or three green health potion pickups in every scene', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+
+    assert.ok(world.healthPotions.length >= 2, definition.id);
+    assert.ok(world.healthPotions.length <= 3, definition.id);
+    assert.ok(world.textures.some((texture) => texture.id === 'healthPotion'), definition.id);
+
+    for (const potion of world.healthPotions) {
+      assert.equal(potion.texture, 'healthPotion');
+      assert.equal(potion.mesh, 'health-flask');
+      assert.equal(potion.motion, 'pickup-bob');
+      assert.ok(Math.hypot(potion.x - world.playerSpawn.x, potion.z - world.playerSpawn.z) > 2, definition.id);
     }
   }
 });

@@ -6,6 +6,8 @@ import {
   DEFAULT_EFFECTS,
   PS1_RENDER_TARGET,
   PS1_RESOLUTION_MODES,
+  VIDEO_PRESETS,
+  applyVideoPreset,
   getResolutionMode,
   normalizePixelScale,
 } from '../src/ps1Display.js';
@@ -34,6 +36,71 @@ test('includes a stronger portable CRT preset for 1999 TV feel', () => {
   assert.ok(CRT_PRESETS.portable.scanlineStrength > CRT_PRESETS.clean.scanlineStrength);
   assert.ok(CRT_PRESETS.portable.distortion > CRT_PRESETS.clean.distortion);
   assert.ok(CRT_PRESETS.portable.noise > CRT_PRESETS.clean.noise);
+});
+
+test('video presets are complete whole-option profiles', () => {
+  const requiredEffectKeys = [
+    'preset',
+    'resolutionId',
+    'pixelScale',
+    'invertY',
+    'flipFramebufferY',
+    'showReticule',
+    'scanlines',
+    'crtDistortion',
+    'dither',
+    'warping',
+    'colorBleed',
+    'noise',
+    'wobble',
+    'playerTorch',
+    'zombies',
+    'brightness',
+    'contrast',
+    'saturation',
+  ];
+
+  for (const videoPreset of VIDEO_PRESETS) {
+    for (const key of requiredEffectKeys) {
+      assert.ok(Object.hasOwn(videoPreset.effects, key), `${videoPreset.id} missing ${key}`);
+    }
+  }
+});
+
+test('portable TV preset restores the full crunchy PS1 profile', () => {
+  const clean = applyVideoPreset(DEFAULT_EFFECTS, 'clean-test-view');
+  const portable = applyVideoPreset(clean, 'portable');
+
+  assert.equal(portable.preset, 'portable');
+  assert.equal(portable.resolutionId, '512x480');
+  assert.equal(portable.pixelScale, 3);
+  assert.equal(portable.showReticule, true);
+  assert.equal(portable.scanlines, true);
+  assert.equal(portable.crtDistortion, true);
+  assert.equal(portable.dither, true);
+  assert.equal(portable.warping, true);
+  assert.equal(portable.colorBleed, true);
+  assert.equal(portable.noise, true);
+  assert.equal(portable.playerTorch, true);
+  assert.equal(portable.zombies, true);
+});
+
+test('includes a clean test view preset matching the 1024 art-check settings', () => {
+  assert.ok(VIDEO_PRESETS.some((preset) => preset.id === 'clean-test-view' && preset.label === 'Clean test view'));
+
+  const effects = applyVideoPreset(DEFAULT_EFFECTS, 'clean-test-view');
+  assert.equal(effects.preset, 'clean-test-view');
+  assert.equal(effects.resolutionId, '1024x768');
+  assert.equal(effects.pixelScale, 3);
+  assert.equal(effects.scanlines, false);
+  assert.equal(effects.crtDistortion, false);
+  assert.equal(effects.dither, false);
+  assert.equal(effects.warping, false);
+  assert.equal(effects.colorBleed, false);
+  assert.equal(effects.noise, false);
+  assert.equal(effects.playerTorch, true);
+  assert.equal(effects.zombies, true);
+  assert.equal(effects.showReticule, true);
 });
 
 test('offers the requested PlayStation resolution modes', () => {

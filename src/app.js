@@ -5,6 +5,8 @@ import {
   normalizePixelScale,
   PS1_RENDER_TARGET,
   PS1_RESOLUTION_MODES,
+  VIDEO_PRESETS,
+  applyVideoPreset,
 } from './ps1Display.js';
 import { cameraView } from './cameraMath.js';
 import {
@@ -26,6 +28,14 @@ import {
   updateZombieEnemies,
 } from './zombies.js';
 import { animateZombieModel, loadZombieGlb } from './zombieModel.js';
+import {
+  MAX_PLAYER_HEALTH,
+  ZOMBIE_BITE_DAMAGE,
+  applyPlayerDamage,
+  createPlayerHealth,
+  getHealthDanger,
+  restorePlayerHealth,
+} from './playerHealth.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
@@ -50,16 +60,32 @@ if (!gl) {
 
 const effects = createEffectState();
 effects.sceneId = 'dungeon';
-const DEATH_RESPAWN_DELAY_MS = 2000;
+const DEATH_RESPAWN_DELAY_MS = 2500;
+const DEATH_SCENE_PROFILES = Object.freeze({
+  collapseSplat: Object.freeze({
+    id: 'collapseSplat',
+    impactAt: 0.5,
+    finalJiggleStart: 0.8,
+    finalJiggleStrength: 0.028,
+    dropDistance: 1.15,
+    pitchDrop: 0.92,
+    bounceHeight: 0.24,
+    bounceCount: 2.5,
+  }),
+});
 const GAMEPAD_DEADZONE = 0.18;
+const MAX_STATIC_TORCH_LIGHTS = 3;
 const ZOMBIE_MODEL_SCALE = 1.75;
-const ZOMBIE_MODEL_FRONT_ROTATION = Math.PI / 2;
+const ZOMBIE_MODEL_FRONT_ROTATION = Math.PI;
 const ZOMBIE_GRUNT_LOOP_URL = './assets/audio/sfx/zombie-idle-grunt-8bit-loop.mp3?v=1';
 const LIGHTNING_SOUND_URL = './assets/audio/sfx/lightning-bolt-strike.mp3?v=1';
+const MENU_START_CONFIRM_SOUND_URL = './assets/audio/sfx/menu-start-confirm-8bit.mp3?v=1';
+const HEALTH_PICKUP_SOUND_URL = './assets/audio/sfx/health-pickup-bing-8bit.mp3?v=1';
 const PLAYER_DEATH_SOUND_URL = './assets/audio/sfx/player-death-8bit.mp3?v=1';
 const PLAYER_DAMAGE_SOUND_URL = './assets/audio/sfx/player-damage-8bit.mp3?v=1';
 const PLAYER_WALK_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-walk-8bit-loop.mp3?v=1';
 const PLAYER_SPRINT_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-sprint-8bit-loop.mp3?v=1';
+const PLAYER_LOW_HEALTH_BREATHING_LOOP_URL = './assets/audio/sfx/player-low-health-breathing-8bit-loop.mp3?v=1';
 const SCENE_AMBIENCE_URLS = Object.freeze({
   dungeon: './assets/audio/ambience/dungeon-8bit-loop.mp3?v=1',
   'alien-landscape': './assets/audio/ambience/alien-landscape-8bit-loop.mp3?v=1',
@@ -73,10 +99,23 @@ const SCENE_AMBIENCE_URLS = Object.freeze({
 });
 const SCENE_AMBIENCE_MAX_GAIN = 0.16;
 const LIGHTNING_SOUND_GAIN = 0.55;
+const MENU_START_CONFIRM_SOUND_GAIN = 0.5;
+const HEALTH_PICKUP_SOUND_GAIN = 0.46;
 const PLAYER_DEATH_SOUND_GAIN = 0.72;
 const PLAYER_DAMAGE_SOUND_GAIN = 0.5;
 const PLAYER_WALK_FOOTSTEP_GAIN = 0.13;
 const PLAYER_SPRINT_FOOTSTEP_GAIN = 0.19;
+const PLAYER_LOW_HEALTH_BREATHING_GAIN = 0.24;
+const HEALTH_PICKUP_FLASH_DURATION_MS = 520;
+const ZOMBIE_BITE_COOLDOWN_MS = 1150;
+const PLAYER_HEARTBEAT_BASE_INTERVAL_MS = 1320;
+const PLAYER_HEARTBEAT_DANGER_INTERVAL_MS = 560;
+const PLAYER_HEARTBEAT_BASE_GAIN = 0.018;
+const PLAYER_HEARTBEAT_DANGER_GAIN = 0.07;
+const PLAYER_HEARTBEAT_DANGER_DISTANCE = 9;
+const TORCH_CRACKLE_MAX_DISTANCE = 16;
+const TORCH_CRACKLE_REF_DISTANCE = 1.2;
+const TORCH_CRACKLE_GAIN = 0.045;
 const ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE = 1.0;
 const ZOMBIE_GRUNT_MAX_DISTANCE = 22;
 const ZOMBIE_GRUNT_MAX_GAIN = 0.085;
@@ -96,6 +135,10 @@ let textureIndices = new Map(world.textures.map((texture, index) => [texture.id,
 let colliders = getSceneColliders(world);
 let walkableSurfaces = getSceneWalkableSurfaces(world);
 let zombies = createZombieEnemies(world);
+let healthPotions = createSceneHealthPotions(world);
+let playerHealth = createPlayerHealth();
+let lastZombieBiteAt = -Infinity;
+let healthPickupFlashStartedAt = -Infinity;
 const player = {
   x: world.playerSpawn.x,
   y: world.playerSpawn.y,
@@ -108,7 +151,14 @@ const player = {
 };
 
 const keys = new Set();
-const deathState = { active: false, startedAt: 0 };
+const deathState = {
+  active: false,
+  startedAt: 0,
+  profile: null,
+  cameraStart: null,
+  cameraImpactY: 0,
+  finalDeathRattlePlayed: false,
+};
 const touchMovement = { active: false, pointerId: null, originX: 0, originY: 0, x: 0, z: 0 };
 const touchLook = { active: false, pointerId: null, x: 0, y: 0 };
 const gamepadInput = {
@@ -201,9 +251,12 @@ function updatePlayer(dt, now) {
   player.groundY = jump.grounded ? jump.y : groundY ?? player.groundY;
 
   if (isBelowKillPlane(player, getVoidDeathY(world.killY ?? -8))) {
+    playerHealth = applyPlayerDamage(playerHealth, MAX_PLAYER_HEALTH);
     startDeathSequence(now, { damage: false });
     return;
   }
+
+  updateHealthPotions(now);
 
   if (effects.zombies) {
     zombies = updateZombieEnemies(zombies, player, {
@@ -213,12 +266,13 @@ function updatePlayer(dt, now) {
     });
   }
   if (effects.zombies && isPlayerTouchedByZombie(player, zombies)) {
-    startDeathSequence(now, { damage: true });
+    damagePlayer(now);
   }
 }
 
 function render(time, now = performance.now()) {
   const lightningStrength = getLightningStrength(time, world.lightning);
+  const healthEffect = getHealthEffectStrength(now);
   updateSceneAudio(time, lightningStrength);
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, renderTarget.framebuffer);
@@ -245,7 +299,8 @@ function render(time, now = performance.now()) {
   gl.uniform1f(sceneProgram.uniforms.uTorchRadius, world.playerTorch?.radius ?? 0);
   gl.uniform1f(sceneProgram.uniforms.uTorchIntensity, world.playerTorch?.intensity ?? 0);
   gl.uniform1f(sceneProgram.uniforms.uTorchEnabled, effects.playerTorch && world.playerTorch ? 1 : 0);
-  gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection());
+  setStaticTorchUniforms(sceneProgram, world.torchLights ?? [], time);
+  gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection(now));
   drawMesh(gl, sceneProgram, warehouseMesh);
   if (effects.zombies) {
     updateZombieMesh(gl, zombieMesh, zombies, textureIndices, zombieModel, time);
@@ -281,7 +336,11 @@ function render(time, now = performance.now()) {
   gl.uniform1f(postProgram.uniforms.uFlipFramebufferY, effects.flipFramebufferY ? 1 : 0);
   gl.uniform1f(postProgram.uniforms.uOneBit, world.oneBit ? 1 : 0);
   gl.uniform1f(postProgram.uniforms.uLightningStrength, lightningStrength);
+  gl.uniform1f(postProgram.uniforms.uHealthDanger, healthEffect.danger);
+  gl.uniform1f(postProgram.uniforms.uHealthPulse, healthEffect.pulse);
+  gl.uniform1f(postProgram.uniforms.uHealthPickupFlash, getHealthPickupFlash(now));
   gl.uniform1f(postProgram.uniforms.uDeathTint, getDeathTint(now));
+  gl.uniform1f(postProgram.uniforms.uDeathProgress, getDeathSceneProgress(now));
   drawQuad(gl, postProgram, quad);
 
   if (titleActive) {
@@ -307,6 +366,39 @@ function getLightningStrength(time, lightning) {
   return Math.min(1, Math.max(0, envelope * strobe));
 }
 
+function setStaticTorchUniforms(program, torchLights, time) {
+  const count = Math.min(torchLights.length, MAX_STATIC_TORCH_LIGHTS);
+  if (program.uniforms.uStaticTorchCount) {
+    gl.uniform1f(program.uniforms.uStaticTorchCount, count);
+  }
+
+  for (let i = 0; i < MAX_STATIC_TORCH_LIGHTS; i += 1) {
+    const torchLight = torchLights[i] ?? {};
+    const flicker = getTorchFlicker(torchLight, i, time);
+    const position = [torchLight.x ?? 0, torchLight.y ?? 0, torchLight.z ?? 0];
+    const color = torchLight.color ?? [1, 0.43, 0.12];
+    const radius = i < count ? (torchLight.radius ?? 0) * (0.96 + flicker * 0.08) : 0;
+    const intensity = i < count ? (torchLight.intensity ?? 0) * (0.72 + flicker * 0.42) : 0;
+    const positionLocation = program.uniforms[`uStaticTorchPosition${i}`];
+    const colorLocation = program.uniforms[`uStaticTorchColor${i}`];
+    const radiusLocation = program.uniforms[`uStaticTorchRadius${i}`];
+    const intensityLocation = program.uniforms[`uStaticTorchIntensity${i}`];
+
+    if (positionLocation) gl.uniform3f(positionLocation, ...position);
+    if (colorLocation) gl.uniform3f(colorLocation, ...color);
+    if (radiusLocation) gl.uniform1f(radiusLocation, radius);
+    if (intensityLocation) gl.uniform1f(intensityLocation, intensity);
+  }
+}
+
+function getTorchFlicker(torchLight, index, time) {
+  const seed = (torchLight.x ?? 0) * 3.7 + (torchLight.z ?? 0) * 5.1 + index * 9.3;
+  const quick = Math.sin(time * 17.0 + seed) * 0.5 + 0.5;
+  const slow = Math.sin(time * 5.4 + seed * 1.7) * 0.5 + 0.5;
+  const dart = Math.sin(time * 31.0 + seed * 2.3) > 0.86 ? 1 : 0;
+  return Math.max(0, Math.min(1, quick * 0.55 + slow * 0.3 + dart * 0.25));
+}
+
 function ensureAudioState() {
   if (!audioState) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -322,6 +414,8 @@ function ensureAudioState() {
     const playerSfxGain = context.createGain();
     const footstepWalkGain = context.createGain();
     const footstepSprintGain = context.createGain();
+    const lowHealthBreathingGain = context.createGain();
+    const heartbeatGain = context.createGain();
 
     dryGain.gain.value = 1;
     dryGain.connect(context.destination);
@@ -340,6 +434,10 @@ function ensureAudioState() {
     connectSceneAudioNode(footstepWalkGain, dryGain, reverbInput);
     footstepSprintGain.gain.value = 0;
     connectSceneAudioNode(footstepSprintGain, dryGain, reverbInput);
+    lowHealthBreathingGain.gain.value = 0;
+    lowHealthBreathingGain.connect(dryGain);
+    heartbeatGain.gain.value = 0;
+    heartbeatGain.connect(dryGain);
 
     audioState = {
       context,
@@ -358,10 +456,17 @@ function ensureAudioState() {
       playerSfxGain,
       footstepWalkGain,
       footstepSprintGain,
+      lowHealthBreathingGain,
+      heartbeatGain,
       footstepWalkSource: null,
       footstepSprintSource: null,
       footstepLoopsLoading: false,
       footstepLoopsFailed: false,
+      lowHealthBreathingSource: null,
+      lowHealthBreathingLoading: false,
+      lowHealthBreathingFailed: false,
+      heartbeatLoopTimer: null,
+      torchCrackleVoices: new Map(),
       zombieVoices: new Map(),
       zombieLoopLoading: false,
       zombieLoopFailed: false,
@@ -383,7 +488,7 @@ function connectSceneAudioNode(node, dryGain, reverbInput) {
 }
 
 function ensureSceneAudio() {
-  if (!SCENE_AMBIENCE_URLS[world.id] && !world.lightning && !effects.zombies) return;
+  if (!SCENE_AMBIENCE_URLS[world.id] && !world.lightning && !effects.zombies && !(world.torchLights ?? []).length) return;
 
   const state = ensureAudioState();
   if (!state) return;
@@ -391,9 +496,13 @@ function ensureSceneAudio() {
   applySceneReverb(state);
   ensureSceneAmbienceLoop(state);
   if (world.lightning) loadAudioBuffer(state, LIGHTNING_SOUND_URL);
+  loadAudioBuffer(state, MENU_START_CONFIRM_SOUND_URL);
+  loadAudioBuffer(state, HEALTH_PICKUP_SOUND_URL);
   loadAudioBuffer(state, PLAYER_DEATH_SOUND_URL);
   loadAudioBuffer(state, PLAYER_DAMAGE_SOUND_URL);
   ensurePlayerFootstepLoops(state);
+  ensureLowHealthBreathingLoop(state);
+  ensurePlayerHeartbeatLoop(state);
   ensureZombieGruntLoop(state);
 }
 
@@ -476,6 +585,10 @@ function playPlayerOneShot(url, volume) {
   playAssetOneShot(state, url, state.playerSfxGain);
 }
 
+function playMenuStartConfirmSound() {
+  playPlayerOneShot(MENU_START_CONFIRM_SOUND_URL, MENU_START_CONFIRM_SOUND_GAIN);
+}
+
 function updateSceneAudio(time, lightningStrength) {
   if (!audioState) return;
 
@@ -483,7 +596,12 @@ function updateSceneAudio(time, lightningStrength) {
   applySceneReverb(audioState);
   ensureSceneAmbienceLoop(audioState);
   ensurePlayerFootstepLoops(audioState);
+  ensureLowHealthBreathingLoop(audioState);
+  ensurePlayerHeartbeatLoop(audioState);
   syncPlayerFootstepAudio(audioState);
+  syncLowHealthBreathingAudio(audioState);
+  syncPlayerHeartbeatAudio(audioState);
+  syncTorchCrackleAudio(audioState);
   syncZombieSpatialAudio(audioState);
   const targetAmbience = getSceneAmbienceGain();
   audioState.ambienceGain.gain.setTargetAtTime(targetAmbience, audioState.context.currentTime, 0.36);
@@ -559,6 +677,191 @@ function getPlayerFootstepGains() {
     walk: sprinting ? 0 : PLAYER_WALK_FOOTSTEP_GAIN,
     sprint: sprinting ? PLAYER_SPRINT_FOOTSTEP_GAIN : 0,
   };
+}
+
+function ensureLowHealthBreathingLoop(state) {
+  if (state.lowHealthBreathingSource || state.lowHealthBreathingLoading || state.lowHealthBreathingFailed) return;
+
+  state.lowHealthBreathingLoading = true;
+  loadAudioBuffer(state, PLAYER_LOW_HEALTH_BREATHING_LOOP_URL)
+    .then((buffer) => {
+      if (audioState !== state) return;
+
+      const source = state.context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(state.lowHealthBreathingGain);
+      source.start();
+      state.lowHealthBreathingSource = source;
+    })
+    .catch((error) => {
+      state.lowHealthBreathingFailed = true;
+      console.warn(error);
+    })
+    .finally(() => {
+      state.lowHealthBreathingLoading = false;
+    });
+}
+
+function syncLowHealthBreathingAudio(state) {
+  const healthEffect = getHealthEffectStrength(performance.now());
+  const targetGain = healthEffect.danger * PLAYER_LOW_HEALTH_BREATHING_GAIN;
+  state.lowHealthBreathingGain.gain.setTargetAtTime(targetGain, state.context.currentTime, 0.18);
+}
+
+function ensurePlayerHeartbeatLoop(state) {
+  if (state.heartbeatLoopTimer) return;
+
+  scheduleHeartbeatPulse(state, PLAYER_HEARTBEAT_BASE_INTERVAL_MS);
+}
+
+function scheduleHeartbeatPulse(state, delayMs) {
+  state.heartbeatLoopTimer = window.setTimeout(() => {
+    state.heartbeatLoopTimer = null;
+    if (audioState !== state) return;
+
+    const heartbeat = getPlayerHeartbeatParams();
+    if (heartbeat.gain > 0) {
+      playHeartbeatThump(state, state.context.currentTime, 84, heartbeat.gain);
+      playHeartbeatThump(state, state.context.currentTime + 0.16, 64, heartbeat.gain * 0.72);
+    }
+
+    scheduleHeartbeatPulse(state, heartbeat.intervalMs);
+  }, delayMs);
+}
+
+function playHeartbeatThump(state, startTime, frequency, gain) {
+  const oscillator = state.context.createOscillator();
+  const envelope = state.context.createGain();
+  oscillator.type = 'square';
+  oscillator.frequency.setValueAtTime(frequency, startTime);
+  envelope.gain.setValueAtTime(0, startTime);
+  envelope.gain.linearRampToValueAtTime(gain, startTime + 0.012);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.11);
+  oscillator.connect(envelope);
+  envelope.connect(state.heartbeatGain);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + 0.14);
+}
+
+function syncPlayerHeartbeatAudio(state) {
+  const heartbeat = getPlayerHeartbeatParams();
+  state.heartbeatGain.gain.setTargetAtTime(heartbeat.masterGain, state.context.currentTime, 0.18);
+}
+
+function getPlayerHeartbeatParams() {
+  if (titleActive || optionsDialog.open || deathState.active) {
+    return { intervalMs: PLAYER_HEARTBEAT_BASE_INTERVAL_MS, gain: 0, masterGain: 0 };
+  }
+
+  const nearestZombieDistance = getNearestZombieDistance();
+  const danger = nearestZombieDistance === null
+    ? 0
+    : Math.max(0, Math.min(1, 1 - nearestZombieDistance / PLAYER_HEARTBEAT_DANGER_DISTANCE));
+
+  return {
+    intervalMs: Math.round(
+      PLAYER_HEARTBEAT_BASE_INTERVAL_MS
+        + (PLAYER_HEARTBEAT_DANGER_INTERVAL_MS - PLAYER_HEARTBEAT_BASE_INTERVAL_MS) * danger,
+    ),
+    gain: PLAYER_HEARTBEAT_BASE_GAIN
+      + (PLAYER_HEARTBEAT_DANGER_GAIN - PLAYER_HEARTBEAT_BASE_GAIN) * danger,
+    masterGain: 1,
+  };
+}
+
+function getNearestZombieDistance() {
+  if (!effects.zombies || !zombies.length) return null;
+
+  let nearest = Infinity;
+  for (const zombie of zombies) {
+    nearest = Math.min(nearest, Math.hypot(player.x - zombie.x, player.z - zombie.z));
+  }
+  return Number.isFinite(nearest) ? nearest : null;
+}
+
+function syncTorchCrackleAudio(state) {
+  const activeIds = new Set();
+  if (!titleActive && !optionsDialog.open && !deathState.active) {
+    for (let index = 0; index < (world.torchLights ?? []).length; index += 1) {
+      const torchLight = world.torchLights[index];
+      const id = `${world.id}:torch-crackle:${index}`;
+      activeIds.add(id);
+      const voice = getTorchCrackleVoice(state, id, torchLight, index);
+      voice.gain.gain.setTargetAtTime(TORCH_CRACKLE_GAIN, state.context.currentTime, 0.24);
+      voice.panner.positionX.setTargetAtTime(torchLight.x, state.context.currentTime, 0.08);
+      voice.panner.positionY.setTargetAtTime(torchLight.y, state.context.currentTime, 0.08);
+      voice.panner.positionZ.setTargetAtTime(torchLight.z, state.context.currentTime, 0.08);
+    }
+  }
+
+  for (const [id, voice] of state.torchCrackleVoices) {
+    if (activeIds.has(id)) continue;
+    stopTorchCrackleVoice(state, voice);
+    state.torchCrackleVoices.delete(id);
+  }
+}
+
+function getTorchCrackleVoice(state, id, torchLight, index) {
+  if (state.torchCrackleVoices.has(id)) return state.torchCrackleVoices.get(id);
+
+  const gain = state.context.createGain();
+  const filter = state.context.createBiquadFilter();
+  const panner = state.context.createPanner();
+  gain.gain.value = 0;
+  filter.type = 'bandpass';
+  filter.frequency.value = 1300;
+  filter.Q.value = 2.8;
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = TORCH_CRACKLE_REF_DISTANCE;
+  panner.maxDistance = TORCH_CRACKLE_MAX_DISTANCE;
+  panner.rolloffFactor = 2.2;
+  setAudioParam(panner.positionX, torchLight.x, state.context.currentTime, 0);
+  setAudioParam(panner.positionY, torchLight.y, state.context.currentTime, 0);
+  setAudioParam(panner.positionZ, torchLight.z, state.context.currentTime, 0);
+  gain.connect(filter);
+  filter.connect(panner);
+  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+
+  const voice = { id, gain, filter, panner, timerId: null, seed: index * 19.13 };
+  state.torchCrackleVoices.set(id, voice);
+  scheduleTorchCracklePulse(state, voice);
+  return voice;
+}
+
+function scheduleTorchCracklePulse(state, voice) {
+  const delay = 55 + Math.floor(Math.random() * 145 + voice.seed % 37);
+  voice.timerId = window.setTimeout(() => {
+    voice.timerId = null;
+    if (audioState !== state || !state.torchCrackleVoices.has(voice.id)) return;
+
+    playTorchCracklePulse(state, voice);
+    scheduleTorchCracklePulse(state, voice);
+  }, delay);
+}
+
+function playTorchCracklePulse(state, voice) {
+  const now = state.context.currentTime;
+  const oscillator = state.context.createOscillator();
+  const envelope = state.context.createGain();
+  oscillator.type = 'sawtooth';
+  oscillator.frequency.setValueAtTime(620 + Math.random() * 2100, now);
+  envelope.gain.setValueAtTime(0.0001, now);
+  envelope.gain.exponentialRampToValueAtTime(0.16 + Math.random() * 0.22, now + 0.008);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, now + 0.045 + Math.random() * 0.07);
+  oscillator.connect(envelope);
+  envelope.connect(voice.gain);
+  oscillator.start(now);
+  oscillator.stop(now + 0.14);
+}
+
+function stopTorchCrackleVoice(state, voice) {
+  if (voice.timerId) {
+    window.clearTimeout(voice.timerId);
+    voice.timerId = null;
+  }
+  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
 }
 
 function ensureZombieGruntLoop(state) {
@@ -787,10 +1090,14 @@ function setAudioParam(param, value, time, smoothing) {
   }
 }
 
-function createViewProjection() {
+function createViewProjection(now = performance.now()) {
   const projection = perspective(Math.PI / 3.2, PS1_RENDER_TARGET.aspect, 0.08, 80);
-  const view = cameraView(player);
+  const view = cameraView(getActiveCamera(now));
   return multiplyMat4(projection, view);
+}
+
+function getActiveCamera(now) {
+  return deathState.active ? getDeathSceneCamera(now) : player;
 }
 
 function resize() {
@@ -1190,9 +1497,17 @@ function setupOptions() {
   syncReticule();
 
   const preset = document.querySelector('#preset');
+  preset.replaceChildren(...VIDEO_PRESETS.map((definition) => {
+    const option = document.createElement('option');
+    option.value = definition.id;
+    option.textContent = definition.label;
+    return option;
+  }));
   preset.value = effects.preset;
   preset.addEventListener('change', () => {
-    effects.preset = preset.value;
+    Object.assign(effects, applyVideoPreset(effects, preset.value));
+    setRenderResolution(effects.resolutionId);
+    syncOptionsControls();
   });
 
   const scene = document.querySelector('#scene');
@@ -1236,9 +1551,31 @@ function setupOptions() {
   });
 }
 
+function syncOptionsControls() {
+  const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise', 'playerTorch', 'zombies'];
+  for (const id of bindings) {
+    const input = document.querySelector(`#${id}`);
+    if (input) input.checked = Boolean(effects[id]);
+  }
+
+  const preset = document.querySelector('#preset');
+  if (preset) preset.value = effects.preset;
+
+  const resolution = document.querySelector('#resolution');
+  if (resolution) resolution.value = effects.resolutionId;
+
+  const pixelScale = document.querySelector('#pixelScale');
+  if (pixelScale) pixelScale.value = String(effects.pixelScale);
+
+  canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
+  syncReticule();
+}
+
 function startRandomScene() {
   if (!titleActive) return;
 
+  ensureSceneAudio();
+  playMenuStartConfirmSound();
   const randomScene = SCENE_DEFINITIONS[Math.floor(Math.random() * SCENE_DEFINITIONS.length)];
   setScene(randomScene.id);
   syncSceneSelect();
@@ -1246,7 +1583,6 @@ function startRandomScene() {
   titleActive = false;
   titleScreen.hidden = true;
   document.body.classList.remove('title-active');
-  ensureSceneAudio();
   enterGameMode({ requestLock: true });
 }
 
@@ -1435,11 +1771,61 @@ function syncReticule() {
   reticule.hidden = !effects.showReticule;
 }
 
+function damagePlayer(now) {
+  if (now - lastZombieBiteAt < ZOMBIE_BITE_COOLDOWN_MS) return;
+
+  lastZombieBiteAt = now;
+  playerHealth = applyPlayerDamage(playerHealth, ZOMBIE_BITE_DAMAGE);
+  playPlayerOneShot(PLAYER_DAMAGE_SOUND_URL, PLAYER_DAMAGE_SOUND_GAIN);
+  if (playerHealth.dead) {
+    startDeathSequence(now, { damage: false });
+  }
+}
+
+function updateHealthPotions(now) {
+  const pickedIndex = healthPotions.findIndex((potion) => (
+    Math.hypot(player.x - potion.x, player.z - potion.z) <= (potion.radius ?? 0.72)
+    && Math.abs((player.y - PLAYER_EYE_HEIGHT) - (potion.y - potion.height / 2)) <= 1.2
+  ));
+  if (pickedIndex === -1) return;
+
+  playerHealth = restorePlayerHealth(playerHealth);
+  healthPickupFlashStartedAt = now;
+  playPlayerOneShot(HEALTH_PICKUP_SOUND_URL, HEALTH_PICKUP_SOUND_GAIN);
+  healthPotions = healthPotions.filter((_, index) => index !== pickedIndex);
+  rebuildWarehouseMesh();
+}
+
+function getHealthEffectStrength(now) {
+  if (titleActive || optionsDialog.open || deathState.active) return { danger: 0, pulse: 0 };
+
+  const danger = getHealthDanger(playerHealth);
+  if (danger <= 0) return { danger: 0, pulse: 0 };
+
+  const pulse = (Math.sin(now * 0.012) * 0.5 + 0.5) * danger;
+  return {
+    danger,
+    pulse: danger >= 1 ? pulse : pulse * 0.48,
+  };
+}
+
+function getHealthPickupFlash(now) {
+  const elapsed = now - healthPickupFlashStartedAt;
+  if (elapsed < 0 || elapsed > HEALTH_PICKUP_FLASH_DURATION_MS) return 0;
+
+  const progress = elapsed / HEALTH_PICKUP_FLASH_DURATION_MS;
+  return (1 - progress) * (1 - progress);
+}
+
 function startDeathSequence(now, options = {}) {
   if (deathState.active) return;
 
+  const scene = createDeathScene(now, options);
   deathState.active = true;
   deathState.startedAt = now;
+  deathState.profile = scene.profile;
+  deathState.cameraStart = scene.cameraStart;
+  deathState.cameraImpactY = scene.cameraImpactY;
   keys.clear();
   player.velocityY = 0;
   player.grounded = false;
@@ -1450,18 +1836,103 @@ function startDeathSequence(now, options = {}) {
 }
 
 function updateDeathSequence(now) {
+  const finalProgress = getDeathSceneFinalProgress(now);
+  if (finalProgress > 0.14 && !deathState.finalDeathRattlePlayed) {
+    deathState.finalDeathRattlePlayed = true;
+    playFinalDeathRattle();
+  }
+
   if (now - deathState.startedAt < DEATH_RESPAWN_DELAY_MS) return;
 
   deathState.active = false;
+  deathState.profile = null;
+  deathState.cameraStart = null;
+  deathState.cameraImpactY = 0;
+  deathState.finalDeathRattlePlayed = false;
   resetPlayerToSpawn();
+}
+
+function createDeathScene(now, options = {}) {
+  const profile = DEATH_SCENE_PROFILES[options.profile ?? 'collapseSplat'];
+  const startY = player.y;
+  const floorY = (player.groundY ?? world.playerSpawn.y) + 0.22;
+  const cameraImpactY = Math.min(floorY, startY - profile.dropDistance);
+  return {
+    startedAt: now,
+    profile,
+    cameraStart: {
+      x: player.x,
+      y: startY,
+      z: player.z,
+      yaw: player.yaw,
+      pitch: player.pitch,
+    },
+    cameraImpactY,
+  };
+}
+
+function getDeathSceneCamera(now) {
+  if (!deathState.cameraStart || !deathState.profile) return player;
+
+  const progress = getDeathSceneProgress(now);
+  const profile = deathState.profile;
+  const impactProgress = Math.min(1, progress / profile.impactAt);
+  const fall = easeInCubic(impactProgress);
+  const afterImpact = Math.max(0, (progress - profile.impactAt) / (1 - profile.impactAt));
+  const impactBounce = Math.sin(afterImpact * Math.PI * profile.bounceCount)
+    * (1 - afterImpact)
+    * profile.bounceHeight;
+  const finalJiggle = getDeathSceneFinalProgress(now);
+  const finalJiggleStrength = finalJiggle * profile.finalJiggleStrength;
+  const cameraJiggleYaw = Math.sin(progress * 122.0) * finalJiggleStrength;
+  const cameraJigglePitch = Math.cos(progress * 147.0) * finalJiggleStrength * 0.7;
+
+  return {
+    ...deathState.cameraStart,
+    y: deathState.cameraStart.y + (deathState.cameraImpactY - deathState.cameraStart.y) * fall + impactBounce,
+    yaw: deathState.cameraStart.yaw + cameraJiggleYaw,
+    pitch: Math.min(1.28, deathState.cameraStart.pitch + profile.pitchDrop * smoothStep(progress) + cameraJigglePitch),
+  };
+}
+
+function getDeathSceneProgress(now) {
+  if (!deathState.active) return 0;
+  return Math.max(0, Math.min(1, (now - deathState.startedAt) / DEATH_RESPAWN_DELAY_MS));
+}
+
+function getDeathSceneFinalProgress(now) {
+  if (!deathState.active || !deathState.profile) return 0;
+
+  const progress = getDeathSceneProgress(now);
+  const start = deathState.profile.finalJiggleStart;
+  return smoothStep(Math.max(0, Math.min(1, (progress - start) / (1 - start))));
+}
+
+function playFinalDeathRattle() {
+  const state = ensureAudioState();
+  if (!state) return;
+
+  const now = state.context.currentTime;
+  playHeartbeatThump(state, now, 54, 0.12);
+  playHeartbeatThump(state, now + 0.11, 41, 0.09);
 }
 
 function getDeathTint(now) {
   if (!deathState.active) return 0;
 
   const elapsed = now - deathState.startedAt;
+  const progress = getDeathSceneProgress(now);
+  const finalProgress = getDeathSceneFinalProgress(now);
   const pulse = Math.sin(elapsed * 0.018) * 0.08;
-  return Math.max(0, Math.min(0.62, 0.48 + pulse));
+  return Math.max(0, Math.min(0.93, 0.32 + smoothStep(progress) * 0.42 + finalProgress * 0.16 + pulse));
+}
+
+function easeInCubic(value) {
+  return value * value * value;
+}
+
+function smoothStep(value) {
+  return value * value * (3 - 2 * value);
 }
 
 function syncSceneSelect() {
@@ -1499,12 +1970,13 @@ function setScene(id) {
   textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
   colliders = getSceneColliders(world);
   walkableSurfaces = getSceneWalkableSurfaces(world);
+  healthPotions = createSceneHealthPotions(world);
   resetPlayerToSpawn();
 
   deleteMeshBuffers(gl, warehouseMesh);
   deleteMeshBuffers(gl, zombieMesh);
   gl.deleteTexture(atlasTexture);
-  warehouseMesh = createWarehouseMesh(gl, world, textureIndices);
+  warehouseMesh = createWarehouseMesh(gl, { ...world, healthPotions }, textureIndices);
   zombieMesh = createZombieMesh(gl);
   atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
   if (audioState) ensureSceneAudio();
@@ -1514,6 +1986,10 @@ function setScene(id) {
 function resetPlayerToSpawn() {
   deathState.active = false;
   deathState.startedAt = 0;
+  deathState.profile = null;
+  deathState.cameraStart = null;
+  deathState.cameraImpactY = 0;
+  deathState.finalDeathRattlePlayed = false;
   player.x = world.playerSpawn.x;
   player.y = world.playerSpawn.y;
   player.z = world.playerSpawn.z;
@@ -1522,7 +1998,19 @@ function resetPlayerToSpawn() {
   player.velocityY = 0;
   player.grounded = true;
   player.groundY = getGroundYAt(player, walkableSurfaces) ?? world.playerSpawn.y;
+  playerHealth = createPlayerHealth();
+  healthPickupFlashStartedAt = -Infinity;
+  lastZombieBiteAt = -Infinity;
   zombies = createZombieEnemies(world);
+}
+
+function createSceneHealthPotions(scene) {
+  return (scene.healthPotions ?? []).map((potion) => ({ ...potion }));
+}
+
+function rebuildWarehouseMesh() {
+  deleteMeshBuffers(gl, warehouseMesh);
+  warehouseMesh = createWarehouseMesh(gl, { ...world, healthPotions }, textureIndices);
 }
 
 function getSceneColliders(scene) {
@@ -1566,6 +2054,10 @@ function createWarehouseMesh(glContext, scene, indices) {
     addBox(geometry, crateItem, indices, { shade: 0.8, uvScale: 1.0, motion: motionCode(crateItem.motion) });
   }
 
+  for (const prop of scene.props ?? []) {
+    addBox(geometry, prop, indices, { shade: 0.82, uvScale: 1.0, motion: motionCode(prop.motion) });
+  }
+
   for (const mountainItem of scene.mountains) {
     addMountain(geometry, mountainItem, indices);
   }
@@ -1573,6 +2065,12 @@ function createWarehouseMesh(glContext, scene, indices) {
   if (scene.cards) {
     for (const item of scene.cards) {
       addCard(geometry, item, indices);
+    }
+  }
+
+  if (scene.healthPotions) {
+    for (const item of scene.healthPotions) {
+      addHealthPotionFlask(geometry, item, indices);
     }
   }
 
@@ -1758,6 +2256,67 @@ function addCard(geometry, item, indices) {
   ], 1, 1, motionCode(item.motion));
 }
 
+function addHealthPotionFlask(geometry, item, indices) {
+  const motion = motionCode(item.motion);
+  const baseY = item.y - item.height / 2;
+  const depth = item.depth ?? item.width * 0.62;
+  const bodyHeight = item.height * 0.62;
+  const neckHeight = item.height * 0.22;
+  const capHeight = item.height * 0.1;
+  const frontZ = item.z - depth / 2 - 0.018;
+
+  addBox(geometry, {
+    name: `${item.name} body`,
+    x: item.x,
+    y: baseY,
+    z: item.z,
+    width: item.width,
+    depth,
+    height: bodyHeight,
+    texture: item.texture,
+  }, indices, { shade: 1.08, uvScale: 1, motion });
+  addBox(geometry, {
+    name: `${item.name} neck`,
+    x: item.x,
+    y: baseY + bodyHeight,
+    z: item.z,
+    width: item.width * 0.42,
+    depth: depth * 0.62,
+    height: neckHeight,
+    texture: item.texture,
+  }, indices, { shade: 1.18, uvScale: 1, motion });
+  addBox(geometry, {
+    name: `${item.name} cap`,
+    x: item.x,
+    y: baseY + bodyHeight + neckHeight,
+    z: item.z,
+    width: item.width * 0.56,
+    depth: depth * 0.72,
+    height: capHeight,
+    texture: item.texture,
+  }, indices, { shade: 0.72, uvScale: 1, motion });
+  addBox(geometry, {
+    name: `${item.name} front cross vertical`,
+    x: item.x,
+    y: baseY + bodyHeight * 0.31,
+    z: frontZ,
+    width: item.width * 0.13,
+    depth: 0.035,
+    height: bodyHeight * 0.45,
+    texture: item.texture,
+  }, indices, { shade: 1.45, uvScale: 1, motion });
+  addBox(geometry, {
+    name: `${item.name} front cross horizontal`,
+    x: item.x,
+    y: baseY + bodyHeight * 0.45,
+    z: frontZ - 0.002,
+    width: item.width * 0.36,
+    depth: 0.038,
+    height: bodyHeight * 0.12,
+    texture: item.texture,
+  }, indices, { shade: 1.5, uvScale: 1, motion });
+}
+
 function addStars(geometry, stars, indices) {
   const textureId = indices.get('star') ?? 0;
 
@@ -1933,6 +2492,8 @@ function motionCode(name) {
     'sign-flicker': 10,
     'water-shimmer': 11,
     'zombie-walk': 12,
+    'torch-flame': 13,
+    'pickup-bob': 14,
   };
   return codes[name] ?? 0;
 }
@@ -1990,6 +2551,16 @@ function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
 
   if (id === 'rain') {
     drawRainTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'torchFlame') {
+    drawTorchFlameTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'healthPotion') {
+    drawHealthPotionTexture(ctx, x, y, tile);
     return;
   }
 
@@ -2287,6 +2858,8 @@ function palette(id, n) {
     metal: ['#4c5555', '#67706e', '#394343', '#87908a'],
     crate: ['#79542f', '#94663a', '#5d432c', '#ad7844'],
     warning: ['#2d2b25', '#413b2d', '#1f1e1b', '#6b5523'],
+    torchWood: ['#2a160b', '#4a2b14', '#6b3d1d', '#140b06'],
+    torchMetal: ['#1a1714', '#433f3a', '#777068', '#2d2925'],
     alienGround: ['#293f37', '#4a5541', '#5e3c5f', '#1e282c'],
     alienRock: ['#3a3048', '#5d526d', '#2b2435', '#74678b'],
     rotMud: ['#1b2012', '#30301b', '#4a3d24', '#152012'],
@@ -2416,6 +2989,36 @@ function createBuffer(glContext, data) {
   return buffer;
 }
 
+function drawTorchFlameTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = 'rgba(255, 105, 18, 0.22)';
+  ctx.fillRect(x + tile * 0.22, y + tile * 0.16, tile * 0.56, tile * 0.7);
+  ctx.fillStyle = '#d22f16';
+  ctx.fillRect(x + tile * 0.32, y + tile * 0.32, tile * 0.36, tile * 0.46);
+  ctx.fillStyle = '#ff8a1f';
+  ctx.fillRect(x + tile * 0.38, y + tile * 0.22, tile * 0.26, tile * 0.48);
+  ctx.fillStyle = '#ffe36a';
+  ctx.fillRect(x + tile * 0.44, y + tile * 0.28, tile * 0.14, tile * 0.3);
+  ctx.fillStyle = '#fff5ad';
+  ctx.fillRect(x + tile * 0.47, y + tile * 0.36, tile * 0.08, tile * 0.16);
+}
+
+function drawHealthPotionTexture(ctx, x, y, tile) {
+  ctx.fillStyle = '#063015';
+  ctx.fillRect(x, y, tile, tile);
+  ctx.fillStyle = '#15933d';
+  ctx.fillRect(x + tile * 0.08, y + tile * 0.08, tile * 0.84, tile * 0.84);
+  ctx.fillStyle = '#36ff58';
+  ctx.fillRect(x + tile * 0.18, y + tile * 0.18, tile * 0.52, tile * 0.56);
+  ctx.fillStyle = '#b8ff8d';
+  ctx.fillRect(x + tile * 0.3, y + tile * 0.24, tile * 0.16, tile * 0.34);
+  ctx.fillStyle = '#0a4c21';
+  ctx.fillRect(x + tile * 0.68, y + tile * 0.16, tile * 0.18, tile * 0.68);
+  ctx.fillStyle = '#edffd9';
+  ctx.fillRect(x + tile * 0.36, y + tile * 0.44, tile * 0.28, tile * 0.08);
+  ctx.fillRect(x + tile * 0.46, y + tile * 0.34, tile * 0.08, tile * 0.28);
+}
+
 function createDynamicBuffer(glContext) {
   const buffer = glContext.createBuffer();
   glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
@@ -2470,7 +3073,7 @@ function clamp(value, min, max) {
 function start() {
   sceneProgram = createProgram(gl, sceneVertexShader, sceneFragmentShader);
   postProgram = createProgram(gl, postVertexShader, postFragmentShader);
-  warehouseMesh = createWarehouseMesh(gl, world, textureIndices);
+  warehouseMesh = createWarehouseMesh(gl, { ...world, healthPotions }, textureIndices);
   zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);
   atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
@@ -2542,6 +3145,8 @@ void main() {
   float palmMask = 1.0 - step(0.5, abs(aMotion - 8.0));
   float waterMask = 1.0 - step(0.5, abs(aMotion - 11.0));
   float zombieMask = 1.0 - step(0.5, abs(aMotion - 12.0));
+  float torchFlameMask = 1.0 - step(0.5, abs(aMotion - 13.0));
+  float pickupMask = 1.0 - step(0.5, abs(aMotion - 14.0));
   warped.x += sin(uTime * 1.5 + aPosition.z * 1.8) * 0.24 * swayMask;
   warped.x += sin(uTime * 2.8 + aPosition.y * 3.0) * 0.7 * fireflyMask;
   warped.y += sin(uTime * 3.2 + aPosition.x * 2.0) * 0.36 * fireflyMask;
@@ -2561,6 +3166,9 @@ void main() {
   warped.y += sin(uTime * 5.0 + aPosition.x) * 0.04 * waterMask;
   warped.x += sin(uTime * 6.5 + aPosition.y * 7.0) * 0.08 * zombieMask;
   warped.y += abs(sin(uTime * 5.5 + aPosition.x)) * 0.08 * zombieMask;
+  warped.x += sin(uTime * 17.0 + aPosition.y * 11.0) * 0.06 * torchFlameMask;
+  warped.y += floor(mod(uTime * 14.0 + aPosition.x * 3.0, 2.0)) * 0.08 * torchFlameMask;
+  warped.y += (sin(uTime * 3.6 + aPosition.x * 1.7) * 0.12 + 0.12) * pickupMask;
   float wobble = sin((aPosition.x + aPosition.z) * 8.0 + uTime * 6.0) * 0.006;
   warped.xz += vec2(wobble, -wobble) * uWarping;
 
@@ -2593,6 +3201,19 @@ uniform vec3 uTorchColor;
 uniform float uTorchRadius;
 uniform float uTorchIntensity;
 uniform float uTorchEnabled;
+uniform float uStaticTorchCount;
+uniform vec3 uStaticTorchPosition0;
+uniform vec3 uStaticTorchColor0;
+uniform float uStaticTorchRadius0;
+uniform float uStaticTorchIntensity0;
+uniform vec3 uStaticTorchPosition1;
+uniform vec3 uStaticTorchColor1;
+uniform float uStaticTorchRadius1;
+uniform float uStaticTorchIntensity1;
+uniform vec3 uStaticTorchPosition2;
+uniform vec3 uStaticTorchColor2;
+uniform float uStaticTorchRadius2;
+uniform float uStaticTorchIntensity2;
 
 varying vec2 vUv;
 varying float vTextureId;
@@ -2633,6 +3254,7 @@ void main() {
   float signMask = 1.0 - step(0.5, abs(vMotion - 10.0));
   float windowMask = 1.0 - step(0.5, abs(vMotion - 9.0));
   float cometMask = 1.0 - step(0.5, abs(vMotion - 7.0));
+  float torchFlameMask = 1.0 - step(0.5, abs(vMotion - 13.0));
   if (signMask > 0.5 && sin(uTime * 18.0) < -0.58) {
     discard;
   }
@@ -2661,6 +3283,18 @@ void main() {
   torchFalloff *= torchFalloff * uTorchEnabled;
   color *= 1.0 + torchFalloff * 0.38;
   color += uTorchColor * torchFalloff * uTorchIntensity * 0.34;
+  float staticTorch0 = clamp(1.0 - distance(vWorldPosition, uStaticTorchPosition0) / max(uStaticTorchRadius0, 0.001), 0.0, 1.0);
+  float staticTorch1 = clamp(1.0 - distance(vWorldPosition, uStaticTorchPosition1) / max(uStaticTorchRadius1, 0.001), 0.0, 1.0);
+  float staticTorch2 = clamp(1.0 - distance(vWorldPosition, uStaticTorchPosition2) / max(uStaticTorchRadius2, 0.001), 0.0, 1.0);
+  staticTorch0 *= staticTorch0 * step(0.5, uStaticTorchCount);
+  staticTorch1 *= staticTorch1 * step(1.5, uStaticTorchCount);
+  staticTorch2 *= staticTorch2 * step(2.5, uStaticTorchCount);
+  float flameFlicker = 0.82 + step(0.0, sin(uTime * 18.0 + gl_FragCoord.x * 0.19)) * 0.18;
+  color *= 1.0 + (staticTorch0 * uStaticTorchIntensity0 + staticTorch1 * uStaticTorchIntensity1 + staticTorch2 * uStaticTorchIntensity2) * 0.28 * flameFlicker;
+  color += uStaticTorchColor0 * staticTorch0 * uStaticTorchIntensity0 * 0.34 * flameFlicker;
+  color += uStaticTorchColor1 * staticTorch1 * uStaticTorchIntensity1 * 0.34 * flameFlicker;
+  color += uStaticTorchColor2 * staticTorch2 * uStaticTorchIntensity2 * 0.34 * flameFlicker;
+  color = mix(color, color * (1.05 + flameFlicker * 0.55) + vec3(0.42, 0.14, 0.01), torchFlameMask);
   color *= mix(1.0, step(0.0, sin(uTime * 2.5 + gl_FragCoord.x * 0.03)) * 0.85 + 0.15, windowMask);
   float lightningMask = 1.0 - step(0.5, abs(id - uLightningTextureId));
   color = mix(color, vec3(0.15 + uLightningStrength * 1.7), lightningMask);
@@ -2705,7 +3339,11 @@ uniform vec2 uSourceResolution;
 uniform float uFlipFramebufferY;
 uniform float uOneBit;
 uniform float uLightningStrength;
+uniform float uHealthDanger;
+uniform float uHealthPulse;
+uniform float uHealthPickupFlash;
 uniform float uDeathTint;
+uniform float uDeathProgress;
 
 varying vec2 vUv;
 
@@ -2739,6 +3377,17 @@ float orderedDither(vec2 p) {
   if (x < 1.5) return 7.0 / 16.0;
   if (x < 2.5) return 13.0 / 16.0;
   return 5.0 / 16.0;
+}
+
+float bloodParticle(vec2 uv, vec2 center, float radius, float seed) {
+  vec2 stretched = vec2((uv.x - center.x) * 1.45, uv.y - center.y);
+  float distanceToDrop = length(stretched);
+  float splat = 1.0 - smoothstep(radius * 0.58, radius, distanceToDrop);
+  float grain = step(0.34, rand(floor(uv * 180.0 + seed)));
+  float dripY = smoothstep(center.y - 0.22, center.y, uv.y) * (1.0 - step(center.y, uv.y));
+  float drip = dripY
+    * (1.0 - smoothstep(radius * 0.18, radius * 0.56, abs(uv.x - center.x)));
+  return max(splat * grain, drip * 0.42);
 }
 
 void main() {
@@ -2783,6 +3432,19 @@ void main() {
   vec3 oneBitInk = vec3(0.09, 0.075, 0.055);
   vec3 oneBitPaper = vec3(0.86, 0.82, 0.67);
   color = mix(color, mix(oneBitInk, oneBitPaper, step(oneBitThreshold, oneBitTone)), uOneBit);
+  color *= 1.0 - uHealthDanger * 0.28;
+  color = mix(color, vec3(0.58, 0.015, 0.01), clamp(uHealthDanger * 0.2 + uHealthPulse * 0.18, 0.0, 0.42));
+  color = mix(color, color + vec3(0.2, 0.95, 0.24), clamp(uHealthPickupFlash * 0.58, 0.0, 0.72));
+  float blood = 0.0;
+  blood += bloodParticle(sourceUv, vec2(0.20, 0.72), 0.18, 3.0);
+  blood += bloodParticle(sourceUv, vec2(0.77, 0.63), 0.14, 11.0);
+  blood += bloodParticle(sourceUv, vec2(0.48, 0.38), 0.24, 23.0);
+  float finalBlood = smoothstep(0.80, 1.0, uDeathProgress);
+  blood += bloodParticle(sourceUv, vec2(0.32, 0.54), 0.26, 31.0) * finalBlood;
+  blood += bloodParticle(sourceUv, vec2(0.66, 0.78), 0.22, 41.0) * finalBlood;
+  blood += bloodParticle(sourceUv, vec2(0.56, 0.24), 0.20, 53.0) * finalBlood;
+  blood *= smoothstep(0.18, 0.62, uDeathProgress);
+  color = mix(color, vec3(0.58, 0.0, 0.015), clamp(blood, 0.0, 0.94));
   color = mix(color, vec3(0.78, 0.02, 0.02), uDeathTint);
 
   gl_FragColor = vec4(color, 1.0);

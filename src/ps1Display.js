@@ -46,21 +46,115 @@ export const CRT_PRESETS = Object.freeze({
     colorBleed: 0.0045,
     vignette: 0.28,
   }),
+  'clean-test-view': Object.freeze({
+    scanlineStrength: 0,
+    distortion: 0,
+    noise: 0,
+    colorBleed: 0,
+    vignette: 0.08,
+  }),
 });
+
+const PORTABLE_TV_EFFECTS = Object.freeze({
+  preset: 'portable',
+  resolutionId: '512x480',
+  pixelScale: 3,
+  invertY: false,
+  flipFramebufferY: false,
+  showReticule: true,
+  scanlines: true,
+  crtDistortion: true,
+  dither: true,
+  warping: true,
+  colorBleed: true,
+  noise: true,
+  wobble: true,
+  playerTorch: true,
+  zombies: true,
+  brightness: 1.05,
+  contrast: 1.08,
+  saturation: 0.82,
+});
+
+const CLEAN_RGB_EFFECTS = Object.freeze({
+  preset: 'clean',
+  resolutionId: '512x480',
+  pixelScale: 2,
+  invertY: false,
+  flipFramebufferY: false,
+  showReticule: true,
+  scanlines: true,
+  crtDistortion: false,
+  dither: true,
+  warping: false,
+  colorBleed: false,
+  noise: false,
+  wobble: false,
+  playerTorch: true,
+  zombies: true,
+  brightness: 1.04,
+  contrast: 1.02,
+  saturation: 0.92,
+});
+
+const CLEAN_TEST_VIEW_EFFECTS = Object.freeze({
+  preset: 'clean-test-view',
+  resolutionId: '1024x768',
+  pixelScale: 3,
+  invertY: false,
+  flipFramebufferY: false,
+  showReticule: true,
+  scanlines: false,
+  crtDistortion: false,
+  dither: false,
+  warping: false,
+  colorBleed: false,
+  noise: false,
+  wobble: false,
+  playerTorch: true,
+  zombies: true,
+  brightness: 1,
+  contrast: 1,
+  saturation: 1,
+});
+
+export const VIDEO_PRESETS = Object.freeze([
+  Object.freeze({
+    id: 'portable',
+    label: 'Portable TV',
+    effects: PORTABLE_TV_EFFECTS,
+  }),
+  Object.freeze({
+    id: 'clean',
+    label: 'Cleaner RGB',
+    effects: CLEAN_RGB_EFFECTS,
+  }),
+  Object.freeze({
+    id: 'clean-test-view',
+    label: 'Clean test view',
+    effects: CLEAN_TEST_VIEW_EFFECTS,
+  }),
+]);
 
 export function createEffectState(overrides = {}) {
   return {
-    ...DEFAULT_EFFECTS,
-    preset: 'portable',
-    brightness: 1.05,
-    contrast: 1.08,
-    saturation: 0.82,
+    ...PORTABLE_TV_EFFECTS,
     ...overrides,
   };
 }
 
 export function getPresetValues(effectState) {
   return CRT_PRESETS[effectState.preset] ?? CRT_PRESETS.portable;
+}
+
+export function applyVideoPreset(effectState, presetId) {
+  const preset = VIDEO_PRESETS.find((candidate) => candidate.id === presetId);
+  if (!preset) return effectState;
+
+  return {
+    ...effectState,
+    ...preset.effects,
+  };
 }
 
 export function getResolutionMode(id) {

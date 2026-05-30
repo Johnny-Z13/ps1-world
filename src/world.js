@@ -31,6 +31,9 @@ export function createWarehouseWorld() {
     { id: 'metal', size: 128 },
     { id: 'crate', size: 64 },
     { id: 'warning', size: 64 },
+    { id: 'torchWood', size: 64 },
+    { id: 'torchMetal', size: 64 },
+    { id: 'torchFlame', size: 64 },
   ];
 
   const walls = [
@@ -78,6 +81,19 @@ export function createWarehouseWorld() {
     box('loading crate step high', -2.0, 7.2, 2.2, 2.0, 1.1, 'crate'),
     box('office roof jump ledge', -7.8, -4.5, 3.2, 2.2, 1.45, 'metal'),
   ];
+  const torches = [
+    { name: 'west office wall torch', x: -5.05, y: 1.72, z: -7.7 },
+    { name: 'east corridor wall torch', x: 5.45, y: 1.72, z: -8.2 },
+    { name: 'storage warning torch', x: 6.7, y: 1.72, z: 4.05 },
+  ];
+
+  const props = [];
+  for (const torchItem of torches) {
+    props.push(
+      box(`${torchItem.name} low-poly handle`, torchItem.x, torchItem.z, 0.14, 0.14, 1.0, 'torchWood', torchItem.y - 0.68, true),
+      box(`${torchItem.name} iron cup`, torchItem.x, torchItem.z, 0.32, 0.26, 0.18, 'torchMetal', torchItem.y - 0.12, true),
+    );
+  }
 
   return withZombies({
     id: 'dungeon',
@@ -89,7 +105,17 @@ export function createWarehouseWorld() {
     crates,
     platforms,
     mountains: [],
+    props,
+    cards: torches.map((torchItem) => card(`${torchItem.name} animated flame`, torchItem.x, torchItem.y + 0.12, torchItem.z - 0.04, 0.5, 0.78, 'torchFlame', 'torch-flame')),
     sun: null,
+    torchLights: torches.map((torchItem) => ({
+      x: torchItem.x,
+      y: torchItem.y,
+      z: torchItem.z,
+      color: [1.0, 0.43, 0.12],
+      radius: 7.4,
+      intensity: 1.2,
+    })),
     lights: [
       { x: -8, y: 2.8, z: -8, color: [1.0, 0.74, 0.42] },
       { x: 4, y: 2.8, z: -8, color: [0.55, 0.82, 1.0] },
@@ -883,14 +909,49 @@ function box(name, x, z, width, depth, height, texture, y = 0, noCollider = fals
 }
 
 function withZombies(scene, zombieSpawns) {
+  const healthPotions = scene.healthPotions ?? createHealthPotions(scene.id);
+  const texturesWithZombie = scene.textures.some((texture) => texture.id === 'zombie')
+    ? scene.textures
+    : [...scene.textures, { id: 'zombie', size: 64 }];
+  const textures = texturesWithZombie.some((texture) => texture.id === 'healthPotion')
+    ? texturesWithZombie
+    : [...texturesWithZombie, { id: 'healthPotion', size: 64 }];
+
   return {
     ...scene,
     zombieSpawns,
+    healthPotions,
     audio: scene.audio ?? { reverb: getSceneReverb(scene.id) },
-    textures: scene.textures.some((texture) => texture.id === 'zombie')
-      ? scene.textures
-      : [...scene.textures, { id: 'zombie', size: 64 }],
+    textures,
   };
+}
+
+function createHealthPotions(sceneId) {
+  const placements = {
+    dungeon: [[-8, -8], [8, 8], [0, -2]],
+    'alien-landscape': [[-12, 6], [13, -8], [0, -18]],
+    'derelict-starship': [[-10, -4], [10, 8], [0, -12]],
+    'neon-backstreets': [[-12, 0], [10, 2], [0, -15]],
+    'sunken-temple': [[-12, 10], [12, -10], [0, 0]],
+    'one-bit-cathedral': [[-14, 8], [14, 8], [0, -12]],
+    'rotwood-forest': [[-14, 10], [14, -8], [0, -20]],
+    'astral-geometry-garden': [[-15, -18], [17, -14], [0, -28]],
+    'motel-mirage': [[-18, 8], [18, 8], [0, -16]],
+  };
+
+  return (placements[sceneId] ?? placements.dungeon).map(([x, z], index) => ({
+    name: `${sceneId} green health potion ${index + 1}`,
+    x,
+    y: 1.08,
+    z,
+    width: 0.56,
+    depth: 0.34,
+    height: 0.72,
+    texture: 'healthPotion',
+    mesh: 'health-flask',
+    motion: 'pickup-bob',
+    radius: 0.72,
+  }));
 }
 
 function getSceneReverb(sceneId) {
