@@ -1,3 +1,5 @@
+import { getEnemyDefinition } from './enemyCatalog.js';
+
 const WALL_HEIGHT = 3.0;
 const SKY_DOME_STARRY = Object.freeze({ mode: 'starry', palette: 'deep-night' });
 const SKY_DOME_ONE_BIT = Object.freeze({ mode: 'starry', palette: 'one-bit-night' });
@@ -1129,26 +1131,42 @@ function box(name, x, z, width, depth, height, texture, y = 0, noCollider = fals
 }
 
 const SPECIAL_ENEMY_SPAWNER_TYPES = Object.freeze([
-  Object.freeze({
-    enemyType: 'one-eye-alien',
+  createSpecialEnemySpawner('one-eye-alien', {
     label: 'One-Eyed Alien',
     mesh: 'one-eye-alien',
-    radius: 0.45,
-    speed: 0.92,
-    damage: 18,
   }),
-  Object.freeze({
-    enemyType: 'molten-sentinel',
+  createSpecialEnemySpawner('molten-sentinel', {
     label: 'Molten Stone Sentinel',
     mesh: 'molten-sentinel',
-    radius: 0.38,
-    speed: 0.78,
-    damage: 45,
     minimumHeadClearance: 4.8,
   }),
 ]);
 
+function createSpecialEnemySpawner(enemyType, options) {
+  const definition = getEnemyDefinition(enemyType);
+  return Object.freeze({
+    enemyType,
+    label: options.label,
+    mesh: options.mesh,
+    radius: definition.base.radius,
+    minimumHeadClearance: options.minimumHeadClearance,
+  });
+}
+
+const SCENE_ENCOUNTER_CONFIGS = Object.freeze({
+  dungeon: Object.freeze({ difficulty: 1 }),
+  'alien-landscape': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
+  'derelict-starship': Object.freeze({ difficulty: 2 }),
+  'neon-backstreets': Object.freeze({ difficulty: 3, boss: 'molten-sentinel' }),
+  'sunken-temple': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
+  'one-bit-cathedral': Object.freeze({ difficulty: 3 }),
+  'rotwood-forest': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
+  'astral-geometry-garden': Object.freeze({ difficulty: 3, boss: 'molten-sentinel' }),
+  'motel-mirage': Object.freeze({ difficulty: 1, boss: 'molten-sentinel' }),
+});
+
 function withZombies(scene, zombieSpawns) {
+  const enemyEncounter = createSceneEnemyEncounter(scene);
   const healthPotions = scene.healthPotions ?? createHealthPotions(scene.id);
   const texturesWithZombie = scene.textures.some((texture) => texture.id === 'zombie')
     ? scene.textures
@@ -1167,12 +1185,29 @@ function withZombies(scene, zombieSpawns) {
 
   return {
     ...scene,
+    enemyEncounter,
     zombieSpawns,
-    enemySpawns: createTypedEnemySpawns(scene, zombieSpawns),
+    enemySpawns: createTypedEnemySpawns(scene, zombieSpawns, enemyEncounter),
     warpGate: createRogueWarpGate(scene, zombieSpawns),
     healthPotions,
     audio: scene.audio ?? { reverb: getSceneReverb(scene.id) },
     textures,
+  };
+}
+
+function createSceneEnemyEncounter(scene) {
+  const override = SCENE_ENCOUNTER_CONFIGS[scene.id] ?? {};
+  const canSpawnBoss = !scene.ceiling && (override.boss ?? 'molten-sentinel') === 'molten-sentinel';
+  const allowedTypes = [
+    'zombie',
+    'one-eye-alien',
+    ...(canSpawnBoss ? ['molten-sentinel'] : []),
+  ];
+
+  return {
+    difficulty: override.difficulty ?? 1,
+    allowedTypes,
+    boss: canSpawnBoss ? 'molten-sentinel' : null,
   };
 }
 
@@ -1213,35 +1248,35 @@ function createRogueWarpGate(scene, zombieSpawns) {
   };
 }
 
-function createTypedEnemySpawns(scene, zombieSpawns) {
+function createTypedEnemySpawns(scene, zombieSpawns, enemyEncounter) {
   const used = new Set();
 
-  return SPECIAL_ENEMY_SPAWNER_TYPES.flatMap((enemy, index) => {
-    const candidates = getEnemySpawnCandidates(scene, zombieSpawns, enemy);
-    if (enemy.minimumHeadClearance && !candidates.length) return [];
+  return SPECIAL_ENEMY_SPAWNER_TYPES
+    .filter((enemy) => enemyEncounter.allowedTypes.includes(enemy.enemyType))
+    .flatMap((enemy, index) => {
+      const candidates = getEnemySpawnCandidates(scene, zombieSpawns, enemy);
+      if (enemy.minimumHeadClearance && !candidates.length) return [];
 
-    const pool = candidates.length ? candidates : zombieSpawns;
-    const candidateIndex = chooseSpawnIndex(scene.id, enemy.enemyType, pool.length, used);
-    const spawn = pool[candidateIndex] ?? zombieSpawns[index % zombieSpawns.length];
-    used.add(candidateIndex);
-    const offset = getEnemySpawnOffset(scene, spawn, enemy.radius, zombieSpawns);
-    return [{
-      name: `${scene.id} ${enemy.enemyType} spawner`,
-      role: 'enemy',
-      spawnerType: 'enemy',
-      enemyType: enemy.enemyType,
-      label: enemy.label,
-      mesh: enemy.mesh,
-      x: spawn.x + offset.x,
-      y: spawn.y ?? scene.playerSpawn.y,
-      z: spawn.z + offset.z,
-      yaw: spawn.yaw ?? 0,
-      radius: enemy.radius,
-      speed: enemy.speed,
-      damage: enemy.damage,
-      minimumHeadClearance: enemy.minimumHeadClearance,
-    }];
-  });
+      const pool = candidates.length ? candidates : zombieSpawns;
+      const candidateIndex = chooseSpawnIndex(scene.id, enemy.enemyType, pool.length, used);
+      const spawn = pool[candidateIndex] ?? zombieSpawns[index % zombieSpawns.length];
+      used.add(candidateIndex);
+      const offset = getEnemySpawnOffset(scene, spawn, enemy.radius, zombieSpawns);
+      return [{
+        name: `${scene.id} ${enemy.enemyType} spawner`,
+        role: 'enemy',
+        spawnerType: 'enemy',
+        enemyType: enemy.enemyType,
+        label: enemy.label,
+        mesh: enemy.mesh,
+        x: spawn.x + offset.x,
+        y: spawn.y ?? scene.playerSpawn.y,
+        z: spawn.z + offset.z,
+        yaw: spawn.yaw ?? 0,
+        radius: enemy.radius,
+        minimumHeadClearance: enemy.minimumHeadClearance,
+      }];
+    });
 }
 
 function getEnemySpawnCandidates(scene, zombieSpawns, enemy) {

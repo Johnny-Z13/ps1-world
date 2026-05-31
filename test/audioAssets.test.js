@@ -3,8 +3,13 @@ import { existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const appPath = new URL('../src/app.js', import.meta.url);
-const appSource = await import('node:fs/promises').then((fs) => fs.readFile(appPath, 'utf8'));
+const sourcePaths = [
+  new URL('../src/app.js', import.meta.url),
+  new URL('../src/audioConfig.js', import.meta.url),
+];
+const appSource = await import('node:fs/promises')
+  .then((fs) => Promise.all(sourcePaths.map((sourcePath) => fs.readFile(sourcePath, 'utf8'))))
+  .then((sources) => sources.join('\n'));
 const root = new URL('../', import.meta.url);
 
 test('every app audio URL points to a non-empty local asset', () => {

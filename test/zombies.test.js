@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { applyEnemyDifficulty } from '../src/enemyCatalog.js';
 import { PLAYER_EYE_HEIGHT } from '../src/playerPhysics.js';
 import { createSceneWorld } from '../src/world.js';
 import {
   createZombieEnemies,
+  selectEnemyTarget,
   isPlayerTouchedByZombie,
   resolvePlayerZombieCollision,
   updateZombieEnemies,
@@ -17,10 +19,161 @@ test('creates zombie enemies plus typed special enemies from scene spawn points'
 
   assert.ok(zombies.length >= 4);
   assert.ok(zombies.length <= 5);
-  assert.ok(zombies.every((zombie) => zombie.state === 'chasing'));
+  assert.ok(zombies.every((zombie) => zombie.state === 'chase'));
   assert.ok(zombies.every((zombie) => zombie.radius > 0));
+  assert.ok(zombies.every((zombie) => zombie.faction));
+  assert.ok(zombies.every((zombie) => zombie.health > 0));
   assert.ok(enemyTypes.includes('one-eye-alien'));
   assert.equal(enemyTypes.includes('molten-sentinel'), false);
+});
+
+test('applies level difficulty to spawned enemy stats', () => {
+  const world = {
+    id: 'arena',
+    playerSpawn: { x: 0, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0 },
+    enemyEncounter: { difficulty: 3 },
+    zombieSpawns: [{ x: 6, z: 0 }],
+    enemySpawns: [{ enemyType: 'molten-sentinel', x: 8, z: 0 }],
+  };
+
+  const enemies = createZombieEnemies(world);
+  const zombie = enemies.find((enemy) => enemy.enemyType === 'zombie');
+  const sentinel = enemies.find((enemy) => enemy.enemyType === 'molten-sentinel');
+
+  assert.ok(zombie.health > 30);
+  assert.ok(zombie.damage > 20);
+  assert.ok(sentinel.health > zombie.health);
+  assert.ok(sentinel.damage > zombie.damage);
+});
+
+test('uses scene encounter difficulty when spawning enemies from worlds', () => {
+  const easyWorld = createSceneWorld('dungeon');
+  const hardWorld = createSceneWorld('neon-backstreets');
+  const easyZombie = createZombieEnemies(easyWorld).find((enemy) => enemy.enemyType === 'zombie');
+  const hardZombie = createZombieEnemies(hardWorld).find((enemy) => enemy.enemyType === 'zombie');
+
+  assert.equal(easyWorld.enemyEncounter.difficulty, 1);
+  assert.equal(hardWorld.enemyEncounter.difficulty, 3);
+  assert.ok(hardZombie.health > easyZombie.health);
+  assert.ok(hardZombie.damage > easyZombie.damage);
+});
+
+test('scene-authored special enemies inherit scaled catalog stats', () => {
+  const world = createSceneWorld('neon-backstreets');
+  const sentinel = createZombieEnemies(world).find((enemy) => enemy.enemyType === 'molten-sentinel');
+  const expectedStats = applyEnemyDifficulty('molten-sentinel', world.enemyEncounter.difficulty);
+
+  assert.equal(sentinel.damage, expectedStats.attackDamage);
+  assert.equal(sentinel.speed, expectedStats.speed);
+  assert.equal(sentinel.radius, expectedStats.radius);
+});
+
+test('boss targets the player first but can acquire nearby zombies and aliens', () => {
+  const player = { id: 'player', faction: 'player', x: 12, y: PLAYER_EYE_HEIGHT, z: 0 };
+  const sentinel = {
+    id: 'sentinel',
+    enemyType: 'molten-sentinel',
+    faction: 'boss',
+    x: 0,
+    y: PLAYER_EYE_HEIGHT,
+    z: 0,
+    radius: 0.55,
+  };
+  const enemies = [
+    sentinel,
+    { id: 'zombie', enemyType: 'zombie', faction: 'undead', x: 2, y: PLAYER_EYE_HEIGHT, z: 0, radius: 0.38 },
+    { id: 'alien', enemyType: 'one-eye-alien', faction: 'alien', x: 4, y: PLAYER_EYE_HEIGHT, z: 0, radius: 0.45 },
+  ];
+
+  const nearbyTarget = selectEnemyTarget(sentinel, player, enemies);
+  const playerTarget = selectEnemyTarget(sentinel, { ...player, x: 1 }, enemies);
+
+  assert.equal(nearbyTarget.id, 'zombie');
+  assert.equal(playerTarget.id, 'player');
+});
+
+test('boss damages nearby hostile enemies when not focused on the player', () => {
+  const enemies = [
+    {
+      id: 'sentinel',
+      enemyType: 'molten-sentinel',
+      faction: 'boss',
+      x: 0,
+      y: PLAYER_EYE_HEIGHT,
+      z: 0,
+      yaw: 0,
+      radius: 0.58,
+      speed: 0.82,
+      damage: 45,
+      attackRange: 2.25,
+      health: 180,
+    },
+    {
+      id: 'zombie',
+      enemyType: 'zombie',
+      faction: 'undead',
+      x: 1.2,
+      y: PLAYER_EYE_HEIGHT,
+      z: 0,
+      yaw: 0,
+      radius: 0.38,
+      speed: 1.15,
+      health: 90,
+    },
+  ];
+
+  const updated = updateZombieEnemies(enemies, { id: 'player', x: 12, y: PLAYER_EYE_HEIGHT, z: 0 }, {
+    colliders: [],
+    walkableSurfaces: [{ minX: -100, maxX: 100, minZ: -100, maxZ: 100, topY: 0 }],
+    dt: 0.1,
+    now: 1000,
+  });
+
+  const sentinel = updated.find((enemy) => enemy.id === 'sentinel');
+  const zombie = updated.find((enemy) => enemy.id === 'zombie');
+  assert.equal(sentinel.state, 'attack');
+  assert.equal(sentinel.targetId, 'zombie');
+  assert.ok(zombie.health < 90);
+});
+
+test('removes enemies killed by hostile enemies', () => {
+  const enemies = [
+    {
+      id: 'sentinel',
+      enemyType: 'molten-sentinel',
+      faction: 'boss',
+      x: 0,
+      y: PLAYER_EYE_HEIGHT,
+      z: 0,
+      yaw: 0,
+      radius: 0.58,
+      speed: 0.82,
+      damage: 45,
+      attackRange: 2.25,
+      health: 180,
+    },
+    {
+      id: 'zombie',
+      enemyType: 'zombie',
+      faction: 'undead',
+      x: 1.2,
+      y: PLAYER_EYE_HEIGHT,
+      z: 0,
+      yaw: 0,
+      radius: 0.38,
+      speed: 1.15,
+      health: 30,
+    },
+  ];
+
+  const updated = updateZombieEnemies(enemies, { id: 'player', x: 12, y: PLAYER_EYE_HEIGHT, z: 0 }, {
+    colliders: [],
+    walkableSurfaces: [{ minX: -100, maxX: 100, minZ: -100, maxZ: 100, topY: 0 }],
+    dt: 0.1,
+    now: 1000,
+  });
+
+  assert.equal(updated.some((enemy) => enemy.id === 'zombie'), false);
 });
 
 test('does not spawn enemy capsules on top of each other', () => {

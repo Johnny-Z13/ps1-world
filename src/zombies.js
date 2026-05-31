@@ -3,6 +3,12 @@ import {
   getGroundYAt,
   resolveMovement,
 } from './playerPhysics.js';
+import {
+  ENEMY_FACTIONS,
+  applyEnemyDifficulty,
+  createLevelEncounterConfig,
+  getEnemyDefinition,
+} from './enemyCatalog.js';
 
 const ZOMBIE_SPEED = 1.15;
 const ZOMBIE_RADIUS = 0.38;
@@ -10,41 +16,27 @@ const PLAYER_RADIUS = 0.36;
 const TOUCH_VERTICAL_TOLERANCE = 1.05;
 
 export function createZombieEnemies(world) {
-  const zombies = (world.zombieSpawns ?? []).map((spawn, index) => ({
-    id: `${world.id}-zombie-${index + 1}`,
+  const encounter = createLevelEncounterConfig(world);
+  const zombies = (world.zombieSpawns ?? []).map((spawn, index) => createEnemyFromSpawn({
+    world,
+    spawn,
+    index,
     enemyType: 'zombie',
-    role: 'enemy',
-    x: spawn.x,
-    y: spawn.y ?? world.playerSpawn.y,
-    z: spawn.z,
-    yaw: spawn.yaw ?? 0,
-    radius: spawn.radius ?? ZOMBIE_RADIUS,
-    speed: spawn.speed ?? ZOMBIE_SPEED,
-    state: 'chasing',
-    damage: spawn.damage,
-    animationSeed: stableEnemySeed(world.id, index),
+    encounter,
   }));
-  const specialEnemies = (world.enemySpawns ?? []).map((spawn, index) => ({
-    id: `${world.id}-${spawn.enemyType ?? 'enemy'}-${index + 1}`,
+  const specialEnemies = (world.enemySpawns ?? []).map((spawn, index) => createEnemyFromSpawn({
+    world,
+    spawn,
+    index: index + zombies.length,
     enemyType: spawn.enemyType ?? 'zombie',
-    role: spawn.role ?? 'enemy',
-    x: spawn.x,
-    y: spawn.y ?? world.playerSpawn.y,
-    z: spawn.z,
-    yaw: spawn.yaw ?? 0,
-    radius: spawn.radius ?? ZOMBIE_RADIUS,
-    speed: spawn.speed ?? ZOMBIE_SPEED,
-    state: 'chasing',
-    damage: spawn.damage,
-    mesh: spawn.mesh,
-    animationSeed: stableEnemySeed(world.id, index + zombies.length),
+    encounter,
   }));
   return separateEnemyCapsules([...zombies, ...specialEnemies]);
 }
 
 export function updateZombieEnemies(zombies, player, options) {
-  const moved = zombies.map((zombie) => updateZombieEnemy(zombie, player, options));
-  return separateEnemyCapsules(moved);
+  const moved = zombies.map((zombie) => updateZombieEnemy(zombie, player, zombies, options));
+  return applyEnemyInfightingDamage(separateEnemyCapsules(moved), player, options);
 }
 
 export function isPlayerTouchedByZombie(player, zombies) {
@@ -65,11 +57,57 @@ export function resolvePlayerZombieCollision(player, zombies, playerRadius = PLA
   ), player);
 }
 
-function updateZombieEnemy(zombie, player, options) {
-  const dx = player.x - zombie.x;
-  const dz = player.z - zombie.z;
+export function selectEnemyTarget(enemy, player, enemies = []) {
+  const definition = getEnemyDefinition(enemy.enemyType);
+  const playerTarget = { ...player, id: 'player', faction: ENEMY_FACTIONS.player, radius: PLAYER_RADIUS };
+  const candidates = [
+    playerTarget,
+    ...enemies.filter((candidate) => candidate.id !== enemy.id && candidate.state !== 'dead'),
+  ];
+  const hostileCandidates = candidates.filter((candidate) => (
+    definition.targeting.hostileFactions.includes(candidate.faction ?? ENEMY_FACTIONS.player)
+  ));
+
+  const playerDistance = distance2D(enemy, playerTarget);
+  const nearbyEnemyTarget = hostileCandidates
+    .filter((candidate) => candidate.faction !== ENEMY_FACTIONS.player)
+    .filter((candidate) => distance2D(enemy, candidate) <= definition.targeting.secondaryTargetRange)
+    .sort((a, b) => distance2D(enemy, a) - distance2D(enemy, b))[0];
+
+  if (playerDistance <= definition.base.attackRange || !nearbyEnemyTarget) return playerTarget;
+  return nearbyEnemyTarget;
+}
+
+function createEnemyFromSpawn({ world, spawn, index, enemyType, encounter }) {
+  const definition = getEnemyDefinition(enemyType);
+  const stats = applyEnemyDifficulty(enemyType, encounter.difficulty);
+  return {
+    id: `${world.id}-${definition.id}-${index + 1}`,
+    enemyType: definition.id,
+    faction: definition.faction,
+    role: spawn.role ?? 'enemy',
+    x: spawn.x,
+    y: spawn.y ?? world.playerSpawn.y,
+    z: spawn.z,
+    yaw: spawn.yaw ?? 0,
+    radius: spawn.radius ?? stats.radius ?? ZOMBIE_RADIUS,
+    speed: spawn.speed ?? stats.speed ?? ZOMBIE_SPEED,
+    health: spawn.health ?? stats.health,
+    state: 'chase',
+    damage: spawn.damage ?? stats.attackDamage,
+    attackRange: spawn.attackRange ?? stats.attackRange,
+    attackCooldownMs: spawn.attackCooldownMs ?? stats.attackCooldownMs,
+    mesh: spawn.mesh,
+    animationSeed: stableEnemySeed(world.id, index),
+  };
+}
+
+function updateZombieEnemy(zombie, player, enemies, options) {
+  const target = selectEnemyTarget(zombie, player, enemies);
+  const dx = target.x - zombie.x;
+  const dz = target.z - zombie.z;
   const distance = Math.hypot(dx, dz);
-  if (distance < 0.001) return zombie;
+  if (distance < 0.001) return { ...zombie, state: 'attack', targetId: target.id };
 
   const step = Math.min(distance, zombie.speed * options.dt);
   const desired = {
@@ -85,8 +123,8 @@ function updateZombieEnemy(zombie, player, options) {
   const separated = resolveCapsuleAgainstBody(
     { x: moved.x, y: zombie.y, z: moved.z },
     zombie.radius,
-    player,
-    PLAYER_RADIUS,
+    target,
+    target.radius ?? PLAYER_RADIUS,
   );
   const groundY = getGroundYAt(separated, options.walkableSurfaces) ?? zombie.y;
 
@@ -96,7 +134,41 @@ function updateZombieEnemy(zombie, player, options) {
     y: groundY,
     z: separated.z,
     yaw: Math.atan2(dx, dz),
+    state: distance <= (zombie.attackRange ?? ZOMBIE_RADIUS + PLAYER_RADIUS) ? 'attack' : 'chase',
+    targetId: target.id,
   };
+}
+
+function distance2D(a, b) {
+  return Math.hypot(a.x - b.x, a.z - b.z);
+}
+
+function applyEnemyInfightingDamage(enemies, player, options) {
+  const now = options.now ?? 0;
+  const next = enemies.map((enemy) => ({ ...enemy }));
+
+  for (const attacker of next) {
+    if (attacker.state === 'dead') continue;
+    const target = selectEnemyTarget(attacker, player, next);
+    if (target.faction === ENEMY_FACTIONS.player) continue;
+    if (distance2D(attacker, target) > (attacker.attackRange ?? 0)) continue;
+    if (now - (attacker.lastAttackAt ?? -Infinity) < (attacker.attackCooldownMs ?? 1000)) continue;
+
+    const targetIndex = next.findIndex((enemy) => enemy.id === target.id);
+    if (targetIndex === -1) continue;
+
+    attacker.state = 'attack';
+    attacker.targetId = target.id;
+    attacker.lastAttackAt = now;
+    const health = (next[targetIndex].health ?? 1) - (attacker.damage ?? 0);
+    next[targetIndex] = {
+      ...next[targetIndex],
+      health,
+      state: health <= 0 ? 'dead' : next[targetIndex].state,
+    };
+  }
+
+  return next.filter((enemy) => enemy.state !== 'dead');
 }
 
 function separateEnemyCapsules(enemies) {

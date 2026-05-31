@@ -410,6 +410,35 @@ test('adds typed enemy spawners for the alien and molten sentinel to every scene
   }
 });
 
+test('maps every scene to an explicit enemy encounter difficulty and composition', () => {
+  const difficulties = new Set();
+
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+    const encounter = world.enemyEncounter;
+    const enemyTypes = world.enemySpawns.map((spawn) => spawn.enemyType);
+
+    assert.equal(typeof encounter.difficulty, 'number', definition.id);
+    assert.ok(encounter.difficulty >= 1, definition.id);
+    assert.ok(encounter.difficulty <= 3, definition.id);
+    assert.ok(encounter.allowedTypes.includes('zombie'), definition.id);
+    assert.ok(Array.isArray(encounter.allowedTypes), definition.id);
+    assert.deepEqual([...new Set(encounter.allowedTypes)], encounter.allowedTypes, definition.id);
+    difficulties.add(encounter.difficulty);
+
+    for (const enemyType of enemyTypes) {
+      assert.ok(encounter.allowedTypes.includes(enemyType), `${definition.id} ${enemyType}`);
+    }
+
+    if (encounter.boss) {
+      assert.ok(encounter.allowedTypes.includes(encounter.boss), definition.id);
+      assert.ok(enemyTypes.includes(encounter.boss), definition.id);
+    }
+  }
+
+  assert.ok(difficulties.size >= 3);
+});
+
 test('places two or three green health potion pickups in every scene', () => {
   for (const definition of SCENE_DEFINITIONS) {
     const world = createSceneWorld(definition.id);

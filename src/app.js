@@ -61,6 +61,89 @@ import {
   isRogueComplete,
   stepRogueRun,
 } from './rogueMode.js';
+import { motionCode, drawGeneratedTexture } from './generatedTextures.js';
+import {
+  skyVertexShader,
+  skyFragmentShader,
+  sceneVertexShader,
+  sceneFragmentShader,
+  postVertexShader,
+  postFragmentShader,
+} from './renderShaders.js';
+import {
+  ZOMBIE_GRUNT_LOOP_URL,
+  LIGHTNING_SOUND_URL,
+  MENU_START_CONFIRM_SOUND_URL,
+  TITLE_MUSIC_LOOP_URL,
+  FREE_ROAM_MUSIC_LOOP_URL,
+  CUT_UP_MUSIC_LOOP_URL,
+  FREE_ROAM_START_SOUND_URL,
+  CUT_UP_START_SOUND_URL,
+  CUT_UP_SCENE_SLICE_SOUND_URL,
+  CUT_UP_COUNTDOWN_TICK_SOUND_URL,
+  ROGUE_WIN_SOUND_URL,
+  OPTIONS_OPEN_SOUND_URL,
+  OPTIONS_CLOSE_SOUND_URL,
+  HEALTH_PICKUP_SOUND_URL,
+  PLAYER_DEATH_SOUND_URL,
+  PLAYER_DAMAGE_SOUND_URL,
+  PLAYER_JUMP_SOUND_URL,
+  PLAYER_LAND_SOUND_URL,
+  PLAYER_WALK_FOOTSTEP_LOOP_URL,
+  PLAYER_SPRINT_FOOTSTEP_LOOP_URL,
+  PLAYER_LOW_HEALTH_BREATHING_LOOP_URL,
+  UI_HOVER_SOUND_URL,
+  UI_TOGGLE_SOUND_URL,
+  UI_SELECT_SOUND_URL,
+  RAIN_SPOT_DRIP_SOUND_URL,
+  WORLD_RARE_STINGER_SOUND_URL,
+  ENEMY_AUDIO_PROFILES,
+  SCENE_AMBIENCE_URLS,
+  SCENE_AMBIENCE_MAX_GAIN,
+  LIGHTNING_SOUND_GAIN,
+  MENU_START_CONFIRM_SOUND_GAIN,
+  TITLE_MUSIC_GAIN,
+  FREE_ROAM_MUSIC_GAIN,
+  CUT_UP_MUSIC_GAIN,
+  UI_SFX_GAIN,
+  TRANSITION_SFX_GAIN,
+  CUT_UP_AUDIO_DUCK_DURATION_MS,
+  HEALTH_PICKUP_SOUND_GAIN,
+  PLAYER_DEATH_SOUND_GAIN,
+  PLAYER_DAMAGE_SOUND_GAIN,
+  PLAYER_JUMP_SOUND_GAIN,
+  PLAYER_LAND_SOUND_GAIN,
+  PLAYER_WALK_FOOTSTEP_GAIN,
+  PLAYER_SPRINT_FOOTSTEP_GAIN,
+  PLAYER_LOW_HEALTH_BREATHING_GAIN,
+  HEALTH_PICKUP_FLASH_DURATION_MS,
+  DAMAGE_FLASH_DURATION_MS,
+  DAMAGE_SCRATCH_MAX_OFFSET,
+  DAMAGE_SCRATCH_MAX_ROTATION,
+  LOW_HEALTH_NOTICE_DURATION_MS,
+  ZOMBIE_BITE_COOLDOWN_MS,
+  DAMAGE_ZONE_SOUND_INTERVAL_MS,
+  PLAYER_HEARTBEAT_BASE_INTERVAL_MS,
+  PLAYER_HEARTBEAT_DANGER_INTERVAL_MS,
+  PLAYER_HEARTBEAT_BASE_GAIN,
+  PLAYER_HEARTBEAT_DANGER_GAIN,
+  PLAYER_HEARTBEAT_DANGER_DISTANCE,
+  TORCH_CRACKLE_MAX_DISTANCE,
+  TORCH_CRACKLE_REF_DISTANCE,
+  TORCH_CRACKLE_GAIN,
+  RAIN_WATER_MAX_DISTANCE,
+  RAIN_WATER_REF_DISTANCE,
+  RAIN_WATER_BED_GAIN,
+  RAIN_DRIP_GAIN,
+  ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE,
+  ZOMBIE_GRUNT_MAX_DISTANCE,
+  ZOMBIE_GRUNT_MAX_GAIN,
+  ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER,
+  ZOMBIE_GRUNT_OPEN_FILTER_HZ,
+  ZOMBIE_GRUNT_OCCLUDED_FILTER_HZ,
+  SCENE_REVERB_PRESETS,
+} from './audioConfig.js';
+import { getEnemyDefinition } from './enemyCatalog.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
@@ -113,133 +196,9 @@ const DEATH_SCENE_PROFILES = Object.freeze({
 const GAMEPAD_DEADZONE = 0.18;
 const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS.length;
 const MAX_STATIC_TORCH_LIGHTS = 3;
-const ZOMBIE_MODEL_SCALE = 1.75;
-const ZOMBIE_MODEL_FRONT_ROTATION = -Math.PI / 2;
-const SENTINEL_DAMAGE = 45;
-const ALIEN_DAMAGE = 18;
-const CHARACTER_MODEL_SCALE = Object.freeze({
-  zombie: ZOMBIE_MODEL_SCALE,
-  'one-eye-alien': 1.45,
-  'molten-sentinel': 2.05,
-});
-const SENTINEL_ATTACK_RANGE = 2.25;
-const SENTINEL_LOCOMOTION_ANIMATION_NAMES = ['Running', 'Run', 'Walk', 'Locomotion'];
-const SENTINEL_ATTACK_ANIMATION_NAMES = ['Attack', 'Attacking', 'Confused_Scratch', 'Scratch', 'Punch', 'Hit'];
 const SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE = 1.2;
 const SPECIAL_ENEMY_LOOP_MAX_DISTANCE = 24;
 const SPECIAL_ENEMY_ATTACK_COOLDOWN_MS = 1450;
-const ZOMBIE_GRUNT_LOOP_URL = './assets/audio/sfx/zombie-idle-grunt-8bit-loop.mp3?v=1';
-const LIGHTNING_SOUND_URL = './assets/audio/sfx/lightning-bolt-strike.mp3?v=1';
-const MENU_START_CONFIRM_SOUND_URL = './assets/audio/sfx/menu-start-confirm-8bit.mp3?v=1';
-const TITLE_MUSIC_LOOP_URL = './assets/audio/music/title-menu-psx-8bit-loop.mp3?v=2';
-const FREE_ROAM_MUSIC_LOOP_URL = './assets/audio/music/free-roam-dread-8bit-loop.mp3?v=1';
-const CUT_UP_MUSIC_LOOP_URL = './assets/audio/music/cut-up-clockwork-8bit-loop.mp3?v=1';
-const FREE_ROAM_START_SOUND_URL = './assets/audio/sfx/free-roam-start-warp-8bit.mp3?v=1';
-const CUT_UP_START_SOUND_URL = './assets/audio/sfx/cut-up-start-burst-8bit.mp3?v=1';
-const CUT_UP_SCENE_SLICE_SOUND_URL = './assets/audio/sfx/cut-up-scene-slice-8bit.mp3?v=1';
-const CUT_UP_COUNTDOWN_TICK_SOUND_URL = './assets/audio/sfx/cut-up-countdown-tick-8bit.mp3?v=1';
-const ROGUE_WIN_SOUND_URL = './assets/audio/sfx/rogue-win-confetti.wav?v=1';
-const OPTIONS_OPEN_SOUND_URL = './assets/audio/sfx/options-open-static-8bit.mp3?v=1';
-const OPTIONS_CLOSE_SOUND_URL = './assets/audio/sfx/options-close-click-8bit.mp3?v=1';
-const HEALTH_PICKUP_SOUND_URL = './assets/audio/sfx/health-pickup-bing-8bit.mp3?v=1';
-const PLAYER_DEATH_SOUND_URL = './assets/audio/sfx/player-death-8bit.mp3?v=1';
-const PLAYER_DAMAGE_SOUND_URL = './assets/audio/sfx/player-damage-grunt-8bit.mp3?v=1';
-const PLAYER_JUMP_SOUND_URL = './assets/audio/sfx/player-jump-8bit.wav?v=1';
-const PLAYER_LAND_SOUND_URL = './assets/audio/sfx/player-land-thud-8bit.wav?v=1';
-const PLAYER_WALK_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-walk-8bit-loop.mp3?v=1';
-const PLAYER_SPRINT_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-sprint-8bit-loop.mp3?v=1';
-const PLAYER_LOW_HEALTH_BREATHING_LOOP_URL = './assets/audio/sfx/player-low-health-breathing-8bit-loop.mp3?v=1';
-const UI_HOVER_SOUND_URL = './assets/audio/sfx/ui-hover-blip-8bit.wav?v=1';
-const UI_TOGGLE_SOUND_URL = './assets/audio/sfx/ui-toggle-tick-8bit.wav?v=1';
-const UI_SELECT_SOUND_URL = './assets/audio/sfx/ui-select-change-8bit.wav?v=1';
-const RAIN_SPOT_DRIP_SOUND_URL = './assets/audio/sfx/rain-spot-drip-8bit.wav?v=1';
-const WORLD_RARE_STINGER_SOUND_URL = './assets/audio/sfx/world-rare-stinger-8bit.wav?v=1';
-const ENEMY_AUDIO_PROFILES = Object.freeze({
-  zombie: Object.freeze({
-    loopUrl: ZOMBIE_GRUNT_LOOP_URL,
-    attackUrl: './assets/audio/sfx/enemy-zombie-attack-bite-8bit.wav?v=1',
-    attackGain: 0.36,
-    maxLoopGain: 0.085,
-    openFilterHz: 4200,
-    occludedFilterHz: 760,
-  }),
-  'one-eye-alien': Object.freeze({
-    loopUrl: './assets/audio/sfx/enemy-alien-idle-warble-8bit-loop.wav?v=1',
-    attackUrl: './assets/audio/sfx/enemy-alien-attack-shriek-8bit.wav?v=1',
-    attackGain: 0.28,
-    maxLoopGain: 0.058,
-    openFilterHz: 1850,
-    occludedFilterHz: 720,
-  }),
-  'molten-sentinel': Object.freeze({
-    loopUrl: './assets/audio/sfx/enemy-sentinel-idle-furnace-8bit-loop.wav?v=1',
-    attackUrl: './assets/audio/sfx/enemy-sentinel-attack-impact-8bit.wav?v=1',
-    attackGain: 0.42,
-    maxLoopGain: 0.085,
-    openFilterHz: 760,
-    occludedFilterHz: 360,
-  }),
-});
-const SCENE_AMBIENCE_URLS = Object.freeze({
-  dungeon: './assets/audio/ambience/dungeon-8bit-loop.mp3?v=1',
-  'alien-landscape': './assets/audio/ambience/alien-landscape-8bit-loop.mp3?v=1',
-  'derelict-starship': './assets/audio/ambience/derelict-starship-8bit-loop.mp3?v=1',
-  'neon-backstreets': './assets/audio/ambience/neon-backstreets-8bit-loop.mp3?v=1',
-  'sunken-temple': './assets/audio/ambience/sunken-temple-8bit-loop.mp3?v=1',
-  'one-bit-cathedral': './assets/audio/ambience/one-bit-cathedral-8bit-loop.mp3?v=1',
-  'rotwood-forest': './assets/audio/ambience/rotwood-forest-storm-wind-leaves-loop.wav?v=1',
-  'astral-geometry-garden': './assets/audio/ambience/astral-geometry-garden-8bit-loop.mp3?v=1',
-  'motel-mirage': './assets/audio/ambience/motel-mirage-8bit-loop.mp3?v=1',
-});
-const SCENE_AMBIENCE_MAX_GAIN = 0.16;
-const LIGHTNING_SOUND_GAIN = 0.55;
-const MENU_START_CONFIRM_SOUND_GAIN = 0.5;
-const TITLE_MUSIC_GAIN = 0.22;
-const FREE_ROAM_MUSIC_GAIN = 0.12;
-const CUT_UP_MUSIC_GAIN = 0.18;
-const UI_SFX_GAIN = 0.58;
-const TRANSITION_SFX_GAIN = 0.72;
-const CUT_UP_AUDIO_DUCK_DURATION_MS = 420;
-const HEALTH_PICKUP_SOUND_GAIN = 0.46;
-const PLAYER_DEATH_SOUND_GAIN = 0.72;
-const PLAYER_DAMAGE_SOUND_GAIN = 0.5;
-const PLAYER_JUMP_SOUND_GAIN = 0.22;
-const PLAYER_LAND_SOUND_GAIN = 0.24;
-const PLAYER_WALK_FOOTSTEP_GAIN = 0.13;
-const PLAYER_SPRINT_FOOTSTEP_GAIN = 0.19;
-const PLAYER_LOW_HEALTH_BREATHING_GAIN = 0.24;
-const HEALTH_PICKUP_FLASH_DURATION_MS = 520;
-const DAMAGE_FLASH_DURATION_MS = 420;
-const DAMAGE_SCRATCH_MAX_OFFSET = 0.055;
-const DAMAGE_SCRATCH_MAX_ROTATION = 0.18;
-const LOW_HEALTH_NOTICE_DURATION_MS = 2200;
-const ZOMBIE_BITE_COOLDOWN_MS = 1150;
-const DAMAGE_ZONE_SOUND_INTERVAL_MS = 760;
-const PLAYER_HEARTBEAT_BASE_INTERVAL_MS = 1320;
-const PLAYER_HEARTBEAT_DANGER_INTERVAL_MS = 560;
-const PLAYER_HEARTBEAT_BASE_GAIN = 0.018;
-const PLAYER_HEARTBEAT_DANGER_GAIN = 0.07;
-const PLAYER_HEARTBEAT_DANGER_DISTANCE = 9;
-const TORCH_CRACKLE_MAX_DISTANCE = 16;
-const TORCH_CRACKLE_REF_DISTANCE = 1.2;
-const TORCH_CRACKLE_GAIN = 0.045;
-const RAIN_WATER_MAX_DISTANCE = 34;
-const RAIN_WATER_REF_DISTANCE = 3.4;
-const RAIN_WATER_BED_GAIN = 0.038;
-const RAIN_DRIP_GAIN = 0.075;
-const ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE = 1.0;
-const ZOMBIE_GRUNT_MAX_DISTANCE = 22;
-const ZOMBIE_GRUNT_MAX_GAIN = 0.085;
-const ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER = 0.32;
-const ZOMBIE_GRUNT_OPEN_FILTER_HZ = 4200;
-const ZOMBIE_GRUNT_OCCLUDED_FILTER_HZ = 760;
-const SCENE_REVERB_PRESETS = Object.freeze({
-  'tight-room': Object.freeze({ duration: 0.42, decay: 2.8, wet: 0.11 }),
-  'open-air': Object.freeze({ duration: 0.28, decay: 4.6, wet: 0.045 }),
-  'metal-hall': Object.freeze({ duration: 0.68, decay: 2.2, wet: 0.16 }),
-  'stone-vault': Object.freeze({ duration: 0.86, decay: 2.5, wet: 0.19 }),
-  'dream-space': Object.freeze({ duration: 1.1, decay: 1.9, wet: 0.22 }),
-});
 let world = createSceneWorld(effects.sceneId);
 let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
@@ -408,6 +367,7 @@ function updatePlayer(dt, now) {
       colliders,
       walkableSurfaces,
       dt,
+      now,
     });
   }
   const touchingEnemy = effects.zombies ? getTouchingEnemy(player, zombies) : null;
@@ -2749,9 +2709,7 @@ function damagePlayer(now, enemy = null) {
 }
 
 function getEnemyDamage(enemy) {
-  if (enemy?.enemyType === 'molten-sentinel') return enemy.damage ?? SENTINEL_DAMAGE;
-  if (enemy?.enemyType === 'one-eye-alien') return enemy.damage ?? ALIEN_DAMAGE;
-  return enemy?.damage ?? ZOMBIE_BITE_DAMAGE;
+  return enemy?.damage ?? getEnemyDefinition(enemy?.enemyType).base.attackDamage ?? ZOMBIE_BITE_DAMAGE;
 }
 
 function randomizeDamageScratch() {
@@ -3462,19 +3420,22 @@ function updateZombieMesh(glContext, mesh, zombieList, indices, models = new Map
 
 function selectEnemyAnimation(enemy, model, time) {
   if (!model?.animations?.length) return null;
+  const enemyDefinition = getEnemyDefinition(enemy.enemyType);
   if ((enemy.enemyType ?? 'zombie') === 'molten-sentinel') {
-    const closeToPlayer = Math.hypot(player.x - enemy.x, player.z - enemy.z) < SENTINEL_ATTACK_RANGE;
+    const closeToPlayer = Math.hypot(player.x - enemy.x, player.z - enemy.z) < (enemy.attackRange ?? enemyDefinition.base.attackRange);
     if (closeToPlayer) {
-      return findPreferredAnimationName(model, SENTINEL_ATTACK_ANIMATION_NAMES)
-        ?? findNonPreferredAnimationName(model, SENTINEL_LOCOMOTION_ANIMATION_NAMES)
+      return findPreferredAnimationName(model, enemyDefinition.animation.attackNames)
+        ?? findNonPreferredAnimationName(model, enemyDefinition.animation.locomotionNames)
         ?? model.animations[0].name;
     }
-    return findPreferredAnimationName(model, SENTINEL_LOCOMOTION_ANIMATION_NAMES) ?? model.animations[0].name;
+    return findPreferredAnimationName(model, enemyDefinition.animation.locomotionNames) ?? model.animations[0].name;
   }
   if (enemy.enemyType === 'one-eye-alien') {
     const closeToPlayer = Math.hypot(player.x - enemy.x, player.z - enemy.z) < 1.8;
-    if (closeToPlayer && model.animations.some((animation) => animation.name === 'Attack')) return 'Attack';
-    const ambientClips = model.animations.filter((animation) => animation.name !== 'Attack');
+    const attackName = findPreferredAnimationName(model, enemyDefinition.animation.attackNames);
+    if (closeToPlayer && attackName) return attackName;
+    const normalizedAttackNames = enemyDefinition.animation.attackNames.map(normalizeAnimationName);
+    const ambientClips = model.animations.filter((animation) => !normalizedAttackNames.includes(normalizeAnimationName(animation.name)));
     if (!ambientClips.length) return model.animations[0].name;
     const index = Math.floor((time + (enemy.animationSeed ?? 0) * 9) / 5) % ambientClips.length;
     return ambientClips[index].name;
@@ -3503,9 +3464,10 @@ function addZombieModel(geometry, zombie, vertices, indices) {
   const textureId = indices.get(enemyType) ?? indices.get('zombie') ?? 0;
   const motion = motionCode('zombie-walk');
   const zombieMasterYaw = zombie.yaw;
-  const zombieModelYaw = ZOMBIE_MODEL_FRONT_ROTATION;
+  const enemyRender = getEnemyDefinition(enemyType).render;
+  const zombieModelYaw = enemyRender.frontRotation;
   const feetY = zombie.y - PLAYER_EYE_HEIGHT;
-  const scale = CHARACTER_MODEL_SCALE[enemyType] ?? ZOMBIE_MODEL_SCALE;
+  const scale = enemyRender.modelScale;
 
   for (const vertex of vertices) {
     const localX = vertex.x * scale;
@@ -3995,453 +3957,6 @@ function deleteMeshBuffers(glContext, mesh) {
   glContext.deleteBuffer(mesh.motion);
 }
 
-function motionCode(name) {
-  const codes = {
-    sway: 1,
-    firefly: 2,
-    'falling-leaf': 3,
-    'moon-slide': 4,
-    bob: 5,
-    orbit: 6,
-    'flicker-comet': 7,
-    'palm-snap': 8,
-    'window-pulse': 9,
-    'sign-flicker': 10,
-    'water-shimmer': 11,
-    'zombie-walk': 12,
-    'torch-flame': 13,
-    'pickup-bob': 14,
-    'warp-gate': 15,
-  };
-  return codes[name] ?? 0;
-}
-
-function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
-  if (id === 'zombie') {
-    drawZombieTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'star') {
-    drawStarTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'shootingStar') {
-    drawShootingStarTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'paleMoon') {
-    drawMoonTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'moonbeam') {
-    drawMoonbeamTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'firefly') {
-    drawFireflyTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'fallingLeaf') {
-    drawLeafTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'flickerComet') {
-    drawCometTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'blackWater' || id === 'poolWater') {
-    drawWaterPlaneTexture(ctx, id, x, y, tile);
-    return;
-  }
-
-  if (id === 'motelSign') {
-    drawMotelSignTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'motelWindow') {
-    drawMotelWindowTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'rain') {
-    drawRainTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'torchFlame') {
-    drawTorchFlameTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'healthPotion') {
-    drawHealthPotionTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id === 'warpGate') {
-    drawWarpGateTexture(ctx, x, y, tile);
-    return;
-  }
-
-  if (id.startsWith('neon') || id === 'lightning') {
-    drawNeonTexture(ctx, id, x, y, tile, sourceSize);
-    return;
-  }
-
-  if (id.startsWith('oneBit')) {
-    drawOneBitTexture(ctx, id, x, y, tile, sourceSize);
-    return;
-  }
-
-  const cell = tile / (sourceSize === 64 ? 8 : 16);
-  ctx.fillStyle = palette(id, 0);
-  ctx.fillRect(x, y, tile, tile);
-
-  for (let row = 0; row < tile / cell; row += 1) {
-    for (let col = 0; col < tile / cell; col += 1) {
-      const n = hash(col, row, id.length);
-      ctx.fillStyle = palette(id, n);
-      ctx.fillRect(x + col * cell, y + row * cell, cell, cell);
-    }
-  }
-
-  if (id === 'brick') {
-    ctx.strokeStyle = '#2d2926';
-    ctx.lineWidth = 2;
-    for (let row = 0; row < 8; row += 1) {
-      const offset = row % 2 === 0 ? 0 : tile / 8;
-      ctx.beginPath();
-      ctx.moveTo(x, y + row * tile / 8);
-      ctx.lineTo(x + tile, y + row * tile / 8);
-      ctx.stroke();
-      for (let col = -1; col < 8; col += 1) {
-        ctx.beginPath();
-        ctx.moveTo(x + offset + col * tile / 4, y + row * tile / 8);
-        ctx.lineTo(x + offset + col * tile / 4, y + (row + 1) * tile / 8);
-        ctx.stroke();
-      }
-    }
-  }
-
-  if (id === 'warning') {
-    ctx.fillStyle = '#d7a526';
-    for (let stripe = -tile; stripe < tile * 2; stripe += 24) {
-      ctx.save();
-      ctx.translate(x + stripe, y);
-      ctx.rotate(Math.PI / 6);
-      ctx.fillRect(0, 0, 12, tile * 2);
-      ctx.restore();
-    }
-  }
-
-  if (id === 'sun') {
-    ctx.clearRect(x, y, tile, tile);
-    const gradient = ctx.createRadialGradient(x + tile / 2, y + tile / 2, 4, x + tile / 2, y + tile / 2, tile / 2);
-    gradient.addColorStop(0, '#fff2a0');
-    gradient.addColorStop(0.35, '#ff9744');
-    gradient.addColorStop(0.72, '#b63358');
-    gradient.addColorStop(0.98, '#3b1434');
-    gradient.addColorStop(1, 'rgba(59, 20, 52, 0)');
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(x + tile / 2, y + tile / 2, tile * 0.48, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-function drawZombieTexture(ctx, x, y, tile) {
-  ctx.fillStyle = '#121612';
-  ctx.fillRect(x, y, tile, tile);
-  ctx.fillStyle = '#6f8d5e';
-  ctx.fillRect(x + tile * 0.32, y + tile * 0.08, tile * 0.36, tile * 0.22);
-  ctx.fillStyle = '#273822';
-  ctx.fillRect(x + tile * 0.28, y + tile * 0.3, tile * 0.44, tile * 0.32);
-  ctx.fillStyle = '#4b3128';
-  ctx.fillRect(x + tile * 0.2, y + tile * 0.32, tile * 0.16, tile * 0.42);
-  ctx.fillRect(x + tile * 0.64, y + tile * 0.32, tile * 0.16, tile * 0.42);
-  ctx.fillStyle = '#1c1a1a';
-  ctx.fillRect(x + tile * 0.33, y + tile * 0.62, tile * 0.13, tile * 0.32);
-  ctx.fillRect(x + tile * 0.55, y + tile * 0.62, tile * 0.13, tile * 0.32);
-  ctx.fillStyle = '#f2e6a6';
-  ctx.fillRect(x + tile * 0.39, y + tile * 0.16, tile * 0.07, tile * 0.05);
-  ctx.fillRect(x + tile * 0.55, y + tile * 0.16, tile * 0.07, tile * 0.05);
-  ctx.fillStyle = '#9b2d2d';
-  ctx.fillRect(x + tile * 0.44, y + tile * 0.25, tile * 0.14, tile * 0.04);
-  ctx.fillStyle = 'rgba(150, 185, 120, 0.28)';
-  ctx.fillRect(x + tile * 0.24, y + tile * 0.04, tile * 0.52, tile * 0.9);
-}
-
-function drawStarTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  ctx.fillStyle = '#f9f0c4';
-  const center = x + tile / 2;
-  const middle = y + tile / 2;
-  const size = Math.max(14, Math.floor(tile / 4.8));
-  ctx.fillRect(center - size / 2, middle - size / 2, size, size);
-  ctx.fillStyle = 'rgba(117, 233, 238, 0.65)';
-  ctx.fillRect(center - size * 1.2, middle - size / 2, size, size);
-  ctx.fillStyle = 'rgba(255, 98, 142, 0.58)';
-  ctx.fillRect(center + size * 0.2, middle - size / 2, size, size);
-}
-
-function drawShootingStarTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  const middle = y + tile / 2;
-  const head = x + tile * 0.78;
-  const height = Math.max(8, Math.floor(tile / 10));
-
-  const tail = ctx.createLinearGradient(x + tile * 0.08, middle, head, middle);
-  tail.addColorStop(0, 'rgba(255, 255, 255, 0)');
-  tail.addColorStop(0.45, 'rgba(88, 220, 232, 0.68)');
-  tail.addColorStop(1, 'rgba(255, 245, 194, 1)');
-  ctx.fillStyle = tail;
-  ctx.fillRect(x + tile * 0.08, middle - height / 2, tile * 0.7, height);
-
-  ctx.fillStyle = '#fff7c8';
-  ctx.fillRect(head, middle - height, height * 2, height * 2);
-}
-
-function drawMoonTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  ctx.fillStyle = '#d9d1b5';
-  ctx.fillRect(x + tile * 0.26, y + tile * 0.18, tile * 0.46, tile * 0.58);
-  ctx.fillStyle = '#9f9a8d';
-  ctx.fillRect(x + tile * 0.48, y + tile * 0.24, tile * 0.12, tile * 0.1);
-  ctx.fillRect(x + tile * 0.38, y + tile * 0.52, tile * 0.16, tile * 0.12);
-}
-
-function drawFireflyTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  ctx.fillStyle = '#d8ff72';
-  ctx.fillRect(x + tile * 0.36, y + tile * 0.36, tile * 0.28, tile * 0.28);
-  ctx.fillStyle = 'rgba(105, 255, 170, 0.38)';
-  ctx.fillRect(x + tile * 0.26, y + tile * 0.26, tile * 0.48, tile * 0.48);
-}
-
-function drawLeafTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  ctx.fillStyle = '#75602e';
-  ctx.fillRect(x + tile * 0.34, y + tile * 0.18, tile * 0.26, tile * 0.54);
-  ctx.fillStyle = '#2f3b1d';
-  ctx.fillRect(x + tile * 0.46, y + tile * 0.2, tile * 0.12, tile * 0.48);
-}
-
-function drawCometTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  ctx.fillStyle = '#ffff4d';
-  ctx.fillRect(x + tile * 0.62, y + tile * 0.42, tile * 0.18, tile * 0.18);
-  ctx.fillStyle = '#15e8ff';
-  ctx.fillRect(x + tile * 0.25, y + tile * 0.46, tile * 0.4, tile * 0.1);
-}
-
-function drawWaterPlaneTexture(ctx, id, x, y, tile) {
-  ctx.fillStyle = id === 'blackWater' ? '#030506' : '#07131a';
-  ctx.fillRect(x, y, tile, tile);
-  ctx.fillStyle = id === 'blackWater' ? 'rgba(61, 76, 58, 0.5)' : 'rgba(94, 214, 230, 0.5)';
-  for (let row = 0; row < 8; row += 1) {
-    ctx.fillRect(x + ((row % 2) * 12), y + row * tile / 8, tile * 0.75, 3);
-  }
-}
-
-function drawMotelSignTexture(ctx, x, y, tile) {
-  ctx.fillStyle = '#160909';
-  ctx.fillRect(x, y, tile, tile);
-  ctx.fillStyle = '#f2c25d';
-  ctx.fillRect(x + 10, y + 18, tile - 20, 18);
-  ctx.fillRect(x + 16, y + 48, tile - 32, 14);
-  ctx.fillStyle = '#451818';
-  ctx.fillRect(x + 24, y + 22, tile - 48, 6);
-  ctx.fillRect(x + 30, y + 52, tile - 60, 4);
-}
-
-function drawMotelWindowTexture(ctx, x, y, tile) {
-  ctx.fillStyle = '#080808';
-  ctx.fillRect(x, y, tile, tile);
-  ctx.fillStyle = '#ff9b43';
-  ctx.fillRect(x + 12, y + 12, tile - 24, tile - 24);
-  ctx.fillStyle = '#2a1309';
-  ctx.fillRect(x + tile / 2 - 2, y + 12, 4, tile - 24);
-}
-
-function drawRainTexture(ctx, x, y, tile) {
-  ctx.fillStyle = '#0c2025';
-  ctx.fillRect(x, y, tile, tile);
-  ctx.strokeStyle = '#b9ffff';
-  ctx.lineWidth = 2;
-
-  for (let i = -2; i < 10; i += 1) {
-    const sx = x + i * 14;
-    ctx.beginPath();
-    ctx.moveTo(sx, y + tile);
-    ctx.lineTo(sx + 20, y);
-    ctx.stroke();
-  }
-}
-
-function drawNeonTexture(ctx, id, x, y, tile, sourceSize) {
-  const cells = sourceSize === 64 ? 8 : 16;
-  const cell = tile / cells;
-  const base = palette(id, 0);
-  ctx.fillStyle = base;
-  ctx.fillRect(x, y, tile, tile);
-
-  if (id === 'lightning') {
-    ctx.fillStyle = '#f7ffff';
-    ctx.fillRect(x, y, tile, tile);
-    return;
-  }
-
-  if (id === 'neonSky') {
-    const gradient = ctx.createLinearGradient(x, y, x, y + tile);
-    gradient.addColorStop(0, '#2539ff');
-    gradient.addColorStop(0.45, '#6841ff');
-    gradient.addColorStop(0.7, '#e0207d');
-    gradient.addColorStop(1, '#ff3b1f');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, y, tile, tile);
-  }
-
-  for (let row = 0; row < cells; row += 1) {
-    for (let col = 0; col < cells; col += 1) {
-      const n = hash(col, row, id.length);
-      let color = palette(id, n);
-
-      if (id === 'neonTile') {
-        color = row % 2 === 0 || col % 2 === 0 ? '#d9fff0' : palette(id, n);
-      }
-      if (id === 'neonGlass') {
-        color = col % 3 === 0 ? '#d8ffff' : palette(id, n);
-      }
-      if (id === 'neonCloud') {
-        color = n > 0.48 || row % 5 === 0 ? '#ff9a3d' : '#ff3f8f';
-      }
-      if (id === 'neonLeaf') {
-        color = n > 0.42 ? '#a8ff6a' : '#071b14';
-      }
-      if (id === 'neonBark') {
-        color = col % 3 === 0 ? '#43ff9d' : '#161019';
-      }
-
-      ctx.fillStyle = color;
-      ctx.fillRect(x + col * cell, y + row * cell, cell, cell);
-    }
-  }
-
-  if (id === 'neonTile' || id === 'neonGlass') {
-    ctx.strokeStyle = '#baffff';
-    ctx.lineWidth = 2;
-    for (let i = 0; i <= cells; i += 1) {
-      ctx.beginPath();
-      ctx.moveTo(x + i * cell, y);
-      ctx.lineTo(x + i * cell, y + tile);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x, y + i * cell);
-      ctx.lineTo(x + tile, y + i * cell);
-      ctx.stroke();
-    }
-  }
-}
-
-function drawOneBitTexture(ctx, id, x, y, tile, sourceSize) {
-  const oneBitPaper = '#d8d0aa';
-  const oneBitInk = '#17130e';
-  const cells = sourceSize === 64 ? 8 : 16;
-  const cell = tile / cells;
-  ctx.fillStyle = id === 'oneBitVoid' ? oneBitInk : oneBitPaper;
-  ctx.fillRect(x, y, tile, tile);
-
-  for (let row = 0; row < cells; row += 1) {
-    for (let col = 0; col < cells; col += 1) {
-      const center = Math.abs(col - (cells - 1) / 2);
-      const verticalShade = row / Math.max(cells - 1, 1);
-      const n = hash(col, row, id.length);
-      const stripe = row % 4 === 0 || col % 4 === 0;
-      const checker = (row + col) % 2 === 0;
-      const circuit = stripe || (row % 3 === 1 && col % 5 < 2) || (col % 6 === 3 && row % 5 > 1);
-      const cross = center < 1 || Math.abs(row - (cells - 1) / 2) < 1 || checker;
-      let density = 0.35 + verticalShade * 0.2;
-
-      if (id === 'oneBitVoid') density = 0.82;
-      if (id === 'oneBitGrid') density = checker ? 0.32 : 0.52;
-      if (id === 'oneBitCross') density = cross ? 0.18 : 0.62;
-      if (id === 'oneBitStripe') density = row % 3 === 1 ? 0.24 : 0.68;
-      if (id === 'oneBitCircuit') density = circuit ? 0.2 : 0.58;
-
-      ctx.fillStyle = n < density ? oneBitInk : oneBitPaper;
-      ctx.fillRect(x + col * cell, y + row * cell, cell, cell);
-    }
-  }
-}
-
-function palette(id, n) {
-  const palettes = {
-    concrete: ['#585650', '#69655c', '#4c4b47', '#777062'],
-    brick: ['#55413a', '#6a4d42', '#40332f', '#775547'],
-    metal: ['#4c5555', '#67706e', '#394343', '#87908a'],
-    crate: ['#79542f', '#94663a', '#5d432c', '#ad7844'],
-    warning: ['#2d2b25', '#413b2d', '#1f1e1b', '#6b5523'],
-    torchWood: ['#2a160b', '#4a2b14', '#6b3d1d', '#140b06'],
-    torchMetal: ['#1a1714', '#433f3a', '#777068', '#2d2925'],
-    alienGround: ['#293f37', '#4a5541', '#5e3c5f', '#1e282c'],
-    alienRock: ['#3a3048', '#5d526d', '#2b2435', '#74678b'],
-    rotMud: ['#1b2012', '#30301b', '#4a3d24', '#152012'],
-    rotBark: ['#050505', '#11100c', '#1a1711', '#241d15'],
-    rotPine: ['#07110a', '#102116', '#1f321e', '#26321b'],
-    rotRoot: ['#16100b', '#2a1d13', '#3a2818', '#0b0906'],
-    deadWood: ['#2b2116', '#47341e', '#17110d', '#5c442b'],
-    blackWater: ['#030506', '#0c1511', '#111c17', '#030506'],
-    sun: ['#ffb044', '#d84a54', '#fff0a6', '#77284a'],
-    astralGrid: ['#05050a', '#23f6ff', '#ff2fd0', '#f8f14a'],
-    astralCyan: ['#00e8ff', '#12243a', '#aaffff', '#008e9a'],
-    astralMagenta: ['#ff2fd0', '#32102d', '#ffd1fb', '#9b197e'],
-    astralYellow: ['#f8f14a', '#3a3512', '#fff6a3', '#a79d12'],
-    astralBlack: ['#020208', '#101022', '#05050a', '#222244'],
-    starshipFloor: ['#1f2b32', '#34454a', '#162026', '#4f5f64'],
-    shipCeiling: ['#111820', '#22313c', '#060a0e', '#465965'],
-    darkMetal: ['#11151a', '#252b32', '#07090d', '#4f5963'],
-    hullPanel: ['#202932', '#3b4852', '#111820', '#69737c'],
-    reactorGlow: ['#1a1f20', '#ff4d32', '#2a302e', '#ffad5f'],
-    moonbeam: ['#8da5cf', '#31415f', '#d9e6ff', '#101827'],
-    panel: ['#263238', '#3f4b52', '#181f25', '#59656b'],
-    motelWall: ['#2c2b31', '#4b4851', '#17171d', '#6a6264'],
-    motelDoor: ['#181012', '#39212a', '#5f3141', '#101010'],
-    vending: ['#161624', '#e43f65', '#2ed6ff', '#f7e45a'],
-    palm: ['#173019', '#2d5b2f', '#75602e', '#0d160b'],
-    car: ['#101319', '#303b45', '#672b38', '#aeb1a4'],
-    wetAsphalt: ['#11151d', '#1e2430', '#262042', '#101016'],
-    poolWater: ['#07131a', '#0d2c35', '#3dbeca', '#13202a'],
-    neon: ['#ff2bbd', '#27d8ff', '#f6e85f', '#5635ff'],
-    neonSky: ['#2539ff', '#6841ff', '#e0207d', '#ff3b1f'],
-    neonTile: ['#53fff2', '#f8fff2', '#2332ff', '#ff44d6'],
-    neonGlass: ['#baffff', '#35dfff', '#3631ff', '#f9fff6'],
-    neonCloud: ['#ff8a2a', '#ff3f8f', '#ffd15c', '#5d3cff'],
-    neonBark: ['#43ff9d', '#161019', '#ff4fe1', '#0f2b25'],
-    neonLeaf: ['#a8ff6a', '#071b14', '#46ffcb', '#1a0b30'],
-    lightning: ['#f7ffff', '#ffffff', '#caffff', '#e8f7ff'],
-    templeStone: ['#4b544b', '#677060', '#313930', '#7a816f'],
-    mossStone: ['#36523e', '#4d6843', '#2d3a31', '#71805b'],
-    water: ['#14383d', '#1d535a', '#243f58', '#0f272d'],
-    rain: ['#0c2025', '#b9ffff', '#6ccdd5', '#183940'],
-    oneBitVoid: ['#17130e', '#211b13', '#0e0b08', '#2a2218'],
-    oneBitGrid: ['#d8d0aa', '#17130e', '#b8ad88', '#352a1b'],
-    oneBitCross: ['#d8d0aa', '#211b13', '#c6bd98', '#17130e'],
-    oneBitStripe: ['#d8d0aa', '#17130e', '#a79d78', '#2a2218'],
-    oneBitCircuit: ['#d8d0aa', '#17130e', '#c0b890', '#302617'],
-  };
-  const list = palettes[id] ?? palettes.concrete;
-  return list[Math.floor(n * list.length) % list.length];
-}
-
 function createRenderTarget(glContext, width, height) {
   const texture = glContext.createTexture();
   glContext.bindTexture(glContext.TEXTURE_2D, texture);
@@ -4526,79 +4041,6 @@ function createBuffer(glContext, data) {
   return buffer;
 }
 
-function drawMoonbeamTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  const gradient = ctx.createLinearGradient(x, y, x + tile, y);
-  gradient.addColorStop(0, 'rgba(64, 80, 116, 0)');
-  gradient.addColorStop(0.32, 'rgba(124, 148, 196, 0.18)');
-  gradient.addColorStop(0.5, 'rgba(220, 232, 255, 0.38)');
-  gradient.addColorStop(0.68, 'rgba(124, 148, 196, 0.18)');
-  gradient.addColorStop(1, 'rgba(64, 80, 116, 0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(x, y, tile, tile);
-  ctx.fillStyle = 'rgba(230, 238, 255, 0.22)';
-  for (let i = 0; i < 18; i += 1) {
-    const px = x + hash(i, 2, 11) * tile;
-    const py = y + hash(i, 3, 12) * tile;
-    ctx.fillRect(px, py, 2, 2);
-  }
-}
-
-function drawTorchFlameTexture(ctx, x, y, tile) {
-  ctx.clearRect(x, y, tile, tile);
-  ctx.fillStyle = 'rgba(255, 105, 18, 0.22)';
-  ctx.fillRect(x + tile * 0.22, y + tile * 0.16, tile * 0.56, tile * 0.7);
-  ctx.fillStyle = '#d22f16';
-  ctx.fillRect(x + tile * 0.32, y + tile * 0.32, tile * 0.36, tile * 0.46);
-  ctx.fillStyle = '#ff8a1f';
-  ctx.fillRect(x + tile * 0.38, y + tile * 0.22, tile * 0.26, tile * 0.48);
-  ctx.fillStyle = '#ffe36a';
-  ctx.fillRect(x + tile * 0.44, y + tile * 0.28, tile * 0.14, tile * 0.3);
-  ctx.fillStyle = '#fff5ad';
-  ctx.fillRect(x + tile * 0.47, y + tile * 0.36, tile * 0.08, tile * 0.16);
-}
-
-function drawHealthPotionTexture(ctx, x, y, tile) {
-  ctx.fillStyle = '#063015';
-  ctx.fillRect(x, y, tile, tile);
-  ctx.fillStyle = '#15933d';
-  ctx.fillRect(x + tile * 0.08, y + tile * 0.08, tile * 0.84, tile * 0.84);
-  ctx.fillStyle = '#36ff58';
-  ctx.fillRect(x + tile * 0.18, y + tile * 0.18, tile * 0.52, tile * 0.56);
-  ctx.fillStyle = '#b8ff8d';
-  ctx.fillRect(x + tile * 0.3, y + tile * 0.24, tile * 0.16, tile * 0.34);
-  ctx.fillStyle = '#0a4c21';
-  ctx.fillRect(x + tile * 0.68, y + tile * 0.16, tile * 0.18, tile * 0.68);
-  ctx.fillStyle = '#edffd9';
-  ctx.fillRect(x + tile * 0.36, y + tile * 0.44, tile * 0.28, tile * 0.08);
-  ctx.fillRect(x + tile * 0.46, y + tile * 0.34, tile * 0.08, tile * 0.28);
-}
-
-function drawWarpGateTexture(ctx, x, y, tile) {
-  const scale = tile / 64;
-  ctx.clearRect(x, y, tile, tile);
-  ctx.strokeStyle = '#1ca6a5';
-  ctx.lineWidth = Math.max(1, 3 * scale);
-  ctx.beginPath();
-  ctx.ellipse(x + 32 * scale, y + 32 * scale, 19 * scale, 27 * scale, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = '#f0d38a';
-  ctx.lineWidth = Math.max(1, 2 * scale);
-  ctx.beginPath();
-  ctx.ellipse(x + 32 * scale, y + 32 * scale, 11 * scale, 20 * scale, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.fillStyle = '#b42638';
-  for (let index = 0; index < 9; index += 1) {
-    const angle = index * Math.PI * 2 / 9;
-    const px = x + (32 + Math.cos(angle) * 18) * scale;
-    const py = y + (32 + Math.sin(angle) * 26) * scale;
-    ctx.fillRect(px - 2 * scale, py - 2 * scale, 4 * scale, 4 * scale);
-  }
-  ctx.fillStyle = 'rgba(28, 166, 165, 0.5)';
-  ctx.fillRect(x + 28 * scale, y + 12 * scale, 8 * scale, 40 * scale);
-  ctx.fillRect(x + 20 * scale, y + 29 * scale, 24 * scale, 6 * scale);
-}
-
 function createDynamicBuffer(glContext) {
   const buffer = glContext.createBuffer();
   glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
@@ -4640,10 +4082,6 @@ function multiplyMat4(a, b) {
     }
   }
   return out;
-}
-
-function hash(x, y, seed) {
-  return Math.abs(Math.sin(x * 12.9898 + y * 78.233 + seed * 37.719) * 43758.5453) % 1;
 }
 
 function clamp(value, min, max) {
@@ -4719,559 +4157,6 @@ async function loadZombieTextureImage(texture) {
     URL.revokeObjectURL(url);
   }
 }
-
-const skyVertexShader = `
-attribute vec3 aPosition;
-
-uniform mat4 uViewProjection;
-uniform vec3 uCameraPosition;
-
-varying vec3 vSkyDirection;
-varying float vSkyHeight;
-
-void main() {
-  vSkyDirection = normalize(aPosition);
-  vSkyHeight = clamp(aPosition.y * 0.5 + 0.5, 0.0, 1.0);
-  vec3 worldPosition = uCameraPosition + aPosition * 72.0;
-  gl_Position = uViewProjection * vec4(worldPosition, 1.0);
-}
-`;
-
-const skyFragmentShader = `
-precision mediump float;
-
-uniform float uTime;
-uniform float uSkyMode;
-uniform float uSkyPalette;
-
-varying vec3 vSkyDirection;
-varying float vSkyHeight;
-
-float hashSky(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-float valueNoise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(
-    mix(hashSky(i + vec2(0.0, 0.0)), hashSky(i + vec2(1.0, 0.0)), u.x),
-    mix(hashSky(i + vec2(0.0, 1.0)), hashSky(i + vec2(1.0, 1.0)), u.x),
-    u.y
-  );
-}
-
-float starField(vec3 direction) {
-  vec2 p = vec2(atan(direction.z, direction.x) * 18.0, direction.y * 24.0);
-  float tiny = step(0.985, hashSky(floor(p * 4.0)));
-  float bright = step(0.996, hashSky(floor(p * 9.0) + 41.0));
-  float horizonFade = smoothstep(0.08, 0.44, direction.y);
-  return clamp(tiny * 0.48 + bright, 0.0, 1.0) * horizonFade;
-}
-
-vec3 starrySky(vec3 direction) {
-  vec3 horizon = vec3(0.055, 0.040, 0.075);
-  vec3 zenith = vec3(0.005, 0.006, 0.025);
-  if (uSkyPalette > 1.5) {
-    horizon = vec3(0.12, 0.10, 0.075);
-    zenith = vec3(0.025, 0.020, 0.015);
-  }
-  float swirl = valueNoise(direction.xz * 2.6 + vec2(uTime * 0.015, 0.0));
-  vec3 color = mix(horizon, zenith, smoothstep(0.0, 0.92, vSkyHeight));
-  color += vec3(0.08, 0.05, 0.13) * smoothstep(0.46, 0.86, swirl) * smoothstep(0.1, 0.9, vSkyHeight);
-  color += vec3(1.0, 0.92, 0.68) * starField(direction);
-  return color;
-}
-
-vec3 cloudSky(vec3 direction) {
-  vec3 horizon = vec3(0.22, 0.55, 0.88);
-  vec3 zenith = vec3(0.05, 0.18, 0.72);
-  vec3 cloudColor = vec3(0.72, 0.88, 0.98);
-  vec3 weirdGlow = vec3(0.22, 0.04, 0.32);
-  float cloudStrength = 0.72;
-  float weirdStrength = 0.18;
-  if (uSkyPalette > 3.5) {
-    horizon = vec3(0.68, 0.84, 0.96);
-    zenith = vec3(0.22, 0.54, 0.86);
-    cloudColor = vec3(0.93, 0.97, 1.0);
-    weirdGlow = vec3(0.72, 0.88, 1.0);
-    cloudStrength = 0.38;
-    weirdStrength = 0.08;
-  } else if (uSkyPalette > 2.5) {
-    horizon = vec3(0.18, 0.025, 0.28);
-    zenith = vec3(0.015, 0.002, 0.075);
-    cloudColor = vec3(0.95, 0.13, 0.86);
-    weirdGlow = vec3(0.08, 0.95, 0.62);
-    cloudStrength = 0.84;
-    weirdStrength = 0.42;
-  }
-  vec3 color = mix(horizon, zenith, smoothstep(0.02, 0.95, vSkyHeight));
-  vec2 p = vec2(atan(direction.z, direction.x) * 2.4, direction.y * 3.2);
-  float clouds = valueNoise(p * 2.0 + vec2(uTime * 0.018, 0.0));
-  clouds += valueNoise(p * 4.6 + vec2(4.0, uTime * 0.01)) * 0.5;
-  float cloudBand = smoothstep(0.54, 1.04, clouds) * smoothstep(-0.05, 0.36, direction.y) * (1.0 - smoothstep(0.82, 1.0, direction.y));
-  color = mix(color, cloudColor, cloudBand * cloudStrength);
-  color += weirdGlow * smoothstep(0.62, 0.94, valueNoise(p * 1.2 + 8.0)) * weirdStrength;
-  if (uSkyPalette > 2.5) {
-    float spiral = sin(atan(direction.z, direction.x) * 7.0 + direction.y * 18.0 + uTime * 0.32) * 0.5 + 0.5;
-    vec3 spiralA = uSkyPalette > 3.5 ? vec3(0.62, 0.78, 1.0) : vec3(0.42, 0.02, 0.95);
-    vec3 spiralB = uSkyPalette > 3.5 ? vec3(0.92, 0.98, 1.0) : vec3(0.0, 0.85, 0.58);
-    float spiralStrength = uSkyPalette > 3.5 ? 0.055 : 0.22;
-    color += mix(spiralA, spiralB, spiral) * smoothstep(0.08, 0.78, vSkyHeight) * spiralStrength;
-  }
-  return color;
-}
-
-void main() {
-  vec3 direction = normalize(vSkyDirection);
-  vec3 color = uSkyMode > 0.5 ? cloudSky(direction) : starrySky(direction);
-  gl_FragColor = vec4(color, 1.0);
-}
-`;
-
-const sceneVertexShader = `
-attribute vec3 aPosition;
-attribute vec2 aUv;
-attribute float aTextureId;
-attribute float aShade;
-attribute float aMotion;
-
-uniform mat4 uViewProjection;
-uniform float uTime;
-uniform float uWarping;
-uniform highp float uShootingStarTextureId;
-
-varying vec2 vUv;
-varying float vTextureId;
-varying float vShade;
-varying float vMotion;
-varying vec3 vWorldPosition;
-
-void main() {
-  vec3 warped = aPosition;
-  float shootingStarMask = 1.0 - step(0.5, abs(aTextureId - uShootingStarTextureId));
-  float shootingStarPhase = mod(uTime, 9.0);
-  float shootingStarTravel = clamp((shootingStarPhase - 1.25) / 2.4, 0.0, 1.0);
-  warped += vec3(shootingStarTravel * 52.0, -shootingStarTravel * 9.0, 0.0) * shootingStarMask;
-  float swayMask = 1.0 - step(0.5, abs(aMotion - 1.0));
-  float fireflyMask = 1.0 - step(0.5, abs(aMotion - 2.0));
-  float leafMask = 1.0 - step(0.5, abs(aMotion - 3.0));
-  float moonMask = 1.0 - step(0.5, abs(aMotion - 4.0));
-  float bobMask = 1.0 - step(0.5, abs(aMotion - 5.0));
-  float orbitMask = 1.0 - step(0.5, abs(aMotion - 6.0));
-  float cometMask = 1.0 - step(0.5, abs(aMotion - 7.0));
-  float palmMask = 1.0 - step(0.5, abs(aMotion - 8.0));
-  float waterMask = 1.0 - step(0.5, abs(aMotion - 11.0));
-  float zombieMask = 1.0 - step(0.5, abs(aMotion - 12.0));
-  float torchFlameMask = 1.0 - step(0.5, abs(aMotion - 13.0));
-  float pickupMask = 1.0 - step(0.5, abs(aMotion - 14.0));
-  warped.x += sin(uTime * 1.5 + aPosition.z * 1.8) * 0.24 * swayMask;
-  warped.x += sin(uTime * 2.8 + aPosition.y * 3.0) * 0.7 * fireflyMask;
-  warped.y += sin(uTime * 3.2 + aPosition.x * 2.0) * 0.36 * fireflyMask;
-  float leafGust = floor(mod(uTime * 4.4 + aPosition.x * 0.41 + aPosition.z * 0.23, 6.0));
-  warped.y -= leafGust * 0.42 * leafMask;
-  warped.x += (leafGust * 0.34 + sin(uTime * 5.6 + aPosition.z * 1.7) * 0.46) * leafMask;
-  warped.z += sin(uTime * 3.8 + aPosition.x * 1.2) * 0.32 * leafMask;
-  warped.x += floor(mod(uTime * 0.8, 5.0)) * 0.22 * moonMask;
-  warped.y += sin(uTime * 1.3 + aPosition.x) * 0.55 * bobMask;
-  vec2 orbitCenter = vec2(0.0, -7.0);
-  vec2 localOrbit = warped.xz - orbitCenter;
-  float orbitAngle = uTime * 0.75;
-  vec2 rotatedOrbit = vec2(
-    localOrbit.x * cos(orbitAngle) - localOrbit.y * sin(orbitAngle),
-    localOrbit.x * sin(orbitAngle) + localOrbit.y * cos(orbitAngle)
-  ) + orbitCenter;
-  warped.xz = mix(warped.xz, rotatedOrbit, orbitMask);
-  warped.x += floor(mod(uTime * 2.0 + aPosition.y, 2.0)) * 1.1 * cometMask;
-  warped.x += floor(mod(uTime * 2.0 + aPosition.x, 3.0)) * 0.22 * palmMask;
-  warped.y += sin(uTime * 5.0 + aPosition.x) * 0.04 * waterMask;
-  warped.x += sin(uTime * 6.5 + aPosition.y * 7.0) * 0.08 * zombieMask;
-  warped.y += abs(sin(uTime * 5.5 + aPosition.x)) * 0.08 * zombieMask;
-  warped.x += sin(uTime * 17.0 + aPosition.y * 11.0) * 0.06 * torchFlameMask;
-  warped.y += floor(mod(uTime * 14.0 + aPosition.x * 3.0, 2.0)) * 0.08 * torchFlameMask;
-  warped.y += (sin(uTime * 3.6 + aPosition.x * 1.7) * 0.12 + 0.12) * pickupMask;
-  float wobble = sin((aPosition.x + aPosition.z) * 8.0 + uTime * 6.0) * 0.006;
-  warped.xz += vec2(wobble, -wobble) * uWarping;
-
-  vec4 clip = uViewProjection * vec4(warped, 1.0);
-  vec2 snapped = floor((clip.xy / clip.w) * vec2(160.0, 120.0)) / vec2(160.0, 120.0);
-  clip.xy = mix(clip.xy, snapped * clip.w, uWarping);
-
-  gl_Position = clip;
-  vUv = aUv;
-  vTextureId = aTextureId;
-  vShade = aShade;
-  vMotion = aMotion;
-  vWorldPosition = warped;
-}
-`;
-
-const sceneFragmentShader = `
-precision mediump float;
-
-uniform sampler2D uAtlas;
-uniform float uTextureCount;
-uniform highp float uTime;
-uniform float uOneBit;
-uniform float uLightningTextureId;
-uniform float uLightningStrength;
-uniform float uRainTextureId;
-uniform highp float uShootingStarTextureId;
-uniform vec3 uTorchPosition;
-uniform vec3 uTorchColor;
-uniform float uTorchRadius;
-uniform float uTorchIntensity;
-uniform float uTorchEnabled;
-uniform float uStaticTorchCount;
-uniform vec3 uStaticTorchPosition0;
-uniform vec3 uStaticTorchColor0;
-uniform float uStaticTorchRadius0;
-uniform float uStaticTorchIntensity0;
-uniform vec3 uStaticTorchPosition1;
-uniform vec3 uStaticTorchColor1;
-uniform float uStaticTorchRadius1;
-uniform float uStaticTorchIntensity1;
-uniform vec3 uStaticTorchPosition2;
-uniform vec3 uStaticTorchColor2;
-uniform float uStaticTorchRadius2;
-uniform float uStaticTorchIntensity2;
-
-varying vec2 vUv;
-varying float vTextureId;
-varying float vShade;
-varying float vMotion;
-varying vec3 vWorldPosition;
-
-float orderedDither(vec2 p) {
-  vec2 q = mod(floor(p), 4.0);
-  float x = q.x;
-  float y = q.y;
-  if (y < 0.5) {
-    if (x < 0.5) return 0.0 / 16.0;
-    if (x < 1.5) return 8.0 / 16.0;
-    if (x < 2.5) return 2.0 / 16.0;
-    return 10.0 / 16.0;
-  }
-  if (y < 1.5) {
-    if (x < 0.5) return 12.0 / 16.0;
-    if (x < 1.5) return 4.0 / 16.0;
-    if (x < 2.5) return 14.0 / 16.0;
-    return 6.0 / 16.0;
-  }
-  if (y < 2.5) {
-    if (x < 0.5) return 3.0 / 16.0;
-    if (x < 1.5) return 11.0 / 16.0;
-    if (x < 2.5) return 1.0 / 16.0;
-    return 9.0 / 16.0;
-  }
-  if (x < 0.5) return 15.0 / 16.0;
-  if (x < 1.5) return 7.0 / 16.0;
-  if (x < 2.5) return 13.0 / 16.0;
-  return 5.0 / 16.0;
-}
-
-void main() {
-  float id = floor(vTextureId + 0.5);
-  float signMask = 1.0 - step(0.5, abs(vMotion - 10.0));
-  float windowMask = 1.0 - step(0.5, abs(vMotion - 9.0));
-  float cometMask = 1.0 - step(0.5, abs(vMotion - 7.0));
-  float torchFlameMask = 1.0 - step(0.5, abs(vMotion - 13.0));
-  if (signMask > 0.5 && sin(uTime * 18.0) < -0.58) {
-    discard;
-  }
-  if (cometMask > 0.5 && floor(mod(uTime * 3.0, 2.0)) < 0.5) {
-    discard;
-  }
-  float shootingStarMask = 1.0 - step(0.5, abs(id - uShootingStarTextureId));
-  float shootingStarPhase = mod(uTime, 9.0);
-  if (shootingStarMask > 0.5 && (shootingStarPhase < 1.25 || shootingStarPhase > 3.65)) {
-    discard;
-  }
-
-  vec2 tiled = fract(vUv);
-  float rainMask = 1.0 - step(0.5, abs(id - uRainTextureId));
-  tiled.y = fract(tiled.y + uTime * 2.4 * rainMask);
-  vec2 atlasUv = vec2((id + tiled.x) / uTextureCount, tiled.y);
-  vec4 texel = texture2D(uAtlas, atlasUv);
-  if (texel.a < 0.1) {
-    discard;
-  }
-
-  float posterize = floor(vShade * 5.0) / 5.0;
-  vec3 color = texel.rgb * posterize;
-  float torchDistance = distance(vWorldPosition, uTorchPosition);
-  float torchFalloff = clamp(1.0 - torchDistance / max(uTorchRadius, 0.001), 0.0, 1.0);
-  torchFalloff *= torchFalloff * uTorchEnabled;
-  color *= 1.0 + torchFalloff * 0.38;
-  color += uTorchColor * torchFalloff * uTorchIntensity * 0.34;
-  float staticTorch0 = clamp(1.0 - distance(vWorldPosition, uStaticTorchPosition0) / max(uStaticTorchRadius0, 0.001), 0.0, 1.0);
-  float staticTorch1 = clamp(1.0 - distance(vWorldPosition, uStaticTorchPosition1) / max(uStaticTorchRadius1, 0.001), 0.0, 1.0);
-  float staticTorch2 = clamp(1.0 - distance(vWorldPosition, uStaticTorchPosition2) / max(uStaticTorchRadius2, 0.001), 0.0, 1.0);
-  staticTorch0 *= staticTorch0 * step(0.5, uStaticTorchCount);
-  staticTorch1 *= staticTorch1 * step(1.5, uStaticTorchCount);
-  staticTorch2 *= staticTorch2 * step(2.5, uStaticTorchCount);
-  float flameFlicker = 0.82 + step(0.0, sin(uTime * 18.0 + gl_FragCoord.x * 0.19)) * 0.18;
-  color *= 1.0 + (staticTorch0 * uStaticTorchIntensity0 + staticTorch1 * uStaticTorchIntensity1 + staticTorch2 * uStaticTorchIntensity2) * 0.28 * flameFlicker;
-  color += uStaticTorchColor0 * staticTorch0 * uStaticTorchIntensity0 * 0.34 * flameFlicker;
-  color += uStaticTorchColor1 * staticTorch1 * uStaticTorchIntensity1 * 0.34 * flameFlicker;
-  color += uStaticTorchColor2 * staticTorch2 * uStaticTorchIntensity2 * 0.34 * flameFlicker;
-  color = mix(color, color * (1.05 + flameFlicker * 0.55) + vec3(0.42, 0.14, 0.01), torchFlameMask);
-  color *= mix(1.0, step(0.0, sin(uTime * 2.5 + gl_FragCoord.x * 0.03)) * 0.85 + 0.15, windowMask);
-  float lightningMask = 1.0 - step(0.5, abs(id - uLightningTextureId));
-  color = mix(color, vec3(0.15 + uLightningStrength * 1.7), lightningMask);
-  color = mix(color, color + vec3(0.18, 0.32, 0.34), rainMask);
-  float oneBitTone = dot(color, vec3(0.299, 0.587, 0.114));
-  float oneBitDepth = floor(clamp(oneBitTone + orderedDither(gl_FragCoord.xy) * 0.18, 0.0, 1.0) * 4.0) / 3.0;
-  vec3 oneBitInk = vec3(0.09, 0.075, 0.055);
-  vec3 oneBitMid = vec3(0.36, 0.30, 0.20);
-  vec3 oneBitPaper = vec3(0.86, 0.82, 0.67);
-  vec3 oneBitAccent = vec3(0.18, 0.42, 0.48);
-  vec3 oneBitTonal = mix(oneBitInk, oneBitMid, smoothstep(0.05, 0.62, oneBitDepth));
-  oneBitTonal = mix(oneBitTonal, oneBitPaper, smoothstep(0.48, 1.0, oneBitDepth));
-  float oneBitChromatic = clamp((color.b - color.r) * 0.28 + (staticTorch0 + staticTorch1 + staticTorch2) * 0.035, 0.0, 0.18);
-  oneBitTonal = mix(oneBitTonal, oneBitAccent, oneBitChromatic);
-  color = mix(color, oneBitTonal, uOneBit);
-  gl_FragColor = vec4(color, 1.0);
-}
-`;
-
-const postVertexShader = `
-attribute vec2 aPosition;
-varying vec2 vUv;
-
-void main() {
-  vUv = aPosition * 0.5 + 0.5;
-  gl_Position = vec4(aPosition, 0.0, 1.0);
-}
-`;
-
-const postFragmentShader = `
-precision mediump float;
-
-uniform sampler2D uScene;
-uniform vec2 uResolution;
-uniform float uTime;
-uniform float uScanlines;
-uniform float uDistortion;
-uniform float uDither;
-uniform float uNoise;
-uniform float uColorBleed;
-uniform float uScanlineStrength;
-uniform float uVignette;
-uniform float uBrightness;
-uniform float uContrast;
-uniform float uSaturation;
-uniform float uPixelScale;
-uniform vec2 uSourceResolution;
-uniform float uFlipFramebufferY;
-uniform float uOneBit;
-uniform float uLightningStrength;
-uniform float uHealthDanger;
-uniform float uHealthPulse;
-uniform float uHealthPickupFlash;
-uniform float uDamageFlash;
-uniform vec2 uDamageScratchOffset;
-uniform float uDamageScratchRotation;
-uniform float uDeathTint;
-uniform float uDeathProgress;
-uniform float uCutUpFlash;
-uniform float uCutUpCountdown;
-
-varying vec2 vUv;
-
-float rand(vec2 co) {
-  return fract(sin(dot(co.xy, vec2(12.9898, 78.233)) + uTime) * 43758.5453);
-}
-
-float orderedDither(vec2 p) {
-  vec2 q = mod(floor(p), 4.0);
-  float x = q.x;
-  float y = q.y;
-  if (y < 0.5) {
-    if (x < 0.5) return 0.0 / 16.0;
-    if (x < 1.5) return 8.0 / 16.0;
-    if (x < 2.5) return 2.0 / 16.0;
-    return 10.0 / 16.0;
-  }
-  if (y < 1.5) {
-    if (x < 0.5) return 12.0 / 16.0;
-    if (x < 1.5) return 4.0 / 16.0;
-    if (x < 2.5) return 14.0 / 16.0;
-    return 6.0 / 16.0;
-  }
-  if (y < 2.5) {
-    if (x < 0.5) return 3.0 / 16.0;
-    if (x < 1.5) return 11.0 / 16.0;
-    if (x < 2.5) return 1.0 / 16.0;
-    return 9.0 / 16.0;
-  }
-  if (x < 0.5) return 15.0 / 16.0;
-  if (x < 1.5) return 7.0 / 16.0;
-  if (x < 2.5) return 13.0 / 16.0;
-  return 5.0 / 16.0;
-}
-
-float bloodParticle(vec2 uv, vec2 center, float radius, float seed) {
-  vec2 stretched = vec2((uv.x - center.x) * 1.45, uv.y - center.y);
-  float distanceToDrop = length(stretched);
-  float splat = 1.0 - smoothstep(radius * 0.58, radius, distanceToDrop);
-  float grain = step(0.34, rand(floor(uv * 180.0 + seed)));
-  float dripY = smoothstep(center.y - 0.22, center.y, uv.y) * (1.0 - step(center.y, uv.y));
-  float drip = dripY
-    * (1.0 - smoothstep(radius * 0.18, radius * 0.56, abs(uv.x - center.x)));
-  return max(splat * grain, drip * 0.42);
-}
-
-float clawScratch(vec2 uv, vec2 start, float angle, float length, float width) {
-  vec2 direction = vec2(cos(angle), sin(angle));
-  vec2 normal = vec2(-direction.y, direction.x);
-  vec2 relative = uv - start;
-  float along = dot(relative, direction);
-  float across = abs(dot(relative, normal));
-  float taper = smoothstep(0.0, 0.08, along) * (1.0 - smoothstep(length * 0.82, length, along));
-  float groove = 1.0 - smoothstep(width * 0.45, width, across);
-  return groove * taper;
-}
-
-float pixelBox(vec2 p, vec2 minCorner, vec2 size) {
-  vec2 inside = step(minCorner, p) * step(p, minCorner + size);
-  return inside.x * inside.y;
-}
-
-float pixelLetter(vec2 p, float code) {
-  float mask = 0.0;
-  if (code < 0.5) {
-    mask += pixelBox(p, vec2(0.62, 0.08), vec2(0.22, 0.68));
-    mask += pixelBox(p, vec2(0.18, 0.08), vec2(0.66, 0.18));
-    mask += pixelBox(p, vec2(0.18, 0.08), vec2(0.18, 0.34));
-  } else if (code < 1.5) {
-    mask += pixelBox(p, vec2(0.14, 0.12), vec2(0.18, 0.76));
-    mask += pixelBox(p, vec2(0.68, 0.12), vec2(0.18, 0.76));
-    mask += pixelBox(p, vec2(0.14, 0.08), vec2(0.72, 0.18));
-  } else if (code < 2.5) {
-    mask += pixelBox(p, vec2(0.12, 0.08), vec2(0.18, 0.80));
-    mask += pixelBox(p, vec2(0.70, 0.08), vec2(0.18, 0.80));
-    mask += pixelBox(p, vec2(0.30, 0.36), vec2(0.16, 0.32));
-    mask += pixelBox(p, vec2(0.54, 0.36), vec2(0.16, 0.32));
-  } else {
-    mask += pixelBox(p, vec2(0.14, 0.08), vec2(0.18, 0.80));
-    mask += pixelBox(p, vec2(0.14, 0.70), vec2(0.52, 0.18));
-    mask += pixelBox(p, vec2(0.66, 0.44), vec2(0.18, 0.26));
-    mask += pixelBox(p, vec2(0.14, 0.36), vec2(0.52, 0.18));
-  }
-  return clamp(mask, 0.0, 1.0);
-}
-
-float pixelDigit(vec2 p, float digit) {
-  float top = pixelBox(p, vec2(0.18, 0.74), vec2(0.64, 0.15));
-  float middle = pixelBox(p, vec2(0.18, 0.43), vec2(0.64, 0.14));
-  float bottom = pixelBox(p, vec2(0.18, 0.10), vec2(0.64, 0.15));
-  float upperLeft = pixelBox(p, vec2(0.12, 0.48), vec2(0.16, 0.32));
-  float upperRight = pixelBox(p, vec2(0.72, 0.48), vec2(0.16, 0.32));
-  float lowerLeft = pixelBox(p, vec2(0.12, 0.16), vec2(0.16, 0.32));
-  float lowerRight = pixelBox(p, vec2(0.72, 0.16), vec2(0.16, 0.32));
-  if (digit < 1.5) return clamp(upperRight + lowerRight, 0.0, 1.0);
-  if (digit < 2.5) return clamp(top + upperRight + middle + lowerLeft + bottom, 0.0, 1.0);
-  return clamp(top + upperRight + middle + lowerRight + bottom, 0.0, 1.0);
-}
-
-float cutUpCountdownMask(vec2 uv) {
-  if (uCutUpCountdown < 0.5) return 0.0;
-  vec2 wordUv = (uv - vec2(0.39, 0.525)) / vec2(0.22, 0.07);
-  vec2 numberUv = (uv - vec2(0.465, 0.395)) / vec2(0.07, 0.11);
-  float wordMask = 0.0;
-  if (wordUv.x >= 0.0 && wordUv.y >= 0.0 && wordUv.x <= 1.0 && wordUv.y <= 1.0) {
-    vec2 wordCell = vec2(fract(wordUv.x * 4.0), wordUv.y);
-    float wordIndex = floor(wordUv.x * 4.0);
-    wordMask += pixelLetter(wordCell, 0.0) * (1.0 - step(0.5, abs(wordIndex - 0.0)));
-    wordMask += pixelLetter(wordCell, 1.0) * (1.0 - step(0.5, abs(wordIndex - 1.0)));
-    wordMask += pixelLetter(wordCell, 2.0) * (1.0 - step(0.5, abs(wordIndex - 2.0)));
-    wordMask += pixelLetter(wordCell, 3.0) * (1.0 - step(0.5, abs(wordIndex - 3.0)));
-  }
-  float numberMask = 0.0;
-  if (numberUv.x >= 0.0 && numberUv.y >= 0.0 && numberUv.x <= 1.0 && numberUv.y <= 1.0) {
-    numberMask = pixelDigit(numberUv, uCutUpCountdown);
-  }
-  return clamp(max(wordMask, numberMask), 0.0, 1.0);
-}
-
-void main() {
-  vec2 sourceUv = vec2(vUv.x, mix(vUv.y, 1.0 - vUv.y, uFlipFramebufferY));
-  vec2 centered = sourceUv * 2.0 - 1.0;
-  float r2 = dot(centered, centered);
-  vec2 uv = sourceUv + centered * r2 * uDistortion;
-
-  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    return;
-  }
-
-  vec2 chunkySize = uSourceResolution / max(uPixelScale, 1.0);
-  uv = (floor(uv * chunkySize) + 0.5) / chunkySize;
-
-  float bleed = uColorBleed;
-  vec3 color;
-  color.r = texture2D(uScene, uv + vec2(bleed, 0.0)).r;
-  color.g = texture2D(uScene, uv).g;
-  color.b = texture2D(uScene, uv - vec2(bleed, 0.0)).b;
-
-  float scan = 1.0 - (sin(uv.y * uResolution.y * 3.14159) * 0.5 + 0.5) * uScanlineStrength * uScanlines;
-  color *= scan;
-
-  float luminance = dot(color, vec3(0.299, 0.587, 0.114));
-  color = mix(vec3(luminance), color, uSaturation);
-  color = (color - 0.5) * uContrast + 0.5;
-  color *= uBrightness;
-
-  if (uDither > 0.5) {
-    float threshold = rand(floor(gl_FragCoord.xy)) - 0.5;
-    color += threshold / 32.0;
-    color = floor(color * 32.0) / 32.0;
-  }
-
-  color += (rand(gl_FragCoord.xy + uTime) - 0.5) * uNoise;
-  color *= 1.0 - r2 * uVignette;
-  color += vec3(0.42, 0.62, 0.75) * uLightningStrength;
-  float cutUpCountdown = cutUpCountdownMask(sourceUv);
-  vec3 cutUpCountdownColor = vec3(1.0, 0.86, 0.34) * scan + vec3(0.35, 0.12, 0.02) * orderedDither(gl_FragCoord.xy);
-  color = mix(color, cutUpCountdownColor, cutUpCountdown);
-  float oneBitTone = dot(color, vec3(0.299, 0.587, 0.114));
-  float oneBitDepth = floor(clamp(oneBitTone + orderedDither(gl_FragCoord.xy) * 0.16, 0.0, 1.0) * 5.0) / 4.0;
-  vec3 oneBitInk = vec3(0.09, 0.075, 0.055);
-  vec3 oneBitMid = vec3(0.34, 0.28, 0.19);
-  vec3 oneBitPaper = vec3(0.86, 0.82, 0.67);
-  vec3 oneBitAccent = vec3(0.20, 0.45, 0.52);
-  vec3 oneBitGrade = mix(oneBitInk, oneBitMid, smoothstep(0.06, 0.58, oneBitDepth));
-  oneBitGrade = mix(oneBitGrade, oneBitPaper, smoothstep(0.48, 1.0, oneBitDepth));
-  oneBitGrade += oneBitAccent * smoothstep(0.42, 1.0, oneBitDepth) * 0.08;
-  color = mix(color, oneBitGrade, uOneBit * 0.86);
-  float damageScratch = 0.0;
-  damageScratch += clawScratch(sourceUv, vec2(0.18, 0.22) + uDamageScratchOffset, 0.74 + uDamageScratchRotation, 0.62, 0.014);
-  damageScratch += clawScratch(sourceUv, vec2(0.32, 0.18) + uDamageScratchOffset, 0.74 + uDamageScratchRotation, 0.58, 0.012);
-  damageScratch += clawScratch(sourceUv, vec2(0.47, 0.17) + uDamageScratchOffset, 0.74 + uDamageScratchRotation, 0.54, 0.011);
-  float damagePulse = clamp(uDamageFlash, 0.0, 1.0);
-  color = mix(color, vec3(0.9, 0.0, 0.02), damagePulse * 0.38);
-  color = mix(color, vec3(1.0, 0.02, 0.02), clamp(damageScratch * damagePulse * 1.1, 0.0, 0.88));
-  color *= 1.0 - uHealthDanger * 0.28;
-  color = mix(color, vec3(0.58, 0.015, 0.01), clamp(uHealthDanger * 0.2 + uHealthPulse * 0.18, 0.0, 0.42));
-  color = mix(color, color + vec3(0.2, 0.95, 0.24), clamp(uHealthPickupFlash * 0.58, 0.0, 0.72));
-  float blood = 0.0;
-  blood += bloodParticle(sourceUv, vec2(0.20, 0.72), 0.18, 3.0);
-  blood += bloodParticle(sourceUv, vec2(0.77, 0.63), 0.14, 11.0);
-  blood += bloodParticle(sourceUv, vec2(0.48, 0.38), 0.24, 23.0);
-  float finalBlood = smoothstep(0.80, 1.0, uDeathProgress);
-  blood += bloodParticle(sourceUv, vec2(0.32, 0.54), 0.26, 31.0) * finalBlood;
-  blood += bloodParticle(sourceUv, vec2(0.66, 0.78), 0.22, 41.0) * finalBlood;
-  blood += bloodParticle(sourceUv, vec2(0.56, 0.24), 0.20, 53.0) * finalBlood;
-  blood *= smoothstep(0.18, 0.62, uDeathProgress);
-  color = mix(color, vec3(0.58, 0.0, 0.015), clamp(blood, 0.0, 0.94));
-  color = mix(color, vec3(0.78, 0.02, 0.02), uDeathTint);
-  color = mix(color, vec3(1.0), uCutUpFlash);
-
-  gl_FragColor = vec4(color, 1.0);
-}
-`;
 
 start().catch((error) => {
   console.error(error);
