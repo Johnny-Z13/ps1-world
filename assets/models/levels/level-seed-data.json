@@ -50,6 +50,10 @@
           "size": 64
         },
         {
+          "id": "lava",
+          "size": 64
+        },
+        {
           "id": "zombie",
           "size": 64
         },
@@ -77,6 +81,48 @@
           "maxZ": 11.8
         }
       },
+      "floorPieces": [
+        {
+          "name": "floor",
+          "x": 0,
+          "y": -0.08,
+          "z": 0,
+          "width": 25.6,
+          "depth": 23.6,
+          "height": 0.08,
+          "texture": "concrete",
+          "motion": null,
+          "collider": {
+            "minX": -12.8,
+            "maxX": 12.8,
+            "minY": -0.08,
+            "maxY": 0,
+            "minZ": -11.8,
+            "maxZ": 11.8
+          }
+        },
+        {
+          "name": "example lava damage floor",
+          "x": -1.8,
+          "y": -0.03,
+          "z": 2.8,
+          "width": 3.8,
+          "depth": 2.4,
+          "height": 0.06,
+          "texture": "lava",
+          "motion": null,
+          "collider": {
+            "minX": -3.7,
+            "maxX": 0.09999999999999987,
+            "minY": -0.03,
+            "maxY": 0.03,
+            "minZ": 1.5999999999999999,
+            "maxZ": 4
+          },
+          "surfaceType": "lava",
+          "damagePerSecond": 15
+        }
+      ],
       "ceiling": {
         "name": "ceiling",
         "x": 0,
@@ -1046,6 +1092,19 @@
           "mesh": "health-flask",
           "motion": "pickup-bob",
           "radius": 0.72
+        }
+      ],
+      "damageZones": [
+        {
+          "name": "example lava damage trigger",
+          "x": -1.8,
+          "y": 0.26,
+          "z": 2.8,
+          "width": 3.8,
+          "depth": 2.4,
+          "height": 0.52,
+          "damagePerSecond": 15,
+          "surfaceType": "lava"
         }
       ],
       "audio": {

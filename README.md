@@ -37,7 +37,7 @@ On touch devices, press the left side to spawn a floating movement joystick, dra
 - Title screen with Free Roam and Cut-Up Mode.
 - Cut-Up Mode cycles through all nine worlds, warns with `jump in 3/2/1`, flashes white, then jumps to the next world.
 - CRT/video presets, resolution modes, reticule toggle, debug HUD, player torch, and zombie toggle.
-- Player health, low-health screen/audio pressure, zombie bite damage, death sequence, health flasks, and pickup flash.
+- Player health, low-health screen/audio pressure, red damage flash/scratch feedback, zombie bite damage, authored lava damage zones, death sequence, health flasks, and pickup flash.
 - Generated MP3 ambience/SFX assets, spatial zombie grunts, torch crackle, footsteps, heartbeat, menu confirm, damage, death, and pickup sounds.
 - Scene 2 (`alien-landscape`) is currently a 20-zombie stress scene.
 
@@ -76,6 +76,8 @@ blender -b assets/models/levels/ps1-world-levels.blend --python scripts/reexport
 ```
 
 The runtime loads GLBs through `src/levelGlb.js`. GLB nodes are classified by `extras.level_role` first, then by documented name prefixes such as `ART_`, `COLLISION_`, `WALKABLE_`, and `MARKER_`.
+
+Each `LEVEL_<scene-id>` collection in Blender is organized into collapsible child collections for art, collision, walkable surfaces, markers, and triggers. The dungeon includes a concrete example of material-driven gameplay: `ART_dungeon_example_lava_damage_floor` uses `LEVELMAT_lava`, and `TRIGGER_dungeon_DAMAGE_ZONE_1_example_lava_damage_trigger` defines the damage volume consumed by the game.
 
 Read [docs/blender-level-pipeline.md](docs/blender-level-pipeline.md) before changing level authoring, GLB export, or runtime GLB parsing.
 

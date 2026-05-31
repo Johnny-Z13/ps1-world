@@ -42,6 +42,19 @@ test('builds a warehouse test scene with rooms, corridors, crates, and low-res t
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
 });
 
+test('marks a dungeon lava floor as a damaging material zone', () => {
+  const world = createWarehouseWorld();
+
+  assert.ok(world.textures.some((texture) => texture.id === 'lava'), 'dungeon exposes a lava material');
+  assert.ok(world.floorPieces.some((piece) => piece.texture === 'lava' && piece.surfaceType === 'lava'), 'dungeon has a named lava floor piece');
+  assert.ok(world.damageZones.length >= 1, 'dungeon has at least one authored damage zone');
+  assert.ok(world.damageZones.some((zone) => (
+    zone.name.includes('lava')
+    && zone.surfaceType === 'lava'
+    && zone.damagePerSecond > 0
+  )));
+});
+
 test('keeps collision bounds available for every wall and crate', () => {
   const world = createWarehouseWorld();
   const colliders = [...world.walls, ...world.crates].map((item) => item.collider);

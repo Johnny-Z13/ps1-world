@@ -21,10 +21,11 @@ def export_collections(levels_dir):
             continue
 
         bpy.ops.object.select_all(action="DESELECT")
-        for obj in collection.objects:
+        objects = objects_recursive(collection)
+        for obj in objects:
             obj.select_set(True)
 
-        active = next((obj for obj in collection.objects if obj.type == "MESH"), None)
+        active = next((obj for obj in objects if obj.type == "MESH"), None)
         if active:
             bpy.context.view_layer.objects.active = active
 
@@ -44,6 +45,13 @@ def export_collections(levels_dir):
         exported += 1
 
     return exported
+
+
+def objects_recursive(collection):
+    objects = list(collection.objects)
+    for child in collection.children:
+        objects.extend(objects_recursive(child))
+    return objects
 
 
 if __name__ == "__main__":

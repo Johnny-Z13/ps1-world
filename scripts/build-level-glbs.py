@@ -9,6 +9,11 @@ import bpy
 
 PIXELS_PER_WORLD_UNIT = 32
 TEXTURE_SIZE = 64
+ART_COLLECTION_NAME = "01_ART_render_meshes"
+COLLISION_COLLECTION_NAME = "02_COLLISION_blockers"
+WALKABLE_COLLECTION_NAME = "03_WALKABLE_surfaces"
+MARKERS_COLLECTION_NAME = "04_MARKERS_spawns_lights"
+TRIGGERS_COLLECTION_NAME = "05_TRIGGERS_damage_zones"
 SPRITE_TEXTURE_IDS = {
     "comet",
     "fallingLeaf",
@@ -40,6 +45,7 @@ PALETTE = {
     "star": ("#fff0a6", "#ffb044", "#ffffff"),
     "sun": ("#d84a54", "#77284a", "#fff0a6"),
     "water": ("#18365a", "#091624", "#52b9d6"),
+    "lava": ("#34100c", "#ff4a16", "#ffd05a"),
 }
 
 
@@ -57,10 +63,12 @@ def main():
     collision_material = build_flat_material("AUTHOR_collision", (1.0, 0.12, 0.08, 0.28))
     walkable_material = build_flat_material("AUTHOR_walkable", (0.15, 0.8, 1.0, 0.25))
     marker_material = build_flat_material("AUTHOR_marker", (1.0, 0.85, 0.1, 1.0))
+    damage_zone_material = build_flat_material("AUTHOR_trigger_damage_lava", (1.0, 0.28, 0.02, 0.22))
 
     for scene in data["scenes"]:
-        build_scene_collection(scene, materials, collision_material, walkable_material, marker_material)
+        build_scene_collection(scene, materials, collision_material, walkable_material, marker_material, damage_zone_material)
 
+    bpy.context.preferences.filepaths.save_version = 0
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
     exported = export_collections(levels_dir)
     print(f"Built {len(data['scenes'])} scene collections.")
@@ -165,6 +173,11 @@ def texture_pixel(texture_id, x, y, primary, secondary, accent):
         wave = (x + (y // 4) * 3) % 16 < 3
         color = accent if wave else dither(primary, secondary, x, y, 0.12)
         return (*color, 1.0)
+    if "lava" in texture_id.lower():
+        hot_crack = x % 13 == 0 or y % 11 == 0
+        flow = math.sin((x + y) * 0.22) + math.sin((x * 0.48 - y) * 0.16)
+        color = accent if hot_crack or flow > 1.18 else dither(primary, secondary, x, y, 0.32)
+        return (*color, 1.0)
     if "metal" in texture_id.lower() or "panel" in texture_id.lower():
         seam = x % 16 == 0 or y % 16 == 0
         rivet = (x % 16 in (3, 4)) and (y % 16 in (3, 4))
@@ -247,39 +260,61 @@ def dither(a, b, x, y, amount):
     return b if ((x * 17 + y * 31) % 100) / 100 < amount else a
 
 
-def build_scene_collection(scene, materials, collision_material, walkable_material, marker_material):
+def build_scene_collection(scene, materials, collision_material, walkable_material, marker_material, damage_zone_material):
     collection = bpy.data.collections.new(f"LEVEL_{scene['id']}")
     bpy.context.scene.collection.children.link(collection)
+    groups = create_level_groups(collection, scene["id"])
 
     art_items = []
-    art_items.extend(scene.get("floorPieces") or [scene["floor"]])
+    art_items.extend(("floor", item) for item in (scene.get("floorPieces") or [scene["floor"]]))
     if scene.get("ceiling"):
-        art_items.append(scene["ceiling"])
+        art_items.append(("ceiling", scene["ceiling"]))
     for key in ("walls", "platforms", "crates", "props"):
-        art_items.extend(scene.get(key, []))
+        art_items.extend((key, item) for item in scene.get(key, []))
 
-    for item in art_items:
-        add_box(collection, f"ART_{scene['id']}_{slug(item['name'])}", item, materials[item["texture"]], textured=True)
-        add_box(collection, f"COLLISION_{scene['id']}_{slug(item['name'])}", item, collision_material, textured=False)
-        add_box(collection, f"WALKABLE_{scene['id']}_{slug(item['name'])}", top_surface_box(item), walkable_material, textured=False)
+    for category, item in art_items:
+        add_box(groups["art"], f"ART_{scene['id']}_{slug(item['name'])}", item, materials[item["texture"]], textured=True, uv_scale=uv_scale_for_box_category(category))
+        if category in ("walls", "platforms", "crates"):
+            add_box(groups["collision"], f"COLLISION_{scene['id']}_{slug(item['name'])}", item, collision_material, textured=False)
+        if category in ("floor", "walls", "platforms", "crates"):
+            add_box(groups["walkable"], f"WALKABLE_{scene['id']}_{slug(item['name'])}", top_surface_box(item), walkable_material, textured=False)
 
     for mountain in scene.get("mountains", []):
-        add_pyramid(collection, f"ART_{scene['id']}_{slug(mountain['name'])}", mountain, materials[mountain["texture"]])
-        add_box(collection, f"COLLISION_{scene['id']}_{slug(mountain['name'])}", mountain, collision_material, textured=False)
-        add_box(collection, f"WALKABLE_{scene['id']}_{slug(mountain['name'])}", top_surface_box(mountain), walkable_material, textured=False)
+        add_pyramid(groups["art"], f"ART_{scene['id']}_{slug(mountain['name'])}", mountain, materials[mountain["texture"]])
 
     for card_item in scene.get("cards", []):
-        add_card(collection, f"ART_{scene['id']}_{slug(card_item['name'])}", card_item, materials[card_item["texture"]])
+        add_card(groups["art"], f"ART_{scene['id']}_{slug(card_item['name'])}", card_item, materials[card_item["texture"]])
+    for card_item in scene.get("movingBillboards", []):
+        add_card(groups["art"], f"ART_{scene['id']}_{slug(card_item['name'])}", card_item, materials[card_item["texture"]])
     for star in scene.get("stars", []):
-        add_card(collection, f"ART_{scene['id']}_{slug(star['name'])}", star, materials[star["texture"]])
+        add_card(groups["art"], f"ART_{scene['id']}_{slug(star['name'])}", star, materials[star["texture"]])
     for key in ("sun", "rain"):
         if scene.get(key) and "width" in scene[key] and "height" in scene[key]:
             item_name = scene[key].get("name", key)
-            add_card(collection, f"ART_{scene['id']}_{slug(item_name)}", scene[key], materials[scene[key]["texture"]])
+            add_card(groups["art"], f"ART_{scene['id']}_{slug(item_name)}", scene[key], materials[scene[key]["texture"]])
     if scene.get("shootingStar"):
-        add_card(collection, f"ART_{scene['id']}_shooting_star", scene["shootingStar"], materials[scene["shootingStar"]["texture"]])
+        add_card(groups["art"], f"ART_{scene['id']}_shooting_star", scene["shootingStar"], materials[scene["shootingStar"]["texture"]])
+    if scene.get("lightning"):
+        add_lightning_bolts(groups["art"], scene, materials[scene["lightning"]["texture"]])
+    if scene.get("rain"):
+        add_rain(groups["art"], scene, materials[scene["rain"]["texture"]])
 
-    add_markers(collection, scene, marker_material)
+    for index, zone in enumerate(scene.get("damageZones", []) or [], start=1):
+        add_damage_zone(groups["triggers"], scene, zone, damage_zone_material, index)
+
+    add_markers(groups["markers"], scene, marker_material)
+
+def create_level_groups(level_collection, scene_id):
+    groups = {
+        "art": bpy.data.collections.new(f"{ART_COLLECTION_NAME}__{scene_id}"),
+        "collision": bpy.data.collections.new(f"{COLLISION_COLLECTION_NAME}__{scene_id}"),
+        "walkable": bpy.data.collections.new(f"{WALKABLE_COLLECTION_NAME}__{scene_id}"),
+        "markers": bpy.data.collections.new(f"{MARKERS_COLLECTION_NAME}__{scene_id}"),
+        "triggers": bpy.data.collections.new(f"{TRIGGERS_COLLECTION_NAME}__{scene_id}"),
+    }
+    for child in groups.values():
+        level_collection.children.link(child)
+    return groups
 
 
 def add_markers(collection, scene, marker_material):
@@ -287,12 +322,22 @@ def add_markers(collection, scene, marker_material):
     for index, spawn in enumerate(scene.get("zombieSpawns", []), start=1):
         add_marker(collection, scene, "ZOMBIE_SPAWN", spawn, marker_material, {"index": index})
     for index, potion in enumerate(scene.get("healthPotions", []), start=1):
-        add_marker(collection, scene, "PICKUP_HEALTH", potion, marker_material, {"index": index, "texture": potion.get("texture")})
+        add_marker(collection, scene, "PICKUP_HEALTH", potion, marker_material, {
+            "index": index,
+            **marker_extras_from_item(potion),
+        })
     for index, light in enumerate(scene.get("lights", []), start=1):
         add_marker(collection, scene, "LIGHT", light, marker_material, {"index": index, "color": light.get("color"), "radius": light.get("radius"), "intensity": light.get("intensity")})
     for index, light in enumerate(scene.get("torchLights", []), start=1):
         add_marker(collection, scene, "TORCH_LIGHT", light, marker_material, {"index": index, "color": light.get("color"), "radius": light.get("radius"), "intensity": light.get("intensity")})
     add_marker(collection, scene, "KILL_PLANE", {"x": 0, "y": scene.get("killY", -8), "z": 0}, marker_material, {"killY": scene.get("killY", -8)})
+
+
+def marker_extras_from_item(item):
+    return {
+        key: value for key, value in item.items()
+        if key not in ("name", "x", "y", "z", "collider")
+    }
 
 
 def add_marker(collection, scene, role, point, material, extras):
@@ -309,7 +354,44 @@ def add_marker(collection, scene, role, point, material, extras):
     link_to_collection(obj, collection)
 
 
-def add_box(collection, name, item, material, textured):
+def add_damage_zone(collection, scene, zone, material, index):
+    item = {
+        "x": zone["x"],
+        "y": zone.get("y", zone.get("height", 0.5) / 2),
+        "z": zone["z"],
+        "width": zone["width"],
+        "depth": zone["depth"],
+        "height": zone.get("height", 0.5),
+    }
+    bpy.ops.mesh.primitive_cube_add(size=1, location=to_blender_point(item))
+    obj = bpy.context.object
+    obj.name = f"TRIGGER_{scene['id']}_DAMAGE_ZONE_{index}_{slug(zone.get('name', 'damage_zone'))}"
+    obj.data.name = obj.name
+    obj.scale = (item["width"], item["depth"], item["height"])
+    obj.data.materials.append(material)
+    obj.display_type = "WIRE"
+    obj.show_in_front = True
+    obj["level_role"] = "DAMAGE_ZONE"
+    obj["scene_id"] = scene["id"]
+    obj["name"] = zone.get("name", obj.name)
+    obj["surfaceType"] = zone.get("surfaceType", "damage")
+    obj["damagePerSecond"] = zone.get("damagePerSecond", 0)
+    obj["width"] = item["width"]
+    obj["depth"] = item["depth"]
+    obj["height"] = item["height"]
+    obj["authoringNote"] = "Gameplay trigger: player takes damage while inside this volume."
+    link_to_collection(obj, collection)
+
+
+def uv_scale_for_box_category(category):
+    if category == "floor":
+        return 2.5
+    if category == "ceiling":
+        return 2.0
+    return 1.0
+
+
+def add_box(collection, name, item, material, textured, uv_scale=1.0):
     min_x = item["x"] - item["width"] / 2
     max_x = item["x"] + item["width"] / 2
     min_y = item["z"] - item["depth"] / 2
@@ -333,6 +415,13 @@ def add_box(collection, name, item, material, textured):
     obj["scene_id"] = name.split("_")[1]
     if name.startswith("ART_"):
         obj["level_role"] = "art"
+        obj["texture_id"] = material_texture_id(material)
+        if item.get("motion"):
+            obj["motion"] = item["motion"]
+        if item.get("surfaceType"):
+            obj["surfaceType"] = item["surfaceType"]
+        if item.get("damagePerSecond"):
+            obj["damagePerSecond"] = item["damagePerSecond"]
     elif name.startswith("COLLISION_"):
         obj["level_role"] = "collision"
         obj.display_type = "WIRE"
@@ -341,7 +430,7 @@ def add_box(collection, name, item, material, textured):
         obj["level_role"] = "walkable"
         obj.display_type = "WIRE"
     if textured:
-        write_box_uvs(mesh, material)
+        write_box_uvs(mesh, uv_scale)
     collection.objects.link(obj)
 
 
@@ -361,7 +450,10 @@ def add_pyramid(collection, name, item, material):
     obj.data.materials.append(material)
     obj["level_role"] = "art"
     obj["scene_id"] = name.split("_")[1]
-    write_box_uvs(mesh, material)
+    obj["texture_id"] = material_texture_id(material)
+    if item.get("motion"):
+        obj["motion"] = item["motion"]
+    write_box_uvs(mesh, 4.0)
     collection.objects.link(obj)
 
 
@@ -379,20 +471,88 @@ def add_card(collection, name, item, material):
     obj.data.materials.append(material)
     obj["level_role"] = "art"
     obj["scene_id"] = name.split("_")[1]
+    obj["texture_id"] = material_texture_id(material)
+    if item.get("motion"):
+        obj["motion"] = item["motion"]
     uv_layer = mesh.uv_layers.new(name="UVMap")
     for loop_index, uv in zip(mesh.polygons[0].loop_indices, [(0, 1), (1, 1), (1, 0), (0, 0)]):
         uv_layer.data[loop_index].uv = uv
     collection.objects.link(obj)
 
 
-def write_box_uvs(mesh, material):
+def add_lightning_bolts(collection, scene, material):
+    for bolt_index, bolt in enumerate(scene["lightning"].get("bolts", []), start=1):
+        points = bolt.get("points", [])
+        for point_index in range(len(points) - 1):
+            add_lightning_segment(
+                collection,
+                f"ART_{scene['id']}_lightning_{bolt_index}_{point_index + 1}",
+                points[point_index],
+                points[point_index + 1],
+                bolt.get("width", 0.14),
+                material,
+            )
+
+
+def add_lightning_segment(collection, name, start, end, width, material):
+    dx = end["x"] - start["x"]
+    dy = end["y"] - start["y"]
+    length = math.hypot(dx, dy) or 1
+    ox = -dy / length * width
+    oy = dx / length * width
+    item = {
+        "x": (start["x"] + end["x"]) / 2,
+        "y": (start["y"] + end["y"]) / 2,
+        "z": (start["z"] + end["z"]) / 2,
+        "width": 1,
+        "height": 1,
+        "texture": material_texture_id(material),
+    }
+    add_custom_card(collection, name, [
+        (start["x"] - ox, start["z"], start["y"] - oy),
+        (start["x"] + ox, start["z"], start["y"] + oy),
+        (end["x"] + ox, end["z"], end["y"] + oy),
+        (end["x"] - ox, end["z"], end["y"] - oy),
+    ], item, material, uvs=[(0, 1), (1, 1), (1, 0), (0, 0)])
+
+
+def add_rain(collection, scene, material):
+    for index, drop in enumerate(scene["rain"].get("drops", []), start=1):
+        add_custom_card(collection, f"ART_{scene['id']}_rain_{index}", [
+            (drop["x"] - drop["width"] / 2, drop["z"], drop["y"] - drop["height"]),
+            (drop["x"] + drop["width"] / 2, drop["z"], drop["y"] - drop["height"]),
+            (drop["x"] + drop["width"] / 2, drop["z"], drop["y"]),
+            (drop["x"] - drop["width"] / 2, drop["z"], drop["y"]),
+        ], {
+            **drop,
+            "texture": material_texture_id(material),
+        }, material, uvs=[(0, 4), (1, 4), (1, 0), (0, 0)])
+
+
+def add_custom_card(collection, name, vertices, item, material, uvs):
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(vertices, [], [(0, 1, 2, 3)])
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    obj.data.materials.append(material)
+    obj["level_role"] = "art"
+    obj["scene_id"] = name.split("_")[1]
+    obj["texture_id"] = material_texture_id(material)
+    if item.get("motion"):
+        obj["motion"] = item["motion"]
     uv_layer = mesh.uv_layers.new(name="UVMap")
-    texture_world_units = texture_size_for_material(material) / PIXELS_PER_WORLD_UNIT
+    for loop_index, uv in zip(mesh.polygons[0].loop_indices, uvs):
+        uv_layer.data[loop_index].uv = uv
+    collection.objects.link(obj)
+
+
+def write_box_uvs(mesh, uv_scale):
+    uv_layer = mesh.uv_layers.new(name="UVMap")
     for polygon in mesh.polygons:
         axis = dominant_axis(polygon.normal)
         for loop_index in polygon.loop_indices:
             vertex = mesh.vertices[mesh.loops[loop_index].vertex_index].co
-            uv_layer.data[loop_index].uv = projected_uv(vertex, axis, texture_world_units)
+            uv_layer.data[loop_index].uv = projected_uv(vertex, axis, uv_scale)
 
 
 def projected_uv(point, axis, divisor):
@@ -408,11 +568,8 @@ def dominant_axis(normal):
     return values.index(max(values))
 
 
-def texture_size_for_material(material):
-    for node in material.node_tree.nodes:
-        if node.bl_idname == "ShaderNodeTexImage" and node.image:
-            return max(node.image.size[0], node.image.size[1], 1)
-    return TEXTURE_SIZE
+def material_texture_id(material):
+    return material.name.removeprefix("LEVELMAT_")
 
 
 def top_surface_box(item):
@@ -429,9 +586,10 @@ def export_collections(levels_dir):
         if not collection.name.startswith("LEVEL_"):
             continue
         bpy.ops.object.select_all(action="DESELECT")
-        for obj in collection.objects:
+        objects = objects_recursive(collection)
+        for obj in objects:
             obj.select_set(True)
-        active = next((obj for obj in collection.objects if obj.type == "MESH"), None)
+        active = next((obj for obj in objects if obj.type == "MESH"), None)
         if active:
             bpy.context.view_layer.objects.active = active
         filepath = levels_dir / f"{collection.name.removeprefix('LEVEL_')}.glb"
@@ -449,6 +607,13 @@ def export_collections(levels_dir):
         )
         exported += 1
     return exported
+
+
+def objects_recursive(collection):
+    objects = list(collection.objects)
+    for child in collection.children:
+        objects.extend(objects_recursive(child))
+    return objects
 
 
 def link_to_collection(obj, collection):

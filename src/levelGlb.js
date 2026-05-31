@@ -3,7 +3,7 @@ import { SCENE_DEFINITIONS } from './world.js';
 export const LEVEL_GLB_URLS = Object.freeze(Object.fromEntries(
   SCENE_DEFINITIONS.map((scene) => [
     scene.id,
-    `./assets/models/levels/${scene.id}.glb?v=1`,
+    `./assets/models/levels/${scene.id}.glb?v=4`,
   ]),
 ));
 
@@ -55,6 +55,7 @@ export function parseLevelGlb(arrayBuffer, expectedId = null) {
     playerSpawn: null,
     zombieSpawns: [],
     healthPotions: [],
+    damageZones: [],
     lights: [],
     torchLights: [],
     killY: null,
@@ -78,7 +79,7 @@ function collectNode(level, json, bin, nodeIndex, parentMatrix) {
   const role = getNodeRole(node);
 
   if (role === 'art' && node.mesh !== undefined) {
-    level.artMeshes.push(...readMeshPrimitives(json, bin, node.mesh, matrix, name));
+    level.artMeshes.push(...readMeshPrimitives(json, bin, node.mesh, matrix, name, node.extras ?? {}, level.materials));
   } else if (role === 'collision' && node.mesh !== undefined) {
     level.collision.push(readBoundsFromMesh(json, bin, node.mesh, matrix, name));
   } else if (role === 'walkable' && node.mesh !== undefined) {
@@ -123,6 +124,10 @@ function applyMarker(level, role, name, position, extras) {
     level.healthPotions.push({ ...parseMarkerExtras(extras), ...marker });
     return;
   }
+  if (role === 'DAMAGE_ZONE') {
+    level.damageZones.push({ ...marker, ...parseMarkerExtras(extras) });
+    return;
+  }
   if (role === 'LIGHT') {
     level.lights.push({ ...parseMarkerExtras(extras), ...marker });
     return;
@@ -154,13 +159,16 @@ function parseJsonString(value) {
   }
 }
 
-function readMeshPrimitives(json, bin, meshIndex, matrix, nodeName) {
+function readMeshPrimitives(json, bin, meshIndex, matrix, nodeName, extras, materials) {
   const mesh = json.meshes[meshIndex];
   return (mesh?.primitives ?? []).map((primitive, primitiveIndex) => {
     const vertices = readPrimitiveVertices(json, bin, primitive, matrix);
+    const material = materials[primitive.material ?? 0];
     return {
       name: primitiveIndex === 0 ? nodeName : `${nodeName}_${primitiveIndex + 1}`,
       material: primitive.material ?? 0,
+      textureId: parseJsonString(extras.texture_id) ?? material?.textureId ?? null,
+      motion: parseJsonString(extras.motion) ?? null,
       vertices,
       vertexCount: vertices.length,
     };
@@ -266,6 +274,7 @@ function readMaterials(json, bin) {
     const image = imageIndex === undefined ? undefined : json.images?.[imageIndex];
     return {
       name: material.name ?? `material_${index}`,
+      textureId: readMaterialTextureId(material, index),
       baseColor: pbr.baseColorFactor ?? [1, 1, 1, 1],
       texture: image?.bufferView === undefined ? null : {
         name: image.name ?? `material_${index}_texture`,
@@ -274,6 +283,11 @@ function readMaterials(json, bin) {
       },
     };
   });
+}
+
+function readMaterialTextureId(material, index) {
+  const name = material.name ?? `material_${index}`;
+  return name.startsWith('LEVELMAT_') ? name.slice('LEVELMAT_'.length) : name;
 }
 
 function readSceneId(nodes) {

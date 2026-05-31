@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PS1 World</title>
-    <link rel="stylesheet" href="./styles.css?v=10">
+    <link rel="stylesheet" href="./styles.css?v=11">
   </head>
   <body class="title-active">
     <canvas id="screen" aria-label="PS1 world renderer"></canvas>
@@ -17,6 +17,7 @@
     </main>
 
     <div id="cutUpHud" class="cut-up-hud" aria-live="polite" hidden></div>
+    <div id="lowHealthNotice" class="low-health-notice" aria-live="polite" hidden>Low health</div>
 
     <div class="hud" aria-hidden="true">
       <div>WASD</div>
@@ -80,11 +81,12 @@
         <label><input id="invertY" type="checkbox"> Invert Y</label>
 
         <footer>
+          <button id="quitGameButton" class="danger" type="button">Quit game</button>
           <button value="close">Resume</button>
         </footer>
       </form>
     </dialog>
 
-    <script type="module" src="./src/app.js?v=66"></script>
+    <script type="module" src="./src/app.js?v=70"></script>
   </body>
 </html>

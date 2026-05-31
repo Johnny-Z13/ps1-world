@@ -4,7 +4,7 @@ import test from 'node:test';
 import { inflateSync } from 'node:zlib';
 
 import { LEVEL_GLB_URLS, parseLevelGlb } from '../src/levelGlb.js';
-import { SCENE_DEFINITIONS } from '../src/world.js';
+import { SCENE_DEFINITIONS, createSceneWorld } from '../src/world.js';
 
 function readLevel(id) {
   const file = readFileSync(new URL(`../assets/models/levels/${id}.glb`, import.meta.url));
@@ -16,7 +16,7 @@ test('maps every selectable scene to a Blender-authored GLB', () => {
     Object.keys(LEVEL_GLB_URLS),
     SCENE_DEFINITIONS.map((scene) => scene.id),
   );
-  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=1');
+  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=4');
 });
 
 test('parses level GLB art, collision, walkable, and marker roles', () => {
@@ -28,6 +28,7 @@ test('parses level GLB art, collision, walkable, and marker roles', () => {
   assert.ok(level.walkableSurfaces.length >= 30);
   assert.equal(level.zombieSpawns.length, 3);
   assert.equal(level.healthPotions.length, 3);
+  assert.equal(level.damageZones.length, 1);
   assert.equal(level.lights.length, 4);
   assert.equal(level.torchLights.length, 3);
   assert.equal(level.killY, -8);
@@ -55,6 +56,71 @@ test('all exported level GLBs contain game-authoring roles', () => {
     assert.ok(level.walkableSurfaces.length > 0, `${definition.id} has walkable meshes`);
     assert.ok(level.playerSpawn, `${definition.id} has a player spawn`);
   }
+});
+
+test('exported gameplay collision and walkable roles match procedural scene rules', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const scene = createSceneWorld(definition.id);
+    const level = readLevel(definition.id);
+    const expectedCollisionCount = scene.walls.length + scene.crates.length + (scene.platforms ?? []).length;
+    const expectedWalkableCount = (scene.floorPieces ?? [scene.floor]).length
+      + scene.walls.length
+      + scene.crates.length
+      + (scene.platforms ?? []).length;
+
+    assert.equal(level.collision.length, expectedCollisionCount, `${definition.id} collision count`);
+    assert.equal(level.walkableSurfaces.length, expectedWalkableCount, `${definition.id} walkable count`);
+    assert.ok(!level.collision.some((mesh) => mesh.name.includes('_ceiling')), `${definition.id} ceiling is not collision`);
+    assert.ok(!level.walkableSurfaces.some((mesh) => mesh.name.includes('_ceiling')), `${definition.id} ceiling is not walkable`);
+  }
+});
+
+test('exported level GLBs keep procedural special-effect art meshes', () => {
+  const neon = readLevel('neon-backstreets');
+  const temple = readLevel('sunken-temple');
+  const rotwood = readLevel('rotwood-forest');
+
+  assert.ok(hasMaterialMesh(neon, 'LEVELMAT_lightning'), 'neon-backstreets exports lightning bolt geometry');
+  assert.ok(hasMaterialMesh(temple, 'LEVELMAT_rain'), 'sunken-temple exports rain drop geometry');
+  assert.ok(hasMaterialMesh(rotwood, 'LEVELMAT_paleMoon'), 'rotwood-forest exports the moving moon billboard');
+});
+
+test('health pickup markers keep render dimensions and pickup motion', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const level = readLevel(definition.id);
+
+    for (const potion of level.healthPotions) {
+      assert.equal(potion.texture, 'healthPotion', `${definition.id} health potion texture`);
+      assert.equal(potion.mesh, 'health-flask', `${definition.id} health potion mesh`);
+      assert.equal(potion.motion, 'pickup-bob', `${definition.id} health potion motion`);
+      assert.ok(potion.width > 0, `${definition.id} health potion width`);
+      assert.ok(potion.depth > 0, `${definition.id} health potion depth`);
+      assert.ok(potion.height > 0, `${definition.id} health potion height`);
+      assert.ok(potion.radius > 0, `${definition.id} health potion radius`);
+    }
+  }
+});
+
+test('damage zone markers keep lava material gameplay metadata', () => {
+  const dungeon = readLevel('dungeon');
+  const lavaZone = dungeon.damageZones.find((zone) => zone.surfaceType === 'lava');
+
+  assert.ok(lavaZone, 'dungeon exports a lava damage zone');
+  assert.match(lavaZone.name, /lava/);
+  assert.ok(lavaZone.width > 0);
+  assert.ok(lavaZone.depth > 0);
+  assert.ok(lavaZone.height > 0);
+  assert.ok(lavaZone.damagePerSecond > 0);
+});
+
+test('art mesh metadata preserves texture ids and animation motion', () => {
+  const dungeon = readLevel('dungeon');
+  const rotwood = readLevel('rotwood-forest');
+  const motel = readLevel('motel-mirage');
+
+  assert.ok(dungeon.artMeshes.some((mesh) => mesh.textureId === 'torchFlame' && mesh.motion === 'torch-flame'));
+  assert.ok(rotwood.artMeshes.some((mesh) => mesh.textureId === 'fallingLeaf' && mesh.motion === 'falling-leaf'));
+  assert.ok(motel.artMeshes.some((mesh) => mesh.textureId === 'motelWindow' && mesh.motion === 'window-pulse'));
 });
 
 test('large exported level surfaces keep world-scale texture repeats', () => {
@@ -85,6 +151,55 @@ test('large exported level surfaces keep world-scale texture repeats', () => {
     }
   }
 });
+
+test('exported box UV density matches the pre-GLB procedural renderer', () => {
+  const dungeon = readLevel('dungeon');
+
+  assert.ok(
+    Math.abs(medianUvWorldRatio(findArtMesh(dungeon, 'ART_dungeon_floor')) - 0.4) < 0.02,
+    'floor UV density matches old floor uvScale 2.5',
+  );
+  assert.ok(
+    Math.abs(medianUvWorldRatio(findArtMesh(dungeon, 'ART_dungeon_north_wall_a')) - 1) < 0.02,
+    'wall UV density matches old wall uvScale 1.0',
+  );
+  assert.ok(
+    Math.abs(medianUvWorldRatio(findArtMesh(dungeon, 'ART_dungeon_crate_8_8_8_5')) - 1) < 0.02,
+    'crate UV density matches old crate uvScale 1.0',
+  );
+  assert.ok(
+    Math.abs(medianUvWorldRatio(findArtMesh(dungeon, 'ART_dungeon_ceiling')) - 0.5) < 0.02,
+    'ceiling UV density matches old ceiling uvScale 2.0',
+  );
+});
+
+function hasMaterialMesh(level, materialName) {
+  const materialIndex = level.materials.findIndex((material) => material.name === materialName);
+  assert.notEqual(materialIndex, -1, `${level.id} has ${materialName}`);
+  return level.artMeshes.some((mesh) => mesh.material === materialIndex);
+}
+
+function findArtMesh(level, name) {
+  const mesh = level.artMeshes.find((item) => item.name === name);
+  assert.ok(mesh, `${level.id} has ${name}`);
+  return mesh;
+}
+
+function medianUvWorldRatio(mesh) {
+  const ratios = [];
+  for (let index = 0; index < mesh.vertices.length; index += 3) {
+    const tri = mesh.vertices.slice(index, index + 3);
+    for (const [a, b] of [[tri[0], tri[1]], [tri[1], tri[2]], [tri[2], tri[0]]]) {
+      const worldDistance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+      const uvDistance = Math.hypot(a.u - b.u, a.v - b.v);
+      if (worldDistance > 0.2 && uvDistance > 0.01) {
+        ratios.push(uvDistance / worldDistance);
+      }
+    }
+  }
+  ratios.sort((a, b) => a - b);
+  return ratios[Math.floor(ratios.length / 2)];
+}
 
 test('sprite textures preserve alpha masks for stars and suns', () => {
   const level = readLevel('alien-landscape');

@@ -203,6 +203,23 @@ body.game-active * {
   pointer-events: none;
 }
 
+.low-health-notice {
+  position: fixed;
+  top: max(54px, calc(env(safe-area-inset-top) + 26px));
+  left: 50%;
+  z-index: 3;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 48, 48, 0.56);
+  background: rgba(42, 2, 4, 0.78);
+  color: #ffd4bd;
+  font: 13px/1.2 "Courier New", monospace;
+  text-transform: uppercase;
+  text-shadow: 2px 2px #050505;
+  transform: translateX(-50%);
+  pointer-events: none;
+  box-shadow: 0 0 28px rgba(190, 38, 54, 0.32);
+}
+
 .touch-move,
 .touch-jump {
   display: none;
@@ -352,4 +369,10 @@ body.options-open .touch-jump {
   min-width: 34px;
   padding: 5px 10px;
   cursor: pointer;
+}
+
+.options button.danger {
+  border-color: #8a3030;
+  background: #321010;
+  color: #ffd4bd;
 }

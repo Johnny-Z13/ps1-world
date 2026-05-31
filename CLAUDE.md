@@ -13,7 +13,7 @@ This is the lead browser/WebGL implementation. A downstream Unity version may be
 3. For level or art-pipeline work, read `docs/blender-level-pipeline.md`.
 4. For broad smoke/automation work, read `docs/test-harness.md`.
 5. For audio generation, routing, or replacement work, read `docs/audio-system.md`.
-5. Check the worktree:
+6. Check the worktree:
 
 ```bash
 git status --short --branch
@@ -69,6 +69,7 @@ Runtime parser:
 Tests:
 
 - `test/levelGlb.test.js`
+- `test/blenderPipeline.test.js`
 
 ## Authoring Roles
 
@@ -78,8 +79,11 @@ Use explicit Blender object roles:
 - `COLLISION_*`: simplified colliders.
 - `WALKABLE_*`: simple ground/platform surfaces.
 - `MARKER_*`: gameplay markers.
+- `TRIGGER_*_DAMAGE_ZONE_*`: gameplay damage volumes.
 
 The runtime prefers `extras.level_role` and falls back to prefixes.
+
+Each `LEVEL_<scene-id>` collection should keep child collections for render art, collision blockers, walkable surfaces, markers, and triggers. The dungeon contains the reference lava setup: visible `LEVELMAT_lava` art plus a `DAMAGE_ZONE` trigger with `surfaceType` and `damagePerSecond` custom properties.
 
 ## Current Gameplay Systems
 
@@ -88,6 +92,7 @@ The runtime prefers `extras.level_role` and falls back to prefixes.
 - Nine selectable scenes.
 - Scene 2 (`alien-landscape`) has 20 zombies for stress testing.
 - Health, zombie bite damage, death sequence, health pickups.
+- Authored lava floor damage zones.
 - CRT/video presets and debug HUD.
 - Generated ambience and SFX assets.
 

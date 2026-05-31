@@ -58,7 +58,9 @@ const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
 const cutUpButton = document.querySelector('#cutUpButton');
 const cutUpHud = document.querySelector('#cutUpHud');
+const lowHealthNotice = document.querySelector('#lowHealthNotice');
 const optionsDialog = document.querySelector('#options');
+const quitGameButton = document.querySelector('#quitGameButton');
 const touchMove = document.querySelector('#touchMove');
 const touchMoveStick = document.querySelector('#touchMoveStick');
 const touchJump = document.querySelector('#touchJump');
@@ -139,7 +141,10 @@ const PLAYER_WALK_FOOTSTEP_GAIN = 0.13;
 const PLAYER_SPRINT_FOOTSTEP_GAIN = 0.19;
 const PLAYER_LOW_HEALTH_BREATHING_GAIN = 0.24;
 const HEALTH_PICKUP_FLASH_DURATION_MS = 520;
+const DAMAGE_FLASH_DURATION_MS = 420;
+const LOW_HEALTH_NOTICE_DURATION_MS = 2200;
 const ZOMBIE_BITE_COOLDOWN_MS = 1150;
+const DAMAGE_ZONE_SOUND_INTERVAL_MS = 760;
 const PLAYER_HEARTBEAT_BASE_INTERVAL_MS = 1320;
 const PLAYER_HEARTBEAT_DANGER_INTERVAL_MS = 560;
 const PLAYER_HEARTBEAT_BASE_GAIN = 0.018;
@@ -170,9 +175,13 @@ let colliders = getSceneColliders(world);
 let walkableSurfaces = getSceneWalkableSurfaces(world);
 let zombies = createZombieEnemies(world);
 let healthPotions = createSceneHealthPotions(world);
+let damageZones = createSceneDamageZones(world);
 let playerHealth = createPlayerHealth();
 let lastZombieBiteAt = -Infinity;
+let lastDamageZoneSoundAt = -Infinity;
 let healthPickupFlashStartedAt = -Infinity;
+let lastDamageFlashStartedAt = -Infinity;
+let lowHealthNoticeStartedAt = -Infinity;
 const player = {
   x: world.playerSpawn.x,
   y: world.playerSpawn.y,
@@ -212,6 +221,7 @@ const gameState = { mode: 'normal' };
 const cutUpState = createCutUpState(CUT_UP_SCENE_COUNT);
 let mouseLookActive = false;
 let gameModeRequested = false;
+let optionsCloseReturnsToTitle = false;
 let lastPointerUnlockAt = 0;
 let softMouseLockActive = false;
 let softMouseEdgeTurn = { yaw: 0, pitch: 0 };
@@ -298,6 +308,9 @@ function updatePlayer(dt, now) {
     return;
   }
 
+  updateDamageZones(dt, now);
+  if (deathState.active) return;
+
   updateHealthPotions(now);
 
   if (effects.zombies) {
@@ -381,6 +394,7 @@ function render(time, now = performance.now()) {
   gl.uniform1f(postProgram.uniforms.uHealthDanger, healthEffect.danger);
   gl.uniform1f(postProgram.uniforms.uHealthPulse, healthEffect.pulse);
   gl.uniform1f(postProgram.uniforms.uHealthPickupFlash, getHealthPickupFlash(now));
+  gl.uniform1f(postProgram.uniforms.uDamageFlash, getDamageFlash(now));
   gl.uniform1f(postProgram.uniforms.uDeathTint, getDeathTint(now));
   gl.uniform1f(postProgram.uniforms.uDeathProgress, getDeathSceneProgress(now));
   gl.uniform1f(postProgram.uniforms.uCutUpFlash, getCutUpJumpFlash(cutUpState, now));
@@ -389,6 +403,7 @@ function render(time, now = performance.now()) {
   if (titleActive) {
     renderTitleScreen(time);
   }
+  updateLowHealthNotice(now);
 }
 
 function getTextureIndex(id) {
@@ -1713,6 +1728,9 @@ function setupOptions() {
   cutUpButton.addEventListener('click', () => {
     startCutUpMode();
   });
+  quitGameButton.addEventListener('click', () => {
+    quitToTitleScreen();
+  });
   startButton.addEventListener('pointerenter', () => {
     titleButtonState.active = true;
   });
@@ -1814,6 +1832,11 @@ function setupOptions() {
   });
 
   optionsDialog.addEventListener('close', () => {
+    if (optionsCloseReturnsToTitle) {
+      optionsCloseReturnsToTitle = false;
+      return;
+    }
+    if (titleActive) return;
     enterGameMode({ requestLock: true });
   });
   optionsDialog.addEventListener('cancel', (event) => {
@@ -1886,6 +1909,7 @@ function startCutUpMode() {
   playTransitionOneShot(CUT_UP_START_SOUND_URL);
   setScene(SCENE_DEFINITIONS[0].id);
   healthPotions = createSceneHealthPotions(world);
+  damageZones = createSceneDamageZones(world);
   resetPlayerToSpawn();
   rebuildWarehouseMesh();
   syncSceneSelect();
@@ -1898,6 +1922,37 @@ function leaveTitleScreen() {
   titleScreen.hidden = true;
   document.body.classList.remove('title-active');
   enterGameMode({ requestLock: true });
+}
+
+function quitToTitleScreen() {
+  keys.clear();
+  titleActive = true;
+  titleScreen.hidden = false;
+  gameState.mode = 'normal';
+  cutUpState.active = false;
+  cutUpHud.hidden = true;
+  mouseLookActive = false;
+  gameModeRequested = false;
+  softMouseLockActive = false;
+  resetSoftMouseEdgeTurn();
+  lastDamageFlashStartedAt = -Infinity;
+  lowHealthNoticeStartedAt = -Infinity;
+  lowHealthNotice.hidden = true;
+  deathState.active = false;
+  deathState.profile = null;
+  deathState.cameraStart = null;
+  deathState.cameraImpactY = 0;
+  deathState.finalDeathRattlePlayed = false;
+  playerHealth = createPlayerHealth();
+  resetPlayerToSpawn();
+  document.body.classList.add('title-active');
+  document.body.classList.remove('game-active', 'options-open');
+  if (document.pointerLockElement) document.exitPointerLock();
+  if (optionsDialog.open) {
+    optionsCloseReturnsToTitle = true;
+    optionsDialog.close();
+  }
+  syncReticule();
 }
 
 const TITLE_WIDTH = 512;
@@ -2117,10 +2172,46 @@ function damagePlayer(now) {
 
   lastZombieBiteAt = now;
   playerHealth = applyPlayerDamage(playerHealth, ZOMBIE_BITE_DAMAGE);
+  lastDamageFlashStartedAt = now;
+  if (!playerHealth.dead && getHealthDanger(playerHealth) > 0) {
+    lowHealthNoticeStartedAt = now;
+  }
   playPlayerOneShot(PLAYER_DAMAGE_SOUND_URL, PLAYER_DAMAGE_SOUND_GAIN);
   if (playerHealth.dead) {
     startDeathSequence(now, { damage: false });
   }
+}
+
+function updateDamageZones(dt, now) {
+  const zone = damageZones.find((item) => isPlayerInsideDamageZone(player, item));
+  if (!zone) return;
+
+  playerHealth = applyPlayerDamage(playerHealth, zone.damagePerSecond * dt);
+  lastDamageFlashStartedAt = now;
+  if (!playerHealth.dead && getHealthDanger(playerHealth) > 0) {
+    lowHealthNoticeStartedAt = now;
+  }
+  if (now - lastDamageZoneSoundAt >= DAMAGE_ZONE_SOUND_INTERVAL_MS) {
+    lastDamageZoneSoundAt = now;
+    playPlayerOneShot(PLAYER_DAMAGE_SOUND_URL, PLAYER_DAMAGE_SOUND_GAIN * 0.52);
+  }
+  if (playerHealth.dead) {
+    startDeathSequence(now, { damage: true });
+  }
+}
+
+function isPlayerInsideDamageZone(position, zone) {
+  const halfWidth = zone.width / 2;
+  const halfDepth = zone.depth / 2;
+  const halfHeight = (zone.height ?? 0.5) / 2;
+  const feetY = position.y - PLAYER_EYE_HEIGHT;
+  const centerY = zone.y ?? halfHeight;
+  return position.x >= zone.x - halfWidth
+    && position.x <= zone.x + halfWidth
+    && position.z >= zone.z - halfDepth
+    && position.z <= zone.z + halfDepth
+    && feetY >= centerY - halfHeight
+    && feetY <= centerY + halfHeight;
 }
 
 function updateHealthPotions(now) {
@@ -2132,6 +2223,8 @@ function updateHealthPotions(now) {
 
   playerHealth = restorePlayerHealth(playerHealth);
   healthPickupFlashStartedAt = now;
+  lowHealthNoticeStartedAt = -Infinity;
+  if (lowHealthNotice) lowHealthNotice.hidden = true;
   playPlayerOneShot(HEALTH_PICKUP_SOUND_URL, HEALTH_PICKUP_SOUND_GAIN);
   healthPotions = healthPotions.filter((_, index) => index !== pickedIndex);
   rebuildWarehouseMesh();
@@ -2156,6 +2249,28 @@ function getHealthPickupFlash(now) {
 
   const progress = elapsed / HEALTH_PICKUP_FLASH_DURATION_MS;
   return (1 - progress) * (1 - progress);
+}
+
+function getDamageFlash(now) {
+  if (titleActive || optionsDialog.open || deathState.active) return 0;
+
+  const elapsed = now - lastDamageFlashStartedAt;
+  if (elapsed < 0 || elapsed > DAMAGE_FLASH_DURATION_MS) return 0;
+
+  const progress = elapsed / DAMAGE_FLASH_DURATION_MS;
+  return Math.max(0, (1 - progress) * (1 - progress));
+}
+
+function updateLowHealthNotice(now) {
+  if (!lowHealthNotice) return;
+
+  const elapsed = now - lowHealthNoticeStartedAt;
+  const visible = !titleActive
+    && !optionsDialog.open
+    && !deathState.active
+    && elapsed >= 0
+    && elapsed <= LOW_HEALTH_NOTICE_DURATION_MS;
+  lowHealthNotice.hidden = !visible;
 }
 
 function startDeathSequence(now, options = {}) {
@@ -2383,6 +2498,7 @@ async function setScene(id) {
   colliders = getSceneColliders(world);
   walkableSurfaces = getSceneWalkableSurfaces(world);
   healthPotions = createSceneHealthPotions(world);
+  damageZones = createSceneDamageZones(world);
   resetPlayerToSpawn();
 
   deleteMeshBuffers(gl, warehouseMesh);
@@ -2421,7 +2537,8 @@ function createWorldFromLevelAsset(fallback, levelAsset) {
     levelAsset,
     playerSpawn: levelAsset.playerSpawn ?? fallback.playerSpawn,
     zombieSpawns: levelAsset.zombieSpawns.length ? levelAsset.zombieSpawns : fallback.zombieSpawns,
-    healthPotions: levelAsset.healthPotions.length ? levelAsset.healthPotions : fallback.healthPotions,
+    healthPotions: levelAsset.healthPotions.length ? mergeLevelHealthPotions(levelAsset.healthPotions, fallback.healthPotions) : fallback.healthPotions,
+    damageZones: levelAsset.damageZones.length ? levelAsset.damageZones : fallback.damageZones ?? [],
     lights: levelAsset.lights.length ? levelAsset.lights : fallback.lights,
     torchLights: levelAsset.torchLights.length ? levelAsset.torchLights : fallback.torchLights,
     killY: levelAsset.killY ?? fallback.killY,
@@ -2446,12 +2563,27 @@ function resetPlayerToSpawn() {
   player.groundY = getGroundYAt(player, walkableSurfaces) ?? world.playerSpawn.y;
   playerHealth = createPlayerHealth();
   healthPickupFlashStartedAt = -Infinity;
+  lastDamageFlashStartedAt = -Infinity;
+  lowHealthNoticeStartedAt = -Infinity;
+  lastDamageZoneSoundAt = -Infinity;
+  if (lowHealthNotice) lowHealthNotice.hidden = true;
   lastZombieBiteAt = -Infinity;
   zombies = createZombieEnemies(world);
 }
 
+function mergeLevelHealthPotions(levelPotions, fallbackPotions) {
+  return levelPotions.map((potion, index) => ({
+    ...(fallbackPotions[index] ?? {}),
+    ...potion,
+  }));
+}
+
 function createSceneHealthPotions(scene) {
   return (scene.healthPotions ?? []).map((potion) => ({ ...potion }));
+}
+
+function createSceneDamageZones(scene) {
+  return (scene.damageZones ?? []).map((zone) => ({ ...zone }));
 }
 
 function rebuildWarehouseMesh() {
@@ -2510,13 +2642,17 @@ function createLevelMesh(glContext, scene, indices) {
   const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
 
   for (const mesh of scene.levelAsset.artMeshes) {
-    const textureId = indices.get(`level:${mesh.material}`) ?? 0;
-    for (const vertex of mesh.vertices) {
-      geometry.positions.push(vertex.x, vertex.y, vertex.z);
-      geometry.uvs.push(vertex.u, vertex.v);
-      geometry.textureIds.push(textureId);
-      geometry.shades.push(0.92);
-      geometry.motions.push(0);
+    const textureId = indices.get(mesh.textureId) ?? 0;
+    const motion = motionCode(mesh.motion);
+    for (let index = 0; index < mesh.vertices.length; index += 3) {
+      const shade = levelTriangleShade(mesh, index);
+      for (const vertex of mesh.vertices.slice(index, index + 3)) {
+        geometry.positions.push(vertex.x, vertex.y, vertex.z);
+        geometry.uvs.push(vertex.u, vertex.v);
+        geometry.textureIds.push(textureId);
+        geometry.shades.push(shade);
+        geometry.motions.push(motion);
+      }
     }
   }
 
@@ -2533,6 +2669,52 @@ function createLevelMesh(glContext, scene, indices) {
     textureId: createBuffer(glContext, new Float32Array(geometry.textureIds)),
     shade: createBuffer(glContext, new Float32Array(geometry.shades)),
     motion: createBuffer(glContext, new Float32Array(geometry.motions)),
+  };
+}
+
+function levelTriangleShade(mesh, vertexIndex) {
+  if (isBrightLevelTexture(mesh.textureId)) {
+    return mesh.textureId === 'lightning' ? 1.3 : 1.18;
+  }
+
+  const a = mesh.vertices[vertexIndex];
+  const b = mesh.vertices[vertexIndex + 1];
+  const c = mesh.vertices[vertexIndex + 2];
+  if (!a || !b || !c) return 0.86;
+
+  const normal = triangleNormal(a, b, c);
+  if (normal.y > 0.68) return 0.82;
+  if (normal.y < -0.68) return 0.42;
+  if (Math.abs(normal.x) > Math.abs(normal.z)) return normal.x > 0 ? 0.9 : 0.72;
+  return normal.z > 0 ? 0.84 : 0.64;
+}
+
+function isBrightLevelTexture(textureId) {
+  return textureId === 'star'
+    || textureId === 'sun'
+    || textureId === 'paleMoon'
+    || textureId === 'shootingStar'
+    || textureId === 'flickerComet'
+    || textureId === 'comet'
+    || textureId === 'firefly'
+    || textureId === 'torchFlame'
+    || textureId === 'lightning'
+    || textureId === 'rain';
+}
+
+function triangleNormal(a, b, c) {
+  const ab = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+  const ac = { x: c.x - a.x, y: c.y - a.y, z: c.z - a.z };
+  const normal = {
+    x: ab.y * ac.z - ab.z * ac.y,
+    y: ab.z * ac.x - ab.x * ac.z,
+    z: ab.x * ac.y - ab.y * ac.x,
+  };
+  const length = Math.hypot(normal.x, normal.y, normal.z) || 1;
+  return {
+    x: normal.x / length,
+    y: normal.y / length,
+    z: normal.z / length,
   };
 }
 
@@ -2963,15 +3145,16 @@ function drawQuad(glContext, program, buffer) {
 }
 
 function createLevelTextureDescriptors(levelAsset, fallback) {
-  const levelTextures = levelAsset.materials.map((material, index) => ({
-    id: `level:${index}`,
-    size: 128,
-    material,
-  }));
-  const supportTextures = fallback.textures.filter((texture) => (
-    texture.id === 'zombie' || texture.id === 'healthPotion'
-  ));
-  return [...levelTextures, ...supportTextures];
+  const textureIds = new Set(fallback.textures.map((texture) => texture.id));
+  const missingLevelTextures = levelAsset.materials
+    .filter((material) => !textureIds.has(material.textureId))
+    .map((material) => ({
+      id: material.textureId,
+      size: 128,
+      material,
+    }));
+
+  return [...fallback.textures, ...missingLevelTextures];
 }
 
 async function createSceneTextureAtlas(glContext, scene, zombieImage = null) {
@@ -3192,13 +3375,17 @@ function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
   }
 
   if (id === 'sun') {
+    ctx.clearRect(x, y, tile, tile);
     const gradient = ctx.createRadialGradient(x + tile / 2, y + tile / 2, 4, x + tile / 2, y + tile / 2, tile / 2);
     gradient.addColorStop(0, '#fff2a0');
     gradient.addColorStop(0.35, '#ff9744');
     gradient.addColorStop(0.72, '#b63358');
-    gradient.addColorStop(1, '#3b1434');
+    gradient.addColorStop(0.98, '#3b1434');
+    gradient.addColorStop(1, 'rgba(59, 20, 52, 0)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(x, y, tile, tile);
+    ctx.beginPath();
+    ctx.arc(x + tile / 2, y + tile / 2, tile * 0.48, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
@@ -3654,6 +3841,7 @@ async function start() {
   colliders = getSceneColliders(world);
   walkableSurfaces = getSceneWalkableSurfaces(world);
   healthPotions = createSceneHealthPotions(world);
+  damageZones = createSceneDamageZones(world);
   resetPlayerToSpawn();
   warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
   zombieMesh = createZombieMesh(gl);
@@ -3924,6 +4112,7 @@ uniform float uLightningStrength;
 uniform float uHealthDanger;
 uniform float uHealthPulse;
 uniform float uHealthPickupFlash;
+uniform float uDamageFlash;
 uniform float uDeathTint;
 uniform float uDeathProgress;
 uniform float uCutUpFlash;
@@ -3973,6 +4162,17 @@ float bloodParticle(vec2 uv, vec2 center, float radius, float seed) {
   return max(splat * grain, drip * 0.42);
 }
 
+float clawScratch(vec2 uv, vec2 start, float angle, float length, float width) {
+  vec2 direction = vec2(cos(angle), sin(angle));
+  vec2 normal = vec2(-direction.y, direction.x);
+  vec2 relative = uv - start;
+  float along = dot(relative, direction);
+  float across = abs(dot(relative, normal));
+  float taper = smoothstep(0.0, 0.08, along) * (1.0 - smoothstep(length * 0.82, length, along));
+  float groove = 1.0 - smoothstep(width * 0.45, width, across);
+  return groove * taper;
+}
+
 void main() {
   vec2 sourceUv = vec2(vUv.x, mix(vUv.y, 1.0 - vUv.y, uFlipFramebufferY));
   vec2 centered = sourceUv * 2.0 - 1.0;
@@ -4015,6 +4215,13 @@ void main() {
   vec3 oneBitInk = vec3(0.09, 0.075, 0.055);
   vec3 oneBitPaper = vec3(0.86, 0.82, 0.67);
   color = mix(color, mix(oneBitInk, oneBitPaper, step(oneBitThreshold, oneBitTone)), uOneBit);
+  float damageScratch = 0.0;
+  damageScratch += clawScratch(sourceUv, vec2(0.18, 0.22), 0.74, 0.62, 0.014);
+  damageScratch += clawScratch(sourceUv, vec2(0.32, 0.18), 0.74, 0.58, 0.012);
+  damageScratch += clawScratch(sourceUv, vec2(0.47, 0.17), 0.74, 0.54, 0.011);
+  float damagePulse = clamp(uDamageFlash, 0.0, 1.0);
+  color = mix(color, vec3(0.9, 0.0, 0.02), damagePulse * 0.38);
+  color = mix(color, vec3(1.0, 0.02, 0.02), clamp(damageScratch * damagePulse * 1.1, 0.0, 0.88));
   color *= 1.0 - uHealthDanger * 0.28;
   color = mix(color, vec3(0.58, 0.015, 0.01), clamp(uHealthDanger * 0.2 + uHealthPulse * 0.18, 0.0, 0.42));
   color = mix(color, color + vec3(0.2, 0.95, 0.24), clamp(uHealthPickupFlash * 0.58, 0.0, 0.72));

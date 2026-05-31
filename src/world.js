@@ -34,6 +34,7 @@ export function createWarehouseWorld() {
     { id: 'torchWood', size: 64 },
     { id: 'torchMetal', size: 64 },
     { id: 'torchFlame', size: 64 },
+    { id: 'lava', size: 64 },
   ];
 
   const walls = [
@@ -81,6 +82,15 @@ export function createWarehouseWorld() {
     box('loading crate step high', -2.0, 7.2, 2.2, 2.0, 1.1, 'crate'),
     box('office roof jump ledge', -7.8, -4.5, 3.2, 2.2, 1.45, 'metal'),
   ];
+  const dungeonFloor = box('floor', 0, 0, 25.6, 23.6, 0.08, 'concrete', -0.08);
+  const lavaFloor = {
+    ...box('example lava damage floor', -1.8, 2.8, 3.8, 2.4, 0.06, 'lava', -0.03),
+    surfaceType: 'lava',
+    damagePerSecond: 15,
+  };
+  const damageZones = [
+    damageZone('example lava damage trigger', lavaFloor.x, lavaFloor.z, lavaFloor.width, lavaFloor.depth, 0.52, lavaFloor.damagePerSecond, lavaFloor.surfaceType),
+  ];
   const torches = [
     { name: 'west office wall torch', x: -5.05, y: 1.72, z: -7.7 },
     { name: 'east corridor wall torch', x: 5.45, y: 1.72, z: -8.2 },
@@ -99,7 +109,8 @@ export function createWarehouseWorld() {
     id: 'dungeon',
     label: 'Dungeon',
     clearColor: [0.035, 0.034, 0.03, 1],
-    floor: box('floor', 0, 0, 25.6, 23.6, 0.08, 'concrete', -0.08),
+    floor: dungeonFloor,
+    floorPieces: [dungeonFloor, lavaFloor],
     ceiling: box('ceiling', 0, 0, 25.6, 23.6, 0.08, 'metal', WALL_HEIGHT),
     walls,
     crates,
@@ -124,12 +135,27 @@ export function createWarehouseWorld() {
     ],
     playerSpawn: { x: -9.5, y: 1.45, z: 9.5, yaw: 2.35 },
     killY: -8,
+    damageZones,
     textures,
   }, [
     { x: -10.2, z: -2.8 },
     { x: 8.4, z: 1.5 },
     { x: 4, z: -10 },
   ]);
+}
+
+function damageZone(name, x, z, width, depth, height, damagePerSecond, surfaceType) {
+  return {
+    name,
+    x,
+    y: height / 2,
+    z,
+    width,
+    depth,
+    height,
+    damagePerSecond,
+    surfaceType,
+  };
 }
 
 function crate(x, z, width, depth, height) {

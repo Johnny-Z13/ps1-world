@@ -162,6 +162,16 @@ test('keeps mouse look tied to pointer lock until Escape releases it', () => {
   assert.match(app, /openOptions\(\{ releasePointerLock: false \}\)/);
 });
 
+test('offers a quit action in the Escape menu that returns to the title screen', () => {
+  assert.match(index, /id="quitGameButton"/);
+  assert.match(index, />Quit game</);
+  assert.match(app, /const quitGameButton = document\.querySelector\('#quitGameButton'\)/);
+  assert.match(app, /quitGameButton\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
+  assert.match(app, /function quitToTitleScreen/);
+  assert.match(app, /document\.body\.classList\.add\('title-active'\)/);
+  assert.match(app, /titleScreen\.hidden = false/);
+});
+
 test('renders one-bit scenes with ordered dithering instead of hard clipping', () => {
   assert.match(app, /orderedDither/);
   assert.match(app, /oneBitPaper/);
@@ -273,6 +283,28 @@ test('tracks player health, low-health screen pressure, and breathing audio', ()
   assert.match(app, /lowHealthBreathingGain/);
   assert.match(app, /function damagePlayer/);
   assert.match(app, /ZOMBIE_BITE_COOLDOWN_MS/);
+});
+
+test('flashes red claw damage and shows a low-health notice after zombie bites', () => {
+  assert.match(index, /id="lowHealthNotice"/);
+  assert.match(index, /Low health/);
+  assert.match(styles, /\.low-health-notice/);
+  assert.match(app, /const DAMAGE_FLASH_DURATION_MS/);
+  assert.match(app, /const LOW_HEALTH_NOTICE_DURATION_MS/);
+  assert.match(app, /lastDamageFlashStartedAt = now/);
+  assert.match(app, /lowHealthNoticeStartedAt = now/);
+  assert.match(app, /function getDamageFlash/);
+  assert.match(app, /function updateLowHealthNotice/);
+  assert.match(app, /uDamageFlash/);
+  assert.match(app, /clawScratch/);
+});
+
+test('applies authored lava damage zones to the player', () => {
+  assert.match(app, /damageZones/);
+  assert.match(app, /function updateDamageZones/);
+  assert.match(app, /function isPlayerInsideDamageZone/);
+  assert.match(app, /damagePerSecond/);
+  assert.match(app, /applyPlayerDamage\(playerHealth,\s*zone\.damagePerSecond \* dt\)/);
 });
 
 test('renders low-poly green health flasks and restores health on pickup', () => {
