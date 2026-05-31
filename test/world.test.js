@@ -203,6 +203,39 @@ test('builds neon backstreets as a psychedelic floating sky scene', () => {
   assert.ok(world.textures.some((texture) => texture.id === 'neonCloud' && texture.size === 128));
 });
 
+test('keeps Neon Backstreets Rogue route gaps within sprint-jump range', () => {
+  const world = createSceneWorld('neon-backstreets');
+  const routeNames = [
+    'floating platform spawn deck',
+    'floating platform entry',
+    'floating platform near span',
+    'floating platform glass ledge',
+    'floating platform mid span',
+    'floating platform far bridge',
+  ];
+  const surfaces = [world.floor, ...world.walls, ...world.platforms].filter(Boolean);
+  const route = routeNames.map((name) => surfaces.find((surface) => surface.name === name));
+
+  assert.deepEqual(route.map((surface) => surface?.name), routeNames);
+
+  for (let index = 0; index < route.length - 1; index += 1) {
+    const from = route[index];
+    const to = route[index + 1];
+    const gapX = Math.max(0, Math.abs(from.x - to.x) - (from.width + to.width) / 2);
+    const gapZ = Math.max(0, Math.abs(from.z - to.z) - (from.depth + to.depth) / 2);
+    const gap = Math.hypot(gapX, gapZ);
+    const verticalRise = (to.y + to.height) - (from.y + from.height);
+
+    assert.ok(gap <= 3, `${from.name} to ${to.name} gap ${gap}`);
+    assert.ok(verticalRise <= 0.55, `${from.name} to ${to.name} rise ${verticalRise}`);
+  }
+
+  const gate = world.warpGate;
+  const bridge = route.at(-1);
+  assert.ok(gate.x >= bridge.x - bridge.width / 2 && gate.x <= bridge.x + bridge.width / 2);
+  assert.ok(gate.z >= bridge.z - bridge.depth / 2 && gate.z <= bridge.z + bridge.depth / 2);
+});
+
 test('builds a 1-bit polygon cathedral with black and white texture mapping', () => {
   const world = createSceneWorld('one-bit-cathedral');
   const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);

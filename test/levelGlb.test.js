@@ -16,7 +16,7 @@ test('maps every selectable scene to a Blender-authored GLB', () => {
     Object.keys(LEVEL_GLB_URLS),
     SCENE_DEFINITIONS.map((scene) => scene.id),
   );
-  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=9');
+  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=10');
 });
 
 test('parses level GLB art, collision, walkable, and marker roles', () => {
@@ -121,10 +121,22 @@ test('enemy spawn markers preserve typed entity metadata', () => {
     const types = level.enemySpawns.map((spawn) => spawn.enemyType);
 
     assert.equal(types.filter((type) => type === 'one-eye-alien').length, 1, definition.id);
-    assert.equal(types.filter((type) => type === 'molten-sentinel').length, 1, definition.id);
+    if (createSceneWorld(definition.id).ceiling) {
+      assert.equal(types.filter((type) => type === 'molten-sentinel').length, 0, definition.id);
+    } else {
+      assert.equal(types.filter((type) => type === 'molten-sentinel').length, 1, definition.id);
+    }
     assert.ok(level.enemySpawns.every((spawn) => spawn.role === 'enemy'), definition.id);
     assert.ok(level.enemySpawns.every((spawn) => spawn.radius > 0), definition.id);
   }
+});
+
+test('neon backstreets GLB exports jumpable Rogue route spans', () => {
+  const level = readLevel('neon-backstreets');
+  const walkableNames = level.walkableSurfaces.map((surface) => surface.name);
+
+  assert.ok(walkableNames.some((name) => name.includes('floating_platform_near_span')));
+  assert.ok(walkableNames.some((name) => name.includes('floating_platform_mid_span')));
 });
 
 test('derelict starship GLB exports varied metal ceiling detail instead of repeated warning strips', () => {

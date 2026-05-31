@@ -1,6 +1,7 @@
 import { createCutUpState, getCutUpHudText, getCutUpJumpFlash, getNextCutUpSceneIndex, shouldAdvanceCutUpScene } from '../../src/cutUpMode.js';
 import { createPlayerHealth } from '../../src/playerHealth.js';
 import { applyVideoPreset, createEffectState, getResolutionMode, VIDEO_PRESETS } from '../../src/ps1Display.js';
+import { createRogueRun, getRogueSceneId, getRogueStageLabel, isRogueComplete, stepRogueRun } from '../../src/rogueMode.js';
 import { SCENE_DEFINITIONS, createSceneWorld } from '../../src/world.js';
 import { createZombieEnemies } from '../../src/zombies.js';
 
@@ -60,6 +61,31 @@ export function createGameSmokeHarness() {
         world: createSceneWorld(SCENE_DEFINITIONS[nextIndex].id),
         hud: getCutUpHudText(state, SCENE_DEFINITIONS, now),
         flash: getCutUpJumpFlash(state, now),
+      };
+    },
+
+    startRogue(now = 0) {
+      const state = createRogueRun(SCENE_DEFINITIONS, now);
+      return {
+        mode: 'rogue',
+        complete: false,
+        state,
+        world: createSceneWorld(getRogueSceneId(state, SCENE_DEFINITIONS)),
+        label: getRogueStageLabel(state, SCENE_DEFINITIONS),
+      };
+    },
+
+    stepRogue(run, now = 0) {
+      const state = stepRogueRun(run.state, SCENE_DEFINITIONS, now);
+      const complete = isRogueComplete(state, SCENE_DEFINITIONS);
+      const sceneId = getRogueSceneId(state, SCENE_DEFINITIONS);
+
+      return {
+        mode: complete ? 'rogue-complete' : 'rogue',
+        complete,
+        state,
+        world: sceneId ? createSceneWorld(sceneId) : null,
+        label: getRogueStageLabel(state, SCENE_DEFINITIONS),
       };
     },
   };

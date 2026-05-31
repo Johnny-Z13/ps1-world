@@ -33,6 +33,7 @@ After CSS, JS, audio, image, or GLB changes, bump cache-busting query strings:
 - `src/world.js`: scene definitions and fallback metadata.
 - `src/levelGlb.js`: runtime parser/adapter for Blender-authored GLB level packages.
 - `src/ps1Display.js`: video presets, resolution modes, effect defaults.
+- `src/enemySpawnValidation.js`: runtime cleanup for GLB-authored zombie/enemy markers so spawned capsules stay in open walkable space.
 - `src/playerPhysics.js`, `src/playerHealth.js`, `src/zombies.js`: gameplay helpers with direct tests.
 - `assets/models/levels/`: Blender source file, seed data, exported GLBs.
 - `assets/audio/`: generated audio assets used by the runtime.
@@ -59,9 +60,11 @@ Role convention:
 - `ART_*`: visible geometry.
 - `COLLISION_*`: simplified blocker geometry.
 - `WALKABLE_*`: ground/stair/platform surfaces.
-- `MARKER_*`: gameplay markers such as player spawn, zombie spawn, health pickup, lights, torch lights, and kill plane.
+- `MARKER_*`: gameplay markers such as player spawn, zombie spawn, typed enemy spawn, health pickup, lights, torch lights, and kill plane.
 
 Prefer `extras.level_role` when available. Prefixes are fallback compatibility.
+
+Enemy and zombie markers should be authored in open playable space. Runtime validation snaps GLB-authored markers to walkable surfaces and offsets blocked capsules, but clean marker placement is still the authoring target.
 
 ## Testing
 

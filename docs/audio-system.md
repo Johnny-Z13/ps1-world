@@ -9,9 +9,15 @@ The browser runtime uses Web Audio after the first user gesture. Audio is organi
 - `playerSfxGain`: player damage, death, pickup, and similar diegetic player events.
 - Spatial emitters: zombies and torches use panners and update from world positions.
 
-The v1 cinematic layer lives in `src/app.js` to match the current runtime shape. Keep helper functions focused and named by responsibility: `ensureMusicLoop`, `syncCinematicMusicAudio`, `ensureSceneAmbienceLoop`, `playTransitionOneShot`, `playUiOneShot`, and `syncCutUpCountdownAudio`.
+The v1 cinematic layer lives in `src/app.js` to match the current runtime shape. Keep helper functions focused and named by responsibility: `ensureMusicLoop`, `syncCinematicMusicAudio`, `ensureSceneAmbienceLoop`, `playTransitionOneShot`, `playUiOneShot`, `playSpatialOneShot`, and `syncCutUpCountdownAudio`.
 
 Rogue mode reuses the transition bus for the final congratulations confetti sound. Scene ambience is data-driven from `src/world.js`, including the Rotwood forest wind/storm leaf beds.
+
+Enemy audio is profile-driven through `ENEMY_AUDIO_PROFILES` in `src/app.js`. Each enemy type should have a unique locomotion/idle loop and attack one-shot. Zombies, the one-eyed alien, and the Molten Stone Sentinel currently use separate crunchy 8-bit assets, with distance rolloff and wall occlusion.
+
+Player audio is split between continuous loops and spot events. Footsteps, low-health breathing, and heartbeat are loops/pulses; damage, death, health pickup, jump, and landing are one-shots. UI hover, toggle, select, Start, options open/close, and mode transitions are separate sounds so menu interaction has immediate feedback.
+
+Rainy scenes combine the scene ambience loop with spatial rain beds and drip spot effects. Lightning uses a visual threshold to fire a one-shot strike only once per flash. Rare world stingers are subtle spatial one-shots scheduled per scene to keep exploration from going silent between enemy encounters.
 
 ## Adding Or Replacing Audio
 

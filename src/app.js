@@ -21,6 +21,7 @@ import {
   isBelowKillPlane,
   resolveMovement,
 } from './playerPhysics.js';
+import { normalizeEnemySpawns } from './enemySpawnValidation.js';
 import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
 import { LEVEL_GLB_URLS, loadLevelGlb } from './levelGlb.js';
 import {
@@ -143,9 +144,42 @@ const OPTIONS_CLOSE_SOUND_URL = './assets/audio/sfx/options-close-click-8bit.mp3
 const HEALTH_PICKUP_SOUND_URL = './assets/audio/sfx/health-pickup-bing-8bit.mp3?v=1';
 const PLAYER_DEATH_SOUND_URL = './assets/audio/sfx/player-death-8bit.mp3?v=1';
 const PLAYER_DAMAGE_SOUND_URL = './assets/audio/sfx/player-damage-grunt-8bit.mp3?v=1';
+const PLAYER_JUMP_SOUND_URL = './assets/audio/sfx/player-jump-8bit.wav?v=1';
+const PLAYER_LAND_SOUND_URL = './assets/audio/sfx/player-land-thud-8bit.wav?v=1';
 const PLAYER_WALK_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-walk-8bit-loop.mp3?v=1';
 const PLAYER_SPRINT_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-sprint-8bit-loop.mp3?v=1';
 const PLAYER_LOW_HEALTH_BREATHING_LOOP_URL = './assets/audio/sfx/player-low-health-breathing-8bit-loop.mp3?v=1';
+const UI_HOVER_SOUND_URL = './assets/audio/sfx/ui-hover-blip-8bit.wav?v=1';
+const UI_TOGGLE_SOUND_URL = './assets/audio/sfx/ui-toggle-tick-8bit.wav?v=1';
+const UI_SELECT_SOUND_URL = './assets/audio/sfx/ui-select-change-8bit.wav?v=1';
+const RAIN_SPOT_DRIP_SOUND_URL = './assets/audio/sfx/rain-spot-drip-8bit.wav?v=1';
+const WORLD_RARE_STINGER_SOUND_URL = './assets/audio/sfx/world-rare-stinger-8bit.wav?v=1';
+const ENEMY_AUDIO_PROFILES = Object.freeze({
+  zombie: Object.freeze({
+    loopUrl: ZOMBIE_GRUNT_LOOP_URL,
+    attackUrl: './assets/audio/sfx/enemy-zombie-attack-bite-8bit.wav?v=1',
+    attackGain: 0.36,
+    maxLoopGain: 0.085,
+    openFilterHz: 4200,
+    occludedFilterHz: 760,
+  }),
+  'one-eye-alien': Object.freeze({
+    loopUrl: './assets/audio/sfx/enemy-alien-idle-warble-8bit-loop.wav?v=1',
+    attackUrl: './assets/audio/sfx/enemy-alien-attack-shriek-8bit.wav?v=1',
+    attackGain: 0.28,
+    maxLoopGain: 0.058,
+    openFilterHz: 1850,
+    occludedFilterHz: 720,
+  }),
+  'molten-sentinel': Object.freeze({
+    loopUrl: './assets/audio/sfx/enemy-sentinel-idle-furnace-8bit-loop.wav?v=1',
+    attackUrl: './assets/audio/sfx/enemy-sentinel-attack-impact-8bit.wav?v=1',
+    attackGain: 0.42,
+    maxLoopGain: 0.085,
+    openFilterHz: 760,
+    occludedFilterHz: 360,
+  }),
+});
 const SCENE_AMBIENCE_URLS = Object.freeze({
   dungeon: './assets/audio/ambience/dungeon-8bit-loop.mp3?v=1',
   'alien-landscape': './assets/audio/ambience/alien-landscape-8bit-loop.mp3?v=1',
@@ -169,6 +203,8 @@ const CUT_UP_AUDIO_DUCK_DURATION_MS = 420;
 const HEALTH_PICKUP_SOUND_GAIN = 0.46;
 const PLAYER_DEATH_SOUND_GAIN = 0.72;
 const PLAYER_DAMAGE_SOUND_GAIN = 0.5;
+const PLAYER_JUMP_SOUND_GAIN = 0.22;
+const PLAYER_LAND_SOUND_GAIN = 0.24;
 const PLAYER_WALK_FOOTSTEP_GAIN = 0.13;
 const PLAYER_SPRINT_FOOTSTEP_GAIN = 0.19;
 const PLAYER_LOW_HEALTH_BREATHING_GAIN = 0.24;
@@ -261,6 +297,7 @@ const rogueButtonState = { active: false };
 const gameState = { mode: 'normal' };
 const cutUpState = createCutUpState(CUT_UP_SCENE_COUNT);
 let rogueRun = null;
+let rogueTransitionPending = false;
 let mouseLookActive = false;
 let gameModeRequested = false;
 let optionsCloseReturnsToTitle = false;
@@ -342,6 +379,8 @@ function updatePlayer(dt, now) {
     player.groundY = groundY;
   }
 
+  const wasGrounded = player.grounded;
+  const previousVelocityY = player.velocityY;
   const jump = applyJumpPhysics(player, {
     jump: keys.has('Space') || touchJumpActive || gamepadInput.jump,
     dt,
@@ -351,6 +390,7 @@ function updatePlayer(dt, now) {
   player.velocityY = jump.velocityY;
   player.grounded = jump.grounded;
   player.groundY = jump.grounded ? jump.y : groundY ?? player.groundY;
+  syncPlayerMovementSpotAudio(wasGrounded, jump.grounded, previousVelocityY, jump.velocityY);
 
   if (isBelowKillPlane(player, getVoidDeathY(world.killY ?? -8))) {
     playerHealth = applyPlayerDamage(playerHealth, MAX_PLAYER_HEALTH);
@@ -614,11 +654,14 @@ function ensureAudioState() {
       waterNoiseBuffer: createWaterNoiseBuffer(context),
       zombieVoices: new Map(),
       specialEnemyVoices: new Map(),
+      enemyAttackTimes: new Map(),
       zombieLoopLoading: false,
       zombieLoopFailed: false,
       lastLightningIndex: -1,
       lastCutUpCountdownTick: null,
       cutUpAudioDuckStartedAt: -Infinity,
+      nextWorldStingerAt: performance.now() + 14000,
+      worldStingerSceneId: world.id,
     };
     applySceneReverb(audioState);
   }
@@ -671,6 +714,14 @@ function ensureSceneAudio() {
     CUT_UP_COUNTDOWN_TICK_SOUND_URL,
     OPTIONS_OPEN_SOUND_URL,
     OPTIONS_CLOSE_SOUND_URL,
+    PLAYER_JUMP_SOUND_URL,
+    PLAYER_LAND_SOUND_URL,
+    UI_HOVER_SOUND_URL,
+    UI_TOGGLE_SOUND_URL,
+    UI_SELECT_SOUND_URL,
+    RAIN_SPOT_DRIP_SOUND_URL,
+    WORLD_RARE_STINGER_SOUND_URL,
+    ...getEnemyAudioUrls(),
   ]) {
     loadAudioBuffer(state, url).catch(() => {});
   }
@@ -678,6 +729,10 @@ function ensureSceneAudio() {
   ensureLowHealthBreathingLoop(state);
   ensurePlayerHeartbeatLoop(state);
   ensureZombieGruntLoop(state);
+}
+
+function getEnemyAudioUrls() {
+  return Object.values(ENEMY_AUDIO_PROFILES).flatMap((profile) => [profile.loopUrl, profile.attackUrl]);
 }
 
 function loadAudioBuffer(state, url) {
@@ -789,6 +844,56 @@ function playAssetOneShot(state, url, gainNode) {
   source.start();
 }
 
+function playOneShotToNode(state, url, outputNode, volume = 1) {
+  const buffer = state.audioBuffers.get(url);
+  if (!buffer) {
+    loadAudioBuffer(state, url)
+      .then(() => {
+        if (audioState === state) playOneShotToNode(state, url, outputNode, volume);
+      })
+      .catch(() => {});
+    return;
+  }
+
+  const source = state.context.createBufferSource();
+  const gain = state.context.createGain();
+  source.buffer = buffer;
+  gain.gain.value = volume;
+  source.connect(gain);
+  gain.connect(outputNode);
+  source.start();
+}
+
+function playSpatialOneShot(state, url, position, volume = 1, options = {}) {
+  const buffer = state.audioBuffers.get(url);
+  if (!buffer) {
+    loadAudioBuffer(state, url)
+      .then(() => {
+        if (audioState === state) playSpatialOneShot(state, url, position, volume, options);
+      })
+      .catch(() => {});
+    return;
+  }
+
+  const source = state.context.createBufferSource();
+  const gain = state.context.createGain();
+  const panner = state.context.createPanner();
+  source.buffer = buffer;
+  gain.gain.value = volume;
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = options.refDistance ?? 1.2;
+  panner.maxDistance = options.maxDistance ?? 20;
+  panner.rolloffFactor = options.rolloffFactor ?? 1.8;
+  setAudioParam(panner.positionX, position.x, state.context.currentTime, 0);
+  setAudioParam(panner.positionY, position.y ?? player.y, state.context.currentTime, 0);
+  setAudioParam(panner.positionZ, position.z, state.context.currentTime, 0);
+  source.connect(gain);
+  gain.connect(panner);
+  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  source.start();
+}
+
 function playPlayerOneShot(url, volume) {
   const state = ensureAudioState();
   if (!state) return;
@@ -815,6 +920,18 @@ function playUiOneShot(url, volume = UI_SFX_GAIN) {
 
 function playMenuStartConfirmSound() {
   playPlayerOneShot(MENU_START_CONFIRM_SOUND_URL, MENU_START_CONFIRM_SOUND_GAIN);
+}
+
+function playUiHoverSound() {
+  playUiOneShot(UI_HOVER_SOUND_URL, UI_SFX_GAIN * 0.34);
+}
+
+function playUiToggleSound() {
+  playUiOneShot(UI_TOGGLE_SOUND_URL, UI_SFX_GAIN * 0.42);
+}
+
+function playUiSelectSound() {
+  playUiOneShot(UI_SELECT_SOUND_URL, UI_SFX_GAIN * 0.46);
 }
 
 function ensureMusicLoop(state, id, url, gainNode) {
@@ -888,6 +1005,24 @@ function triggerCutUpAudioDuck(now = performance.now()) {
   cutUpState.lastCutUpCountdownTick = null;
 }
 
+function syncWorldStingerAudio(state) {
+  const now = performance.now();
+  if (state.worldStingerSceneId !== world.id) {
+    state.worldStingerSceneId = world.id;
+    state.nextWorldStingerAt = now + 8000 + Math.random() * 9000;
+    return;
+  }
+
+  if (titleActive || optionsDialog.open || deathState.active || now < state.nextWorldStingerAt) return;
+
+  playSpatialOneShot(state, WORLD_RARE_STINGER_SOUND_URL, {
+    x: player.x + Math.sin(now * 0.0017) * 5,
+    y: player.y + 0.4,
+    z: player.z + Math.cos(now * 0.0013) * 5,
+  }, 0.16, { refDistance: 3.5, maxDistance: 28, rolloffFactor: 0.9 });
+  state.nextWorldStingerAt = now + 18000 + Math.random() * 24000;
+}
+
 function updateSceneAudio(time, lightningStrength) {
   if (!audioState) return;
 
@@ -906,6 +1041,7 @@ function updateSceneAudio(time, lightningStrength) {
   syncRainWaterAudio(audioState);
   syncZombieSpatialAudio(audioState);
   syncSpecialEnemyAudio(audioState);
+  syncWorldStingerAudio(audioState);
   const targetAmbience = getSceneAmbienceGain();
   audioState.ambienceGain.gain.setTargetAtTime(targetAmbience, audioState.context.currentTime, 0.36);
 
@@ -980,6 +1116,18 @@ function getPlayerFootstepGains() {
     walk: sprinting ? 0 : PLAYER_WALK_FOOTSTEP_GAIN,
     sprint: sprinting ? PLAYER_SPRINT_FOOTSTEP_GAIN : 0,
   };
+}
+
+function syncPlayerMovementSpotAudio(wasGrounded, isGrounded, previousVelocityY, currentVelocityY) {
+  if (titleActive || optionsDialog.open || deathState.active) return;
+  if (wasGrounded && !isGrounded && currentVelocityY > 0.5) {
+    playPlayerOneShot(PLAYER_JUMP_SOUND_URL, PLAYER_JUMP_SOUND_GAIN);
+    return;
+  }
+  if (!wasGrounded && isGrounded && previousVelocityY < -1.2) {
+    const landGain = Math.min(0.38, PLAYER_LAND_SOUND_GAIN + Math.abs(previousVelocityY) * 0.035);
+    playPlayerOneShot(PLAYER_LAND_SOUND_URL, landGain);
+  }
 }
 
 function ensureLowHealthBreathingLoop(state) {
@@ -1255,6 +1403,16 @@ function scheduleRainDripPulse(state, voice) {
 }
 
 function playRainDripPulse(state, voice) {
+  if (state.audioBuffers.has(RAIN_SPOT_DRIP_SOUND_URL)) {
+    playOneShotToNode(
+      state,
+      RAIN_SPOT_DRIP_SOUND_URL,
+      voice.panner,
+      RAIN_DRIP_GAIN * (0.55 + Math.random() * 0.7),
+    );
+    return;
+  }
+
   const now = state.context.currentTime;
   const oscillator = state.context.createOscillator();
   const envelope = state.context.createGain();
@@ -1390,19 +1548,29 @@ function syncSpecialEnemyAudio(state) {
   if (!titleActive && !optionsDialog.open && !deathState.active && effects.zombies) {
     for (const enemy of zombies) {
       if (!isSpecialEnemy(enemy)) continue;
+      const profile = getEnemyAudioProfile(enemy);
+      const buffer = state.audioBuffers.get(profile.loopUrl);
+      if (!buffer) {
+        loadAudioBuffer(state, profile.loopUrl).catch(() => {});
+        continue;
+      }
       const gain = getSpecialEnemyLoopGain(enemy);
       if (gain <= 0) continue;
 
       activeIds.add(enemy.id);
-      const voice = getSpecialEnemyVoice(state, enemy);
+      const voice = getSpecialEnemyVoice(state, enemy, buffer, profile);
       const occluded = isZombieAudioOccluded(enemy);
       voice.gain.gain.setTargetAtTime(gain, state.context.currentTime, 0.28);
-      voice.filter.frequency.setTargetAtTime(occluded ? 680 : voice.openFilterHz, state.context.currentTime, 0.18);
+      voice.filter.frequency.setTargetAtTime(
+        occluded ? profile.occludedFilterHz : profile.openFilterHz,
+        state.context.currentTime,
+        0.18,
+      );
       voice.panner.positionX.setTargetAtTime(enemy.x, state.context.currentTime, 0.08);
       voice.panner.positionY.setTargetAtTime(enemy.y, state.context.currentTime, 0.08);
       voice.panner.positionZ.setTargetAtTime(enemy.z, state.context.currentTime, 0.08);
       if (Math.hypot(player.x - enemy.x, player.z - enemy.z) < 1.7) {
-        playEnemyAttackSound(state, enemy, voice);
+        playEnemyAttackSound(state, enemy, 0.72);
       }
     }
   }
@@ -1411,6 +1579,7 @@ function syncSpecialEnemyAudio(state) {
     if (activeIds.has(id)) continue;
     stopSpecialEnemyVoice(state, voice);
     state.specialEnemyVoices.delete(id);
+    state.enemyAttackTimes.delete(id);
   }
 }
 
@@ -1418,43 +1587,43 @@ function isSpecialEnemy(enemy) {
   return enemy?.enemyType === 'one-eye-alien' || enemy?.enemyType === 'molten-sentinel';
 }
 
-function getSpecialEnemyVoice(state, enemy) {
+function getEnemyAudioProfile(enemy) {
+  return ENEMY_AUDIO_PROFILES[enemy?.enemyType ?? 'zombie'] ?? ENEMY_AUDIO_PROFILES.zombie;
+}
+
+function getSpecialEnemyVoice(state, enemy, buffer, profile) {
   if (state.specialEnemyVoices.has(enemy.id)) return state.specialEnemyVoices.get(enemy.id);
 
-  const oscillator = state.context.createOscillator();
+  const source = state.context.createBufferSource();
   const gain = state.context.createGain();
   const filter = state.context.createBiquadFilter();
   const panner = state.context.createPanner();
-  const alien = enemy.enemyType === 'one-eye-alien';
 
-  oscillator.type = alien ? 'sawtooth' : 'square';
-  oscillator.frequency.value = alien ? 145 + (enemy.animationSeed ?? 0) * 70 : 42 + (enemy.animationSeed ?? 0) * 18;
+  source.buffer = buffer;
+  source.loop = true;
   gain.gain.value = 0;
-  filter.type = alien ? 'bandpass' : 'lowpass';
-  filter.frequency.value = alien ? 980 : 420;
-  filter.Q.value = alien ? 5.5 : 1.4;
+  filter.type = enemy.enemyType === 'one-eye-alien' ? 'bandpass' : 'lowpass';
+  filter.frequency.value = profile.openFilterHz;
+  filter.Q.value = enemy.enemyType === 'one-eye-alien' ? 5.5 : 1.4;
   panner.panningModel = 'HRTF';
   panner.distanceModel = 'inverse';
   panner.refDistance = SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE;
   panner.maxDistance = SPECIAL_ENEMY_LOOP_MAX_DISTANCE;
-  panner.rolloffFactor = alien ? 2.4 : 2.0;
+  panner.rolloffFactor = enemy.enemyType === 'one-eye-alien' ? 2.4 : 2.0;
   setAudioParam(panner.positionX, enemy.x, state.context.currentTime, 0);
   setAudioParam(panner.positionY, enemy.y, state.context.currentTime, 0);
   setAudioParam(panner.positionZ, enemy.z, state.context.currentTime, 0);
-  oscillator.connect(filter);
+  source.connect(filter);
   filter.connect(gain);
   gain.connect(panner);
   connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
-  oscillator.start();
+  source.start();
 
   const voice = {
-    oscillator,
+    source,
     gain,
     filter,
     panner,
-    openFilterHz: alien ? 1450 : 580,
-    maxGain: alien ? 0.04 : 0.07,
-    lastAttackSoundAt: -Infinity,
   };
   state.specialEnemyVoices.set(enemy.id, voice);
   return voice;
@@ -1464,7 +1633,7 @@ function stopSpecialEnemyVoice(state, voice) {
   voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
   setTimeout(() => {
     try {
-      voice.oscillator.stop();
+      voice.source.stop();
     } catch {
       // Already stopped by the browser audio engine.
     }
@@ -1475,40 +1644,25 @@ function getSpecialEnemyLoopGain(enemy) {
   const distance = Math.hypot(player.x - enemy.x, player.z - enemy.z);
   if (distance >= SPECIAL_ENEMY_LOOP_MAX_DISTANCE) return 0;
   const occlusion = isZombieAudioOccluded(enemy) ? 0.45 : 1;
-  const maxGain = enemy.enemyType === 'molten-sentinel' ? 0.07 : 0.04;
+  const maxGain = getEnemyAudioProfile(enemy).maxLoopGain;
   if (distance <= SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE) return maxGain * occlusion;
   const fadeRange = SPECIAL_ENEMY_LOOP_MAX_DISTANCE - SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE;
   const fade = 1 - (distance - SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE) / fadeRange;
   return Math.max(0, Math.min(maxGain, fade * fade * maxGain * occlusion));
 }
 
-function playEnemyAttackSound(state, enemy, voice) {
+function playEnemyAttackSound(state, enemy, volumeScale = 1) {
   const now = performance.now();
-  if (now - voice.lastAttackSoundAt < SPECIAL_ENEMY_ATTACK_COOLDOWN_MS) return;
-  voice.lastAttackSoundAt = now;
+  const lastAttackAt = state.enemyAttackTimes.get(enemy.id) ?? -Infinity;
+  if (now - lastAttackAt < SPECIAL_ENEMY_ATTACK_COOLDOWN_MS) return;
 
-  const oscillator = state.context.createOscillator();
-  const gain = state.context.createGain();
-  const panner = state.context.createPanner();
-  const alien = enemy.enemyType === 'one-eye-alien';
-  const startTime = state.context.currentTime;
-  oscillator.type = alien ? 'triangle' : 'sawtooth';
-  oscillator.frequency.setValueAtTime(alien ? 620 : 96, startTime);
-  oscillator.frequency.exponentialRampToValueAtTime(alien ? 180 : 42, startTime + 0.22);
-  gain.gain.setValueAtTime(alien ? 0.12 : 0.18, startTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.26);
-  panner.panningModel = 'HRTF';
-  panner.distanceModel = 'inverse';
-  panner.refDistance = 1;
-  panner.maxDistance = 18;
-  setAudioParam(panner.positionX, enemy.x, startTime, 0);
-  setAudioParam(panner.positionY, enemy.y, startTime, 0);
-  setAudioParam(panner.positionZ, enemy.z, startTime, 0);
-  oscillator.connect(gain);
-  gain.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
-  oscillator.start(startTime);
-  oscillator.stop(startTime + 0.28);
+  state.enemyAttackTimes.set(enemy.id, now);
+  const profile = getEnemyAudioProfile(enemy);
+  playSpatialOneShot(state, profile.attackUrl, enemy, profile.attackGain * volumeScale, {
+    refDistance: 1,
+    maxDistance: 20,
+    rolloffFactor: enemy.enemyType === 'molten-sentinel' ? 1.6 : 2.2,
+  });
 }
 
 function getZombieGruntGain(zombie) {
@@ -2037,43 +2191,51 @@ function setupOptions() {
     startRogueMode();
   });
   quitGameButton.addEventListener('click', () => {
+    playUiSelectSound();
     quitToTitleScreen();
   });
   rogueReturnButton.addEventListener('click', () => {
+    playUiSelectSound();
     quitToTitleScreen();
   });
   startButton.addEventListener('pointerenter', () => {
     titleButtonState.active = true;
+    playUiHoverSound();
   });
   startButton.addEventListener('pointerleave', () => {
     titleButtonState.active = false;
   });
   startButton.addEventListener('focus', () => {
     titleButtonState.active = true;
+    playUiHoverSound();
   });
   startButton.addEventListener('blur', () => {
     titleButtonState.active = false;
   });
   cutUpButton.addEventListener('pointerenter', () => {
     cutUpButtonState.active = true;
+    playUiHoverSound();
   });
   cutUpButton.addEventListener('pointerleave', () => {
     cutUpButtonState.active = false;
   });
   cutUpButton.addEventListener('focus', () => {
     cutUpButtonState.active = true;
+    playUiHoverSound();
   });
   cutUpButton.addEventListener('blur', () => {
     cutUpButtonState.active = false;
   });
   rogueButton.addEventListener('pointerenter', () => {
     rogueButtonState.active = true;
+    playUiHoverSound();
   });
   rogueButton.addEventListener('pointerleave', () => {
     rogueButtonState.active = false;
   });
   rogueButton.addEventListener('focus', () => {
     rogueButtonState.active = true;
+    playUiHoverSound();
   });
   rogueButton.addEventListener('blur', () => {
     rogueButtonState.active = false;
@@ -2096,6 +2258,7 @@ function setupOptions() {
     const input = document.querySelector(`#${id}`);
     input.checked = Boolean(effects[key]);
     input.addEventListener('change', () => {
+      playUiToggleSound();
       effects[key] = input.checked;
       if (key === 'showReticule') syncReticule();
       if (key === 'debugHud') updateDebugHud(0);
@@ -2112,6 +2275,7 @@ function setupOptions() {
   }));
   preset.value = effects.preset;
   preset.addEventListener('change', () => {
+    playUiSelectSound();
     Object.assign(effects, applyVideoPreset(effects, preset.value));
     setRenderResolution(effects.resolutionId);
     syncOptionsControls();
@@ -2126,6 +2290,7 @@ function setupOptions() {
   }));
   syncSceneSelect();
   scene.addEventListener('change', () => {
+    playUiSelectSound();
     const index = SCENE_DEFINITIONS.findIndex((definition) => definition.id === scene.value);
     if (gameState.mode === 'cut-up' && index !== -1) {
       jumpToCutUpScene(index);
@@ -2143,12 +2308,14 @@ function setupOptions() {
   }));
   resolution.value = effects.resolutionId;
   resolution.addEventListener('change', () => {
+    playUiSelectSound();
     setRenderResolution(resolution.value);
   });
 
   const pixelScale = document.querySelector('#pixelScale');
   pixelScale.value = String(effects.pixelScale);
   pixelScale.addEventListener('input', () => {
+    playUiToggleSound();
     effects.pixelScale = normalizePixelScale(pixelScale.value);
     pixelScale.value = String(effects.pixelScale);
     canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
@@ -2247,6 +2414,7 @@ async function startRogueMode() {
   cutUpState.active = false;
   cutUpHud.hidden = true;
   rogueRun = createRogueRun(SCENE_DEFINITIONS, performance.now());
+  rogueTransitionPending = false;
   rogueWinScreen.hidden = true;
   ensureSceneAudio();
   playMenuStartConfirmSound();
@@ -2270,6 +2438,7 @@ function quitToTitleScreen() {
   titleScreen.hidden = false;
   gameState.mode = 'rogue-complete';
   rogueRun = null;
+  rogueTransitionPending = false;
   rogueWinScreen.hidden = true;
   cutUpState.active = false;
   cutUpHud.hidden = true;
@@ -2301,6 +2470,7 @@ function quitToTitleScreen() {
 
 async function updateRogueMode(now) {
   if (gameState.mode !== 'rogue' || !rogueRun?.active || titleActive || optionsDialog.open || deathState.active) return;
+  if (rogueTransitionPending) return;
   if (!world.warpGate) return;
 
   const gate = world.warpGate;
@@ -2308,6 +2478,7 @@ async function updateRogueMode(now) {
   const verticalDistance = Math.abs((player.y - PLAYER_EYE_HEIGHT) - gate.y);
   if (distance > (gate.radius ?? 1.05) || verticalDistance > 2.2) return;
 
+  rogueTransitionPending = true;
   rogueRun = stepRogueRun(rogueRun, SCENE_DEFINITIONS, now);
   if (isRogueComplete(rogueRun, SCENE_DEFINITIONS)) {
     completeRogueRun();
@@ -2316,14 +2487,19 @@ async function updateRogueMode(now) {
 
   const sceneId = getRogueSceneId(rogueRun, SCENE_DEFINITIONS);
   playTransitionOneShot(CUT_UP_SCENE_SLICE_SOUND_URL, TRANSITION_SFX_GAIN * 0.58);
-  await setScene(sceneId);
-  syncSceneSelect();
+  try {
+    await setScene(sceneId);
+    syncSceneSelect();
+  } finally {
+    rogueTransitionPending = false;
+  }
 }
 
 function completeRogueRun() {
   keys.clear();
   gameState.mode = 'normal';
   rogueRun = { ...rogueRun, active: false, complete: true };
+  rogueTransitionPending = false;
   mouseLookActive = false;
   gameModeRequested = false;
   softMouseLockActive = false;
@@ -2379,16 +2555,16 @@ function renderTitleScreen(time) {
   drawCenteredBitmapText('ps1-world', 146, 7, '#f3dc92', time);
   drawBloodWarningText(time);
   const titleButtonBlink = getTitleButtonBlink(time);
-  drawBitmapButton(time, { y: 276, label: 'start', detail: 'free roam', active: titleButtonState.active, blink: titleButtonBlink });
-  drawBitmapButton(time, { y: 324, label: 'start', detail: 'cut-up mode', active: cutUpButtonState.active, blink: titleButtonBlink });
-  drawBitmapButton(time, { y: 372, label: 'start', detail: 'rogue', active: rogueButtonState.active, blink: titleButtonBlink });
-  drawCenteredBitmapText('wasd+mouse or gamepad', 398, 1.5, '#cfc7aa', time);
-  drawCenteredBitmapText(TITLE_LAST_COMMIT_MESSAGE, TITLE_HEIGHT - 16, 1, '#8f8a77', time);
+  drawBitmapButton(time, { y: 264, label: 'free roam', active: titleButtonState.active, blink: titleButtonBlink });
+  drawBitmapButton(time, { y: 310, label: 'cut-up mode', active: cutUpButtonState.active, blink: titleButtonBlink });
+  drawBitmapButton(time, { y: 356, label: 'rogue', active: rogueButtonState.active, blink: titleButtonBlink });
+  drawCenteredBitmapText('wasd+mouse or gamepad', 416, 1.25, '#cfc7aa', time);
+  drawCenteredBitmapText(TITLE_LAST_COMMIT_MESSAGE, 462, 1, '#8f8a77', time);
 }
 
 function drawBloodWarningText(time) {
   const text = 'watch out for the zombies';
-  const y = 248;
+  const y = 234;
   const scale = 1.5;
   drawCenteredBitmapText(text, y + 2, scale, '#280205', time, { x: 1, y: 1 });
   drawCenteredBitmapText(text, y + 1, scale, '#5e0b16', time, { x: Math.sin(time * 9) > 0.72 ? 1 : 0, y: 0 });
@@ -2428,12 +2604,12 @@ function drawTitleBackdrop(time) {
   }
 
   titleContext.fillStyle = 'rgba(190, 38, 54, 0.12)';
-  titleContext.fillRect(132, 186 + Math.floor(pulse / 8), 248, 94);
+  titleContext.fillRect(132, 174 + Math.floor(pulse / 8), 248, 86);
 }
 
 function drawBitmapButton(time, options) {
-  const width = 160;
-  const height = 38;
+  const width = 150;
+  const height = 32;
   const textScale = 1.5;
   const x = Math.floor((TITLE_WIDTH - width) / 2);
   const y = options.y;
@@ -2445,8 +2621,7 @@ function drawBitmapButton(time, options) {
   titleContext.fillRect(x, y + height - 3, width, 3);
   titleContext.fillRect(x, y, 3, height);
   titleContext.fillRect(x + width - 3, y, 3, height);
-  drawCenteredBitmapText(options.label, y + 6, textScale, active ? '#17110d' : '#f7e9b7', time);
-  drawCenteredBitmapText(options.detail, y + 22, textScale, active ? '#2b2116' : '#cfc7aa', time);
+  drawCenteredBitmapText(options.label, y + 10, textScale, active ? '#17110d' : '#f7e9b7', time);
 }
 
 function getTitleButtonBlink(time) {
@@ -2565,6 +2740,8 @@ function damagePlayer(now, enemy = null) {
   if (!playerHealth.dead && getHealthDanger(playerHealth) > 0) {
     lowHealthNoticeStartedAt = now;
   }
+  const state = ensureAudioState();
+  if (state && enemy) playEnemyAttackSound(state, enemy, 1);
   playPlayerOneShot(PLAYER_DAMAGE_SOUND_URL, PLAYER_DAMAGE_SOUND_GAIN);
   if (playerHealth.dead) {
     startDeathSequence(now, { damage: false });
@@ -2943,12 +3120,23 @@ async function getLoadedLevel(id) {
 }
 
 function createWorldFromLevelAsset(fallback, levelAsset) {
+  const levelColliders = getLevelRuntimeColliders(levelAsset);
+  const levelWalkableSurfaces = getLevelRuntimeWalkableSurfaces(levelAsset);
+  const zombieSpawns = normalizeEnemySpawns(
+    levelAsset.zombieSpawns.length ? levelAsset.zombieSpawns : fallback.zombieSpawns,
+    { colliders: levelColliders, walkableSurfaces: levelWalkableSurfaces, defaultRadius: 0.38 },
+  );
+  const enemySpawns = normalizeEnemySpawns(
+    getRuntimeEnemySpawns(fallback, levelAsset.enemySpawns),
+    { colliders: levelColliders, walkableSurfaces: levelWalkableSurfaces, defaultRadius: 0.38 },
+  );
+
   return {
     ...fallback,
     levelAsset,
     playerSpawn: levelAsset.playerSpawn ?? fallback.playerSpawn,
-    zombieSpawns: levelAsset.zombieSpawns.length ? levelAsset.zombieSpawns : fallback.zombieSpawns,
-    enemySpawns: getRuntimeEnemySpawns(fallback, levelAsset.enemySpawns),
+    zombieSpawns,
+    enemySpawns,
     healthPotions: levelAsset.healthPotions.length ? mergeLevelHealthPotions(levelAsset.healthPotions, fallback.healthPotions) : fallback.healthPotions,
     damageZones: levelAsset.damageZones.length ? levelAsset.damageZones : fallback.damageZones ?? [],
     lights: levelAsset.lights.length ? levelAsset.lights : fallback.lights,
@@ -2956,6 +3144,27 @@ function createWorldFromLevelAsset(fallback, levelAsset) {
     killY: levelAsset.killY ?? fallback.killY,
     textures: createLevelTextureDescriptors(levelAsset, fallback),
   };
+}
+
+function getLevelRuntimeColliders(levelAsset) {
+  return levelAsset.collision.map((collider) => ({
+    minX: collider.minX,
+    maxX: collider.maxX,
+    minY: collider.minY,
+    maxY: collider.maxY,
+    minZ: collider.minZ,
+    maxZ: collider.maxZ,
+  }));
+}
+
+function getLevelRuntimeWalkableSurfaces(levelAsset) {
+  return levelAsset.walkableSurfaces.map((surface) => ({
+    minX: surface.minX,
+    maxX: surface.maxX,
+    minZ: surface.minZ,
+    maxZ: surface.maxZ,
+    topY: surface.topY,
+  }));
 }
 
 function getRuntimeEnemySpawns(fallback, levelEnemySpawns) {
@@ -3016,14 +3225,7 @@ function rebuildWarehouseMesh() {
 
 function getSceneColliders(scene) {
   if (scene.levelAsset) {
-    return scene.levelAsset.collision.map((collider) => ({
-      minX: collider.minX,
-      maxX: collider.maxX,
-      minY: collider.minY,
-      maxY: collider.maxY,
-      minZ: collider.minZ,
-      maxZ: collider.maxZ,
-    }));
+    return getLevelRuntimeColliders(scene.levelAsset);
   }
 
   return [...scene.walls, ...scene.crates, ...(scene.platforms ?? [])]
@@ -3033,13 +3235,7 @@ function getSceneColliders(scene) {
 
 function getSceneWalkableSurfaces(scene) {
   if (scene.levelAsset) {
-    return scene.levelAsset.walkableSurfaces.map((surface) => ({
-      minX: surface.minX,
-      maxX: surface.maxX,
-      minZ: surface.minZ,
-      maxZ: surface.maxZ,
-      topY: surface.topY,
-    }));
+    return getLevelRuntimeWalkableSurfaces(scene.levelAsset);
   }
 
   const floorPieces = scene.floorPieces ?? [scene.floor];

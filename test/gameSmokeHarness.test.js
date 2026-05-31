@@ -48,3 +48,26 @@ test('smoke harness steps Cut-Up countdown and scene jump', () => {
   assert.match(jumped.hud, /^CUT UP 2\/9 /);
   assert.equal(jumped.flash, 1);
 });
+
+test('smoke harness completes Rogue only after all nine warp advances', () => {
+  const harness = createGameSmokeHarness();
+  let run = harness.startRogue(2000);
+
+  assert.equal(run.mode, 'rogue');
+  assert.equal(run.world.id, SCENE_DEFINITIONS[0].id);
+  assert.equal(run.label, 'ROGUE 1/9');
+  assert.equal(run.complete, false);
+
+  for (let index = 1; index < SCENE_DEFINITIONS.length; index += 1) {
+    run = harness.stepRogue(run, 2000 + index * 1000);
+    assert.equal(run.mode, 'rogue');
+    assert.equal(run.complete, false);
+    assert.equal(run.world.id, SCENE_DEFINITIONS[index].id);
+    assert.equal(run.label, `ROGUE ${index + 1}/9`);
+  }
+
+  run = harness.stepRogue(run, 2000 + SCENE_DEFINITIONS.length * 1000);
+  assert.equal(run.mode, 'rogue-complete');
+  assert.equal(run.complete, true);
+  assert.equal(run.world, null);
+});

@@ -46,7 +46,7 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(app, /const TITLE_WIDTH = 512/);
   assert.match(app, /drawBitmapGlyph/);
   assert.match(app, /TITLE_LAST_COMMIT_MESSAGE = 'last commit polish scenes and gameplay feedback'/);
-  assert.match(app, /drawCenteredBitmapText\(TITLE_LAST_COMMIT_MESSAGE,\s*TITLE_HEIGHT - 16,\s*1,\s*'#8f8a77',\s*time/);
+  assert.match(app, /drawCenteredBitmapText\(TITLE_LAST_COMMIT_MESSAGE,\s*462,\s*1,\s*'#8f8a77',\s*time/);
   assert.match(app, /wasd\+mouse or gamepad/);
   assert.match(app, /watch out for the zombies/);
   assert.match(app, /drawBloodWarningText/);
@@ -81,14 +81,20 @@ test('offers Rogue title mode with warp progression and a victory screen', () =>
   assert.match(index, /aria-label="Rogue"/);
   assert.match(index, /id="rogueWinScreen"/);
   assert.match(index, /id="rogueReturnButton"/);
+  assert.match(index, /GAME OVER/);
+  assert.match(index, /ALL 9 WORLDS CLEARED/);
   assert.match(styles, /\.title-rogue-hitbox/);
   assert.match(styles, /\.rogue-win-screen/);
+  assert.match(styles, /@keyframes rogueWinJitter/);
+  assert.match(styles, /image-rendering:\s*pixelated/);
   assert.match(app, /ROGUE_WIN_SOUND_URL/);
   assert.match(app, /rogue-win-confetti\.wav\?v=1/);
   assert.match(app, /function startRogueMode/);
   assert.match(app, /function updateRogueMode/);
   assert.match(app, /function completeRogueRun/);
   assert.match(app, /gameState\.mode = 'rogue'/);
+  assert.match(app, /let rogueTransitionPending = false/);
+  assert.match(app, /if \(rogueTransitionPending\) return/);
   assert.match(app, /world\.warpGate/);
   assert.match(app, /addWarpGate/);
   assert.match(app, /rogueReturnButton\.addEventListener\('click'/);
@@ -114,16 +120,18 @@ test('warns and flashes before Cut Up jumps scenes', () => {
 });
 
 test('keeps title mode buttons compact and vertically separated', () => {
-  assert.match(styles, /max-width:\s*160px/);
-  assert.match(styles, /max-height:\s*38px/);
-  assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.31\)/);
-  assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.079\)/);
+  assert.match(styles, /max-width:\s*150px/);
+  assert.match(styles, /max-height:\s*32px/);
+  assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.29\)/);
+  assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.067\)/);
   assert.match(app, /const titleButtonBlink = getTitleButtonBlink\(time\)/);
-  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 276,\s*label: 'start',\s*detail: 'free roam'/);
-  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 324,\s*label: 'start',\s*detail: 'cut-up mode'/);
-  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 372,\s*label: 'start',\s*detail: 'rogue'/);
-  assert.match(app, /const width = 160/);
-  assert.match(app, /const height = 38/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 264,\s*label: 'free roam'/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 310,\s*label: 'cut-up mode'/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 356,\s*label: 'rogue'/);
+  assert.match(app, /drawCenteredBitmapText\('wasd\+mouse or gamepad', 416, 1\.25/);
+  assert.match(app, /drawCenteredBitmapText\(TITLE_LAST_COMMIT_MESSAGE, 462, 1/);
+  assert.match(app, /const width = 150/);
+  assert.match(app, /const height = 32/);
   assert.match(app, /const textScale = 1\.5/);
   assert.match(app, /drawCenteredBitmapText\('ps1-world', 146, 7/);
   assert.match(styles, /font-size:\s*11px/);
@@ -480,6 +488,12 @@ test('loads typed enemy models and gives special enemies unique audio hooks', ()
   assert.match(app, /SENTINEL_DAMAGE/);
   assert.match(app, /function syncSpecialEnemyAudio/);
   assert.match(app, /function playEnemyAttackSound/);
+  assert.match(app, /ENEMY_AUDIO_PROFILES/);
+  assert.match(app, /enemy-zombie-attack-bite-8bit\.wav\?v=1/);
+  assert.match(app, /enemy-alien-idle-warble-8bit-loop\.wav\?v=1/);
+  assert.match(app, /enemy-alien-attack-shriek-8bit\.wav\?v=1/);
+  assert.match(app, /enemy-sentinel-idle-furnace-8bit-loop\.wav\?v=1/);
+  assert.match(app, /enemy-sentinel-attack-impact-8bit\.wav\?v=1/);
   assert.match(app, /specialEnemyVoices/);
 });
 
@@ -513,6 +527,8 @@ test('plays audio assets for lightning and scene ambience', () => {
   assert.match(app, /function loadAudioBuffer/);
   assert.match(app, /function ensureSceneAmbienceLoop/);
   assert.match(app, /function playAssetOneShot/);
+  assert.match(app, /WORLD_RARE_STINGER_SOUND_URL/);
+  assert.match(app, /function syncWorldStingerAudio/);
   assert.match(app, /audioState\.ambienceGain\.gain\.setTargetAtTime/);
   assert.doesNotMatch(app, /createNoiseBuffer/);
 });
@@ -523,6 +539,8 @@ test('adds procedural water and drip audio for rainy scenes', () => {
   assert.match(app, /function getRainWaterVoice/);
   assert.match(app, /function scheduleRainDripPulse/);
   assert.match(app, /function playRainDripPulse/);
+  assert.match(app, /RAIN_SPOT_DRIP_SOUND_URL/);
+  assert.match(app, /rain-spot-drip-8bit\.wav\?v=1/);
   assert.match(app, /world\.rain/);
   assert.match(app, /connectSceneAudioNode\(panner,\s*state\.dryGain,\s*state\.reverbInput\)/);
 });
@@ -534,11 +552,26 @@ test('crossfades walking and sprinting player footstep loops', () => {
   assert.match(app, /player-footsteps-sprint-8bit-loop\.mp3\?v=1/);
   assert.match(app, /function ensurePlayerFootstepLoops/);
   assert.match(app, /function syncPlayerFootstepAudio/);
+  assert.match(app, /function syncPlayerMovementSpotAudio/);
+  assert.match(app, /player-jump-8bit\.wav\?v=1/);
+  assert.match(app, /player-land-thud-8bit\.wav\?v=1/);
   assert.match(app, /function getPlayerFootstepGains/);
   assert.match(app, /player\.grounded/);
   assert.match(app, /keys\.has\('ShiftLeft'\) \|\| gamepadInput\.sprint/);
   assert.match(app, /footstepWalkGain\.gain\.setTargetAtTime/);
   assert.match(app, /footstepSprintGain\.gain\.setTargetAtTime/);
+});
+
+test('adds responsive UI spot sounds across menu controls', () => {
+  assert.match(app, /UI_HOVER_SOUND_URL/);
+  assert.match(app, /UI_TOGGLE_SOUND_URL/);
+  assert.match(app, /UI_SELECT_SOUND_URL/);
+  assert.match(app, /ui-hover-blip-8bit\.wav\?v=1/);
+  assert.match(app, /ui-toggle-tick-8bit\.wav\?v=1/);
+  assert.match(app, /ui-select-change-8bit\.wav\?v=1/);
+  assert.match(app, /function playUiHoverSound/);
+  assert.match(app, /function playUiToggleSound/);
+  assert.match(app, /function playUiSelectSound/);
 });
 
 test('loops a generated player heartbeat that speeds up near zombies', () => {

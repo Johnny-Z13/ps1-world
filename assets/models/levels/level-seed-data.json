@@ -68,6 +68,10 @@
         {
           "id": "healthPotion",
           "size": 64
+        },
+        {
+          "id": "warpGate",
+          "size": 64
         }
       ],
       "floor": {
@@ -1069,28 +1073,13 @@
           "enemyType": "one-eye-alien",
           "label": "One-Eyed Alien",
           "mesh": "one-eye-alien",
-          "x": 4,
+          "x": 4.95,
           "y": 1.45,
           "z": -10,
           "yaw": 0,
           "radius": 0.45,
           "speed": 0.92,
           "damage": 18
-        },
-        {
-          "name": "dungeon molten-sentinel spawner",
-          "role": "enemy",
-          "spawnerType": "enemy",
-          "enemyType": "molten-sentinel",
-          "label": "Molten Stone Sentinel",
-          "mesh": "molten-sentinel",
-          "x": 8.4,
-          "y": 1.45,
-          "z": 1.5,
-          "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45
         }
       ],
       "healthPotions": [
@@ -1206,6 +1195,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -2029,7 +2022,7 @@
           "enemyType": "one-eye-alien",
           "label": "One-Eyed Alien",
           "mesh": "one-eye-alien",
-          "x": -12,
+          "x": -10.48,
           "y": 1.45,
           "z": 24,
           "yaw": 0,
@@ -2046,11 +2039,12 @@
           "mesh": "molten-sentinel",
           "x": 18,
           "y": 1.45,
-          "z": 0,
+          "z": 0.88,
           "yaw": 0,
           "radius": 0.38,
           "speed": 0.78,
-          "damage": 45
+          "damage": 45,
+          "minimumHeadClearance": 4.8
         }
       ],
       "healthPotions": [
@@ -2161,6 +2155,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -2894,28 +2892,13 @@
           "enemyType": "one-eye-alien",
           "label": "One-Eyed Alien",
           "mesh": "one-eye-alien",
-          "x": -11,
+          "x": -9.48,
           "y": 1.45,
           "z": 12,
           "yaw": 0,
           "radius": 0.45,
           "speed": 0.92,
           "damage": 18
-        },
-        {
-          "name": "derelict-starship molten-sentinel spawner",
-          "role": "enemy",
-          "spawnerType": "enemy",
-          "enemyType": "molten-sentinel",
-          "label": "Molten Stone Sentinel",
-          "mesh": "molten-sentinel",
-          "x": 0,
-          "y": 1.45,
-          "z": -10,
-          "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45
         }
       ],
       "healthPotions": [
@@ -3026,6 +3009,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -3139,6 +3126,18 @@
           "collider": null
         },
         {
+          "name": "floating platform near span",
+          "x": 0,
+          "y": 0.15,
+          "z": 8,
+          "width": 16,
+          "depth": 6,
+          "height": 0.7,
+          "texture": "neonTile",
+          "motion": null,
+          "collider": null
+        },
+        {
           "name": "floating platform tree island",
           "x": 11,
           "y": 0.4,
@@ -3158,6 +3157,18 @@
           "width": 13,
           "depth": 8,
           "height": 0.7,
+          "texture": "neonTile",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "floating platform mid span",
+          "x": -6,
+          "y": 0.1,
+          "z": -7,
+          "width": 12,
+          "depth": 6,
+          "height": 0.65,
           "texture": "neonTile",
           "motion": null,
           "collider": null
@@ -3753,7 +3764,7 @@
           "mesh": "one-eye-alien",
           "x": 9,
           "y": 1.45,
-          "z": 3,
+          "z": 3.95,
           "yaw": 0,
           "radius": 0.45,
           "speed": 0.92,
@@ -3768,11 +3779,12 @@
           "mesh": "molten-sentinel",
           "x": -2,
           "y": 1.45,
-          "z": -16,
+          "z": -15.12,
           "yaw": 0,
           "radius": 0.38,
           "speed": 0.78,
-          "damage": 45
+          "damage": 45,
+          "minimumHeadClearance": 4.8
         }
       ],
       "healthPotions": [
@@ -3872,6 +3884,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -4576,7 +4592,7 @@
           "enemyType": "one-eye-alien",
           "label": "One-Eyed Alien",
           "mesh": "one-eye-alien",
-          "x": 16,
+          "x": 17.52,
           "y": 1.45,
           "z": 18,
           "yaw": 0,
@@ -4591,13 +4607,14 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 0,
+          "x": 0.88,
           "y": 1.45,
           "z": -16,
           "yaw": 0,
           "radius": 0.38,
           "speed": 0.78,
-          "damage": 45
+          "damage": 45,
+          "minimumHeadClearance": 4.8
         }
       ],
       "healthPotions": [
@@ -4696,6 +4713,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -6411,7 +6432,7 @@
           "enemyType": "one-eye-alien",
           "label": "One-Eyed Alien",
           "mesh": "one-eye-alien",
-          "x": 18,
+          "x": 19.52,
           "y": 1.45,
           "z": 20,
           "yaw": 0,
@@ -6426,13 +6447,14 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": -18,
+          "x": -19.408,
           "y": 1.45,
           "z": 20,
           "yaw": 0,
           "radius": 0.38,
           "speed": 0.78,
-          "damage": 45
+          "damage": 45,
+          "minimumHeadClearance": 4.8
         }
       ],
       "healthPotions": [
@@ -6565,6 +6587,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -11248,7 +11274,7 @@
           "enemyType": "one-eye-alien",
           "label": "One-Eyed Alien",
           "mesh": "one-eye-alien",
-          "x": 16,
+          "x": 17.52,
           "y": 1.45,
           "z": 14,
           "yaw": 0,
@@ -11263,13 +11289,14 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 2,
+          "x": 3.4080000000000004,
           "y": 1.45,
           "z": -22,
           "yaw": 0,
           "radius": 0.38,
           "speed": 0.78,
-          "damage": 45
+          "damage": 45,
+          "minimumHeadClearance": 4.8
         }
       ],
       "healthPotions": [
@@ -11389,6 +11416,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -12181,7 +12212,7 @@
           "mesh": "one-eye-alien",
           "x": 12,
           "y": 1.45,
-          "z": -5,
+          "z": -4.05,
           "yaw": 0,
           "radius": 0.45,
           "speed": 0.92,
@@ -12194,13 +12225,14 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 0,
+          "x": 0.88,
           "y": 1.45,
           "z": -24,
           "yaw": 0,
           "radius": 0.38,
           "speed": 0.78,
-          "damage": 45
+          "damage": 45,
+          "minimumHeadClearance": 4.8
         }
       ],
       "healthPotions": [
@@ -12323,6 +12355,10 @@
         },
         {
           "id": "healthPotion",
+          "size": 64
+        },
+        {
+          "id": "warpGate",
           "size": 64
         }
       ],
@@ -13386,7 +13422,7 @@
           "enemyType": "one-eye-alien",
           "label": "One-Eyed Alien",
           "mesh": "one-eye-alien",
-          "x": 0,
+          "x": 0.9500000000000001,
           "y": 1.45,
           "z": -14,
           "yaw": 0,
@@ -13403,11 +13439,12 @@
           "mesh": "molten-sentinel",
           "x": -18,
           "y": 1.45,
-          "z": 14,
+          "z": 14.88,
           "yaw": 0,
           "radius": 0.38,
           "speed": 0.78,
-          "damage": 45
+          "damage": 45,
+          "minimumHeadClearance": 4.8
         }
       ],
       "healthPotions": [

@@ -89,18 +89,20 @@ Each `LEVEL_<scene-id>` collection should keep child collections for render art,
 
 - Free Roam, Cut-Up, and Rogue title modes.
 - Cut-Up countdown and white flash before scene jumps.
-- Rogue run progression through all nine scenes using per-scene warp gates, followed by a congratulations screen and return-to-title button.
+- Rogue run progression through all nine scenes using per-scene warp gates, followed by an in-game pixel `GAME OVER` completion screen and return-to-title button.
 - Nine selectable scenes.
 - Scene 2 (`alien-landscape`) has 20 zombies for stress testing.
 - Health, zombie bite damage, death sequence, health pickups.
 - Authored lava floor damage zones.
 - CRT/video presets and debug HUD.
-- Generated ambience, SFX, Rogue win, and scene-specific weather assets.
+- Generated ambience, per-enemy idle/attack SFX, player movement spots, UI SFX, Rogue win, rain/lightning, and scene-specific weather assets.
+- Runtime enemy spawn validation snaps GLB-authored zombie and enemy markers to walkable surfaces and keeps capsules out of walls/cubes.
 
 ## Safe Change Rules
 
 - Read the code before claiming how a system works.
 - Keep edits scoped.
 - Update docs when adding authoring roles, asset conventions, or pipeline steps.
+- Update `docs/test-harness.md` when adding broad smoke coverage.
 - Run tests before reporting completion.
 - Do not commit/push mixed work without explicit scope confirmation.

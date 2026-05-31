@@ -36,10 +36,11 @@ On touch devices, press the left side to spawn a floating movement joystick, dra
 
 - Title screen with Free Roam, Cut-Up Mode, and Rogue.
 - Cut-Up Mode cycles through all nine worlds, warns with `jump in 3/2/1`, flashes white, then jumps to the next world.
-- Rogue starts in world 1, places a far warp gate in each scene, advances through all nine worlds, then shows a congratulations screen with confetti SFX and a title return button.
+- Rogue starts in world 1, places a far warp gate in each scene, advances through all nine worlds, then shows an in-game pixel `GAME OVER` completion screen with confetti SFX and a title return button.
 - CRT/video presets, resolution modes, reticule toggle, debug HUD, player torch, and zombie toggle.
 - Player health, low-health screen/audio pressure, red damage flash/scratch feedback, zombie bite damage, authored lava damage zones, death sequence, health flasks, and pickup flash.
-- Generated ambience/SFX assets, spatial zombie grunts, torch crackle, footsteps, heartbeat, menu confirm, damage, death, pickup, Rogue win, and scene-specific weather sounds.
+- Generated ambience/SFX assets, per-enemy idle and attack sounds, torch crackle, footsteps, jump/land spots, heartbeat, menu UI sounds, damage, death, pickup, Rogue win, rain drips, lightning, and rare world stingers.
+- Runtime enemy spawn validation snaps GLB-authored zombie and enemy markers onto walkable space and keeps capsules out of walls, cubes, and blockers.
 - Scene 2 (`alien-landscape`) is currently a 20-zombie stress scene.
 
 ## Project Map
@@ -48,6 +49,7 @@ On touch devices, press the left side to spawn a floating movement joystick, dra
 - `styles.css`: fixed UI, title hitboxes, HUDs, touch controls, options dialog.
 - `src/app.js`: main runtime orchestration, WebGL render path, input, audio, gameplay, title/Cut-Up/Rogue flow.
 - `src/rogueMode.js`: pure Rogue run progression helpers.
+- `src/enemySpawnValidation.js`: runtime validation for GLB-authored zombie and enemy spawn markers.
 - `src/world.js`: scene registry and fallback/generated scene metadata.
 - `src/levelGlb.js`: runtime GLB parser for Blender-authored level packages.
 - `src/ps1Display.js`: video presets, resolution modes, effect defaults.
@@ -78,6 +80,8 @@ blender -b assets/models/levels/ps1-world-levels.blend --python scripts/reexport
 ```
 
 The runtime loads GLBs through `src/levelGlb.js`. GLB nodes are classified by `extras.level_role` first, then by documented name prefixes such as `ART_`, `COLLISION_`, `WALKABLE_`, and `MARKER_`.
+
+Enemy and zombie markers can be authored in Blender, but they are validated when levels load: the browser runtime snaps them to the highest walkable surface at their X/Z and offsets blocked capsules away from collision. Keep markers intentionally in open playable areas anyway; runtime validation is a safety net, not a substitute for clean authoring.
 
 Each `LEVEL_<scene-id>` collection in Blender is organized into collapsible child collections for art, collision, walkable surfaces, markers, and triggers. The dungeon includes a concrete example of material-driven gameplay: `ART_dungeon_example_lava_damage_floor` uses `LEVELMAT_lava`, and `TRIGGER_dungeon_DAMAGE_ZONE_1_example_lava_damage_trigger` defines the damage volume consumed by the game.
 

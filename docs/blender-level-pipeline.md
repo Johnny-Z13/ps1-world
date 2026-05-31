@@ -64,6 +64,8 @@ Each `LEVEL_<scene-id>` collection is an artist-facing container with named chil
 
 The GLB exporter writes Blender custom properties as glTF `extras`. The runtime loader should prefer `extras.level_role` when available and fall back to the name prefixes above.
 
+Enemy and zombie markers should be placed in open playable space, outside walls, crates, decorative collision, and other blockers. The browser runtime runs `src/enemySpawnValidation.js` as a safety net: it snaps GLB-authored enemy markers to the highest walkable surface at their X/Z and offsets blocked capsules into nearby open space. Do not rely on this to hide sloppy authoring; clean marker placement keeps browser and downstream Unity behavior easier to reason about.
+
 The dungeon contains a named example: `ART_dungeon_example_lava_damage_floor` using `LEVELMAT_lava`, plus `TRIGGER_dungeon_DAMAGE_ZONE_1_example_lava_damage_trigger` in the trigger collection. That is the pattern for Doom-style damaging floor materials: the visible floor has `surfaceType: lava`, and the trigger volume supplies the actual gameplay damage.
 
 ## Runtime Status
@@ -81,7 +83,8 @@ Implemented:
 4. Collision arrays are built from `COLLISION_*` nodes.
 5. Walkable-surface queries are built from `WALKABLE_*` nodes.
 6. Gameplay state comes from markers: player spawn, zombie spawns, typed enemy spawns, pickups, lights, torch lights, kill planes, and damage zones.
-7. `src/world.js` remains as fallback metadata for scene labels, audio, generated support textures, and fallback scene data if a GLB fails to load.
+7. Runtime enemy spawn validation normalizes GLB-authored zombie and typed enemy markers before `src/zombies.js` creates live enemies.
+8. `src/world.js` remains as fallback metadata for scene labels, audio, generated support textures, and fallback scene data if a GLB fails to load.
 
 Next expansions:
 
