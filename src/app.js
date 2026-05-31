@@ -26,6 +26,7 @@ import { LEVEL_GLB_URLS, loadLevelGlb } from './levelGlb.js';
 import {
   createZombieEnemies,
   isPlayerTouchedByZombie,
+  resolvePlayerZombieCollision,
   updateZombieEnemies,
 } from './zombies.js';
 import { animateZombieModel, loadZombieGlb } from './zombieModel.js';
@@ -51,6 +52,7 @@ const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
 const debugHudPanel = document.querySelector('#debugHud');
 const debugFps = document.querySelector('#debugFps');
+const debugScene = document.querySelector('#debugScene');
 const debugZombies = document.querySelector('#debugZombies');
 const debugEnemies = document.querySelector('#debugEnemies');
 const titleScreen = document.querySelector('#titleScreen');
@@ -142,6 +144,8 @@ const PLAYER_SPRINT_FOOTSTEP_GAIN = 0.19;
 const PLAYER_LOW_HEALTH_BREATHING_GAIN = 0.24;
 const HEALTH_PICKUP_FLASH_DURATION_MS = 520;
 const DAMAGE_FLASH_DURATION_MS = 420;
+const DAMAGE_SCRATCH_MAX_OFFSET = 0.055;
+const DAMAGE_SCRATCH_MAX_ROTATION = 0.18;
 const LOW_HEALTH_NOTICE_DURATION_MS = 2200;
 const ZOMBIE_BITE_COOLDOWN_MS = 1150;
 const DAMAGE_ZONE_SOUND_INTERVAL_MS = 760;
@@ -153,6 +157,10 @@ const PLAYER_HEARTBEAT_DANGER_DISTANCE = 9;
 const TORCH_CRACKLE_MAX_DISTANCE = 16;
 const TORCH_CRACKLE_REF_DISTANCE = 1.2;
 const TORCH_CRACKLE_GAIN = 0.045;
+const RAIN_WATER_MAX_DISTANCE = 34;
+const RAIN_WATER_REF_DISTANCE = 3.4;
+const RAIN_WATER_BED_GAIN = 0.038;
+const RAIN_DRIP_GAIN = 0.075;
 const ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE = 1.0;
 const ZOMBIE_GRUNT_MAX_DISTANCE = 22;
 const ZOMBIE_GRUNT_MAX_GAIN = 0.085;
@@ -181,6 +189,8 @@ let lastZombieBiteAt = -Infinity;
 let lastDamageZoneSoundAt = -Infinity;
 let healthPickupFlashStartedAt = -Infinity;
 let lastDamageFlashStartedAt = -Infinity;
+let damageScratchOffset = { x: 0, y: 0 };
+let damageScratchRotation = 0;
 let lowHealthNoticeStartedAt = -Infinity;
 const player = {
   x: world.playerSpawn.x,
@@ -226,9 +236,11 @@ let lastPointerUnlockAt = 0;
 let softMouseLockActive = false;
 let softMouseEdgeTurn = { yaw: 0, pitch: 0 };
 let lastMousePosition = null;
+let skyProgram;
 let sceneProgram;
 let postProgram;
 let warehouseMesh;
+let skyDomeMesh;
 let zombieMesh;
 let zombieModel = null;
 let zombieTextureImage = null;
@@ -282,8 +294,9 @@ function updatePlayer(dt, now) {
     0.32,
   );
 
-  player.x = next.x;
-  player.z = next.z;
+  const separated = resolvePlayerZombieCollision({ ...player, x: next.x, z: next.z }, zombies);
+  player.x = separated.x;
+  player.z = separated.z;
 
   const groundY = getGroundYAt(player, walkableSurfaces);
   if (groundY === null || (player.grounded && player.y > groundY + 0.08)) {
@@ -336,6 +349,8 @@ function render(time, now = performance.now()) {
   gl.disable(gl.BLEND);
   gl.clearColor(...world.clearColor);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  drawSkyDome(time, now);
 
   gl.useProgram(sceneProgram.program);
   gl.activeTexture(gl.TEXTURE0);
@@ -395,9 +410,12 @@ function render(time, now = performance.now()) {
   gl.uniform1f(postProgram.uniforms.uHealthPulse, healthEffect.pulse);
   gl.uniform1f(postProgram.uniforms.uHealthPickupFlash, getHealthPickupFlash(now));
   gl.uniform1f(postProgram.uniforms.uDamageFlash, getDamageFlash(now));
+  gl.uniform2f(postProgram.uniforms.uDamageScratchOffset, damageScratchOffset.x, damageScratchOffset.y);
+  gl.uniform1f(postProgram.uniforms.uDamageScratchRotation, damageScratchRotation);
   gl.uniform1f(postProgram.uniforms.uDeathTint, getDeathTint(now));
   gl.uniform1f(postProgram.uniforms.uDeathProgress, getDeathSceneProgress(now));
   gl.uniform1f(postProgram.uniforms.uCutUpFlash, getCutUpJumpFlash(cutUpState, now));
+  gl.uniform1f(postProgram.uniforms.uCutUpCountdown, getCutUpCountdownNumber(cutUpState, now));
   drawQuad(gl, postProgram, quad);
 
   if (titleActive) {
@@ -554,6 +572,8 @@ function ensureAudioState() {
       lowHealthBreathingFailed: false,
       heartbeatLoopTimer: null,
       torchCrackleVoices: new Map(),
+      waterfallVoices: new Map(),
+      waterNoiseBuffer: createWaterNoiseBuffer(context),
       zombieVoices: new Map(),
       zombieLoopLoading: false,
       zombieLoopFailed: false,
@@ -844,6 +864,7 @@ function updateSceneAudio(time, lightningStrength) {
   syncPlayerHeartbeatAudio(audioState);
   syncCutUpCountdownAudio(audioState);
   syncTorchCrackleAudio(audioState);
+  syncRainWaterAudio(audioState);
   syncZombieSpatialAudio(audioState);
   const targetAmbience = getSceneAmbienceGain();
   audioState.ambienceGain.gain.setTargetAtTime(targetAmbience, audioState.context.currentTime, 0.36);
@@ -1104,6 +1125,123 @@ function stopTorchCrackleVoice(state, voice) {
     voice.timerId = null;
   }
   voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
+}
+
+function createWaterNoiseBuffer(context) {
+  const sampleRate = context.sampleRate;
+  const buffer = context.createBuffer(1, sampleRate * 2, sampleRate);
+  const channel = buffer.getChannelData(0);
+  let previous = 0;
+  for (let index = 0; index < channel.length; index += 1) {
+    previous = previous * 0.82 + (Math.random() * 2 - 1) * 0.18;
+    channel[index] = previous * 0.7;
+  }
+  return buffer;
+}
+
+function syncRainWaterAudio(state) {
+  const activeIds = new Set();
+  const rainSources = getRainWaterSources();
+  if (!titleActive && !optionsDialog.open && !deathState.active && rainSources.length) {
+    for (const source of rainSources) {
+      const id = `${world.id}:waterfall:${source.index}`;
+      activeIds.add(id);
+      const voice = getRainWaterVoice(state, id, source);
+      const gain = RAIN_WATER_BED_GAIN * Math.min(1.35, source.height / 22);
+      voice.gain.gain.setTargetAtTime(gain, state.context.currentTime, 0.36);
+      voice.panner.positionX.setTargetAtTime(source.x, state.context.currentTime, 0.12);
+      voice.panner.positionY.setTargetAtTime(source.y - source.height * 0.42, state.context.currentTime, 0.12);
+      voice.panner.positionZ.setTargetAtTime(source.z, state.context.currentTime, 0.12);
+    }
+  }
+
+  for (const [id, voice] of state.waterfallVoices) {
+    if (activeIds.has(id)) continue;
+    stopRainWaterVoice(state, voice);
+    state.waterfallVoices.delete(id);
+  }
+}
+
+function getRainWaterSources() {
+  if (!world.rain?.drops?.length) return [];
+  return world.rain.drops
+    .map((drop, index) => ({ ...drop, index }))
+    .sort((a, b) => (b.height * b.width) - (a.height * a.width))
+    .slice(0, 4);
+}
+
+function getRainWaterVoice(state, id, source) {
+  if (state.waterfallVoices.has(id)) return state.waterfallVoices.get(id);
+
+  const sourceNode = state.context.createBufferSource();
+  const filter = state.context.createBiquadFilter();
+  const gain = state.context.createGain();
+  const panner = state.context.createPanner();
+  sourceNode.buffer = state.waterNoiseBuffer;
+  sourceNode.loop = true;
+  filter.type = 'bandpass';
+  filter.frequency.value = 1450 + (source.index % 5) * 180;
+  filter.Q.value = 0.75;
+  gain.gain.value = 0;
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = RAIN_WATER_REF_DISTANCE;
+  panner.maxDistance = RAIN_WATER_MAX_DISTANCE;
+  panner.rolloffFactor = 1.4;
+  setAudioParam(panner.positionX, source.x, state.context.currentTime, 0);
+  setAudioParam(panner.positionY, source.y - source.height * 0.42, state.context.currentTime, 0);
+  setAudioParam(panner.positionZ, source.z, state.context.currentTime, 0);
+  sourceNode.connect(filter);
+  filter.connect(gain);
+  gain.connect(panner);
+  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  sourceNode.start();
+
+  const voice = { id, source: sourceNode, gain, panner, timerId: null, seed: source.index * 23.41 };
+  state.waterfallVoices.set(id, voice);
+  scheduleRainDripPulse(state, voice);
+  return voice;
+}
+
+function scheduleRainDripPulse(state, voice) {
+  const delay = 220 + Math.floor(Math.random() * 980 + voice.seed % 160);
+  voice.timerId = window.setTimeout(() => {
+    voice.timerId = null;
+    if (audioState !== state || !state.waterfallVoices.has(voice.id)) return;
+
+    playRainDripPulse(state, voice);
+    scheduleRainDripPulse(state, voice);
+  }, delay);
+}
+
+function playRainDripPulse(state, voice) {
+  const now = state.context.currentTime;
+  const oscillator = state.context.createOscillator();
+  const envelope = state.context.createGain();
+  oscillator.type = 'triangle';
+  oscillator.frequency.setValueAtTime(880 + Math.random() * 1700, now);
+  envelope.gain.setValueAtTime(0.0001, now);
+  envelope.gain.exponentialRampToValueAtTime(RAIN_DRIP_GAIN * (0.45 + Math.random() * 0.55), now + 0.006);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, now + 0.055 + Math.random() * 0.08);
+  oscillator.connect(envelope);
+  envelope.connect(voice.panner);
+  oscillator.start(now);
+  oscillator.stop(now + 0.18);
+}
+
+function stopRainWaterVoice(state, voice) {
+  if (voice.timerId) {
+    window.clearTimeout(voice.timerId);
+    voice.timerId = null;
+  }
+  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.12);
+  window.setTimeout(() => {
+    try {
+      voice.source.stop();
+    } catch {
+      // Already stopped by the browser audio engine.
+    }
+  }, 220);
 }
 
 function ensureZombieGruntLoop(state) {
@@ -1936,6 +2074,8 @@ function quitToTitleScreen() {
   softMouseLockActive = false;
   resetSoftMouseEdgeTurn();
   lastDamageFlashStartedAt = -Infinity;
+  damageScratchOffset = { x: 0, y: 0 };
+  damageScratchRotation = 0;
   lowHealthNoticeStartedAt = -Infinity;
   lowHealthNotice.hidden = true;
   deathState.active = false;
@@ -2163,6 +2303,7 @@ function updateDebugHud(dt) {
   const zombieCount = zombies.length;
   const enemyCount = effects.zombies ? zombieCount : 0;
   if (debugFps) debugFps.textContent = String(Math.round(debugHud.fps));
+  if (debugScene) debugScene.textContent = world.label;
   if (debugZombies) debugZombies.textContent = String(zombieCount);
   if (debugEnemies) debugEnemies.textContent = String(enemyCount);
 }
@@ -2172,6 +2313,7 @@ function damagePlayer(now) {
 
   lastZombieBiteAt = now;
   playerHealth = applyPlayerDamage(playerHealth, ZOMBIE_BITE_DAMAGE);
+  randomizeDamageScratch();
   lastDamageFlashStartedAt = now;
   if (!playerHealth.dead && getHealthDanger(playerHealth) > 0) {
     lowHealthNoticeStartedAt = now;
@@ -2180,6 +2322,14 @@ function damagePlayer(now) {
   if (playerHealth.dead) {
     startDeathSequence(now, { damage: false });
   }
+}
+
+function randomizeDamageScratch() {
+  damageScratchOffset = {
+    x: (Math.random() * 2 - 1) * DAMAGE_SCRATCH_MAX_OFFSET,
+    y: (Math.random() * 2 - 1) * DAMAGE_SCRATCH_MAX_OFFSET,
+  };
+  damageScratchRotation = (Math.random() * 2 - 1) * DAMAGE_SCRATCH_MAX_ROTATION;
 }
 
 function updateDamageZones(dt, now) {
@@ -2458,10 +2608,16 @@ function restoreCutUpSceneState(sceneId) {
 }
 
 function updateCutUpHud(now = performance.now()) {
-  cutUpHud.hidden = gameState.mode !== 'cut-up' || titleActive;
-  if (cutUpHud.hidden) return;
-
+  cutUpHud.hidden = true;
   cutUpHud.textContent = getCutUpHudText(cutUpState, SCENE_DEFINITIONS, now);
+}
+
+function getCutUpCountdownNumber(state, now = performance.now()) {
+  if (!state.active || titleActive || optionsDialog.open || deathState.active) return 0;
+
+  const remaining = Math.max(0, CUT_UP_INTERVAL_MS - (now - state.sceneStartedAt)) / 1000;
+  if (remaining <= 0 || remaining > CUT_UP_COUNTDOWN_SECONDS) return 0;
+  return Math.ceil(remaining);
 }
 
 function getSceneShortcutIndex(code) {
@@ -2564,6 +2720,8 @@ function resetPlayerToSpawn() {
   playerHealth = createPlayerHealth();
   healthPickupFlashStartedAt = -Infinity;
   lastDamageFlashStartedAt = -Infinity;
+  damageScratchOffset = { x: 0, y: 0 };
+  damageScratchRotation = 0;
   lowHealthNoticeStartedAt = -Infinity;
   lastDamageZoneSoundAt = -Infinity;
   if (lowHealthNotice) lowHealthNotice.hidden = true;
@@ -2766,7 +2924,9 @@ function createWarehouseMesh(glContext, scene, indices) {
     }
   }
 
-  if (scene.stars) {
+  if (scene.skyDome) {
+    // Sky domes replace flat star cards for distant sky.
+  } else if (scene.stars) {
     addStars(geometry, scene.stars, indices);
   }
 
@@ -3126,6 +3286,65 @@ function drawMesh(glContext, program, mesh) {
   bindAttribute(glContext, program.attributes.aShade, mesh.shade, 1);
   bindAttribute(glContext, program.attributes.aMotion, mesh.motion, 1);
   glContext.drawArrays(glContext.TRIANGLES, 0, mesh.count);
+}
+
+function drawSkyDome(time, now) {
+  if (!world.skyDome || !skyProgram || !skyDomeMesh) return;
+
+  const camera = getActiveCamera(now);
+  gl.depthMask(false);
+  gl.disable(gl.DEPTH_TEST);
+  gl.useProgram(skyProgram.program);
+  bindAttribute(gl, skyProgram.attributes.aPosition, skyDomeMesh.position, 3);
+  gl.uniformMatrix4fv(skyProgram.uniforms.uViewProjection, false, createViewProjection(now));
+  gl.uniform3f(skyProgram.uniforms.uCameraPosition, camera.x, camera.y, camera.z);
+  gl.uniform1f(skyProgram.uniforms.uTime, time);
+  gl.uniform1f(skyProgram.uniforms.uSkyMode, getSkyDomeMode(world.skyDome));
+  gl.uniform1f(skyProgram.uniforms.uSkyPalette, getSkyDomePalette(world.skyDome));
+  gl.drawArrays(gl.TRIANGLES, 0, skyDomeMesh.count);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthMask(true);
+}
+
+function getSkyDomeMode(skyDome) {
+  return skyDome.mode === 'clouds' ? 1 : 0;
+}
+
+function getSkyDomePalette(skyDome) {
+  if (skyDome.palette === 'electric-blue') return 1;
+  if (skyDome.palette === 'one-bit-night') return 2;
+  return 0;
+}
+
+function createSkyDomeMesh(glContext) {
+  const positions = [];
+  const rings = 9;
+  const segments = 32;
+  const bottom = -0.18;
+
+  for (let ring = 0; ring < rings; ring += 1) {
+    const v0 = ring / rings;
+    const v1 = (ring + 1) / rings;
+    const y0 = bottom + (1 - bottom) * v0;
+    const y1 = bottom + (1 - bottom) * v1;
+    const r0 = Math.sqrt(Math.max(0, 1 - y0 * y0));
+    const r1 = Math.sqrt(Math.max(0, 1 - y1 * y1));
+
+    for (let segment = 0; segment < segments; segment += 1) {
+      const a0 = segment / segments * Math.PI * 2;
+      const a1 = (segment + 1) / segments * Math.PI * 2;
+      const p00 = [Math.cos(a0) * r0, y0, Math.sin(a0) * r0];
+      const p01 = [Math.cos(a1) * r0, y0, Math.sin(a1) * r0];
+      const p10 = [Math.cos(a0) * r1, y1, Math.sin(a0) * r1];
+      const p11 = [Math.cos(a1) * r1, y1, Math.sin(a1) * r1];
+      positions.push(...p00, ...p10, ...p01, ...p01, ...p10, ...p11);
+    }
+  }
+
+  return {
+    count: positions.length / 3,
+    position: createBuffer(glContext, new Float32Array(positions)),
+  };
 }
 
 function createPostQuad(glContext) {
@@ -3834,6 +4053,7 @@ function clamp(value, min, max) {
 }
 
 async function start() {
+  skyProgram = createProgram(gl, skyVertexShader, skyFragmentShader);
   sceneProgram = createProgram(gl, sceneVertexShader, sceneFragmentShader);
   postProgram = createProgram(gl, postVertexShader, postFragmentShader);
   world = await createSceneRuntimeWorld(effects.sceneId);
@@ -3844,6 +4064,7 @@ async function start() {
   damageZones = createSceneDamageZones(world);
   resetPlayerToSpawn();
   warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
+  skyDomeMesh = createSkyDomeMesh(gl);
   zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);
   atlasTexture = await createSceneTextureAtlas(gl, world, zombieTextureImage);
@@ -3880,6 +4101,90 @@ async function loadZombieTextureImage(texture) {
     URL.revokeObjectURL(url);
   }
 }
+
+const skyVertexShader = `
+attribute vec3 aPosition;
+
+uniform mat4 uViewProjection;
+uniform vec3 uCameraPosition;
+
+varying vec3 vSkyDirection;
+varying float vSkyHeight;
+
+void main() {
+  vSkyDirection = normalize(aPosition);
+  vSkyHeight = clamp(aPosition.y * 0.5 + 0.5, 0.0, 1.0);
+  vec3 worldPosition = uCameraPosition + aPosition * 72.0;
+  gl_Position = uViewProjection * vec4(worldPosition, 1.0);
+}
+`;
+
+const skyFragmentShader = `
+precision mediump float;
+
+uniform float uTime;
+uniform float uSkyMode;
+uniform float uSkyPalette;
+
+varying vec3 vSkyDirection;
+varying float vSkyHeight;
+
+float hashSky(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float valueNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(hashSky(i + vec2(0.0, 0.0)), hashSky(i + vec2(1.0, 0.0)), u.x),
+    mix(hashSky(i + vec2(0.0, 1.0)), hashSky(i + vec2(1.0, 1.0)), u.x),
+    u.y
+  );
+}
+
+float starField(vec3 direction) {
+  vec2 p = vec2(atan(direction.z, direction.x) * 18.0, direction.y * 24.0);
+  float tiny = step(0.985, hashSky(floor(p * 4.0)));
+  float bright = step(0.996, hashSky(floor(p * 9.0) + 41.0));
+  float horizonFade = smoothstep(0.08, 0.44, direction.y);
+  return clamp(tiny * 0.48 + bright, 0.0, 1.0) * horizonFade;
+}
+
+vec3 starrySky(vec3 direction) {
+  vec3 horizon = vec3(0.055, 0.040, 0.075);
+  vec3 zenith = vec3(0.005, 0.006, 0.025);
+  if (uSkyPalette > 1.5) {
+    horizon = vec3(0.12, 0.10, 0.075);
+    zenith = vec3(0.025, 0.020, 0.015);
+  }
+  float swirl = valueNoise(direction.xz * 2.6 + vec2(uTime * 0.015, 0.0));
+  vec3 color = mix(horizon, zenith, smoothstep(0.0, 0.92, vSkyHeight));
+  color += vec3(0.08, 0.05, 0.13) * smoothstep(0.46, 0.86, swirl) * smoothstep(0.1, 0.9, vSkyHeight);
+  color += vec3(1.0, 0.92, 0.68) * starField(direction);
+  return color;
+}
+
+vec3 cloudSky(vec3 direction) {
+  vec3 horizon = vec3(0.22, 0.55, 0.88);
+  vec3 zenith = vec3(0.05, 0.18, 0.72);
+  vec3 color = mix(horizon, zenith, smoothstep(0.02, 0.95, vSkyHeight));
+  vec2 p = vec2(atan(direction.z, direction.x) * 2.4, direction.y * 3.2);
+  float clouds = valueNoise(p * 2.0 + vec2(uTime * 0.018, 0.0));
+  clouds += valueNoise(p * 4.6 + vec2(4.0, uTime * 0.01)) * 0.5;
+  float cloudBand = smoothstep(0.54, 1.04, clouds) * smoothstep(-0.05, 0.36, direction.y) * (1.0 - smoothstep(0.82, 1.0, direction.y));
+  color = mix(color, vec3(0.72, 0.88, 0.98), cloudBand * 0.72);
+  color += vec3(0.22, 0.04, 0.32) * smoothstep(0.62, 0.94, valueNoise(p * 1.2 + 8.0)) * 0.18;
+  return color;
+}
+
+void main() {
+  vec3 direction = normalize(vSkyDirection);
+  vec3 color = uSkyMode > 0.5 ? cloudSky(direction) : starrySky(direction);
+  gl_FragColor = vec4(color, 1.0);
+}
+`;
 
 const sceneVertexShader = `
 attribute vec3 aPosition;
@@ -4070,10 +4375,16 @@ void main() {
   color = mix(color, vec3(0.15 + uLightningStrength * 1.7), lightningMask);
   color = mix(color, color + vec3(0.18, 0.32, 0.34), rainMask);
   float oneBitTone = dot(color, vec3(0.299, 0.587, 0.114));
-  float oneBitThreshold = orderedDither(gl_FragCoord.xy) * 0.34 + 0.28;
+  float oneBitDepth = floor(clamp(oneBitTone + orderedDither(gl_FragCoord.xy) * 0.18, 0.0, 1.0) * 4.0) / 3.0;
   vec3 oneBitInk = vec3(0.09, 0.075, 0.055);
+  vec3 oneBitMid = vec3(0.36, 0.30, 0.20);
   vec3 oneBitPaper = vec3(0.86, 0.82, 0.67);
-  color = mix(color, mix(oneBitInk, oneBitPaper, step(oneBitThreshold, oneBitTone)), uOneBit);
+  vec3 oneBitAccent = vec3(0.18, 0.42, 0.48);
+  vec3 oneBitTonal = mix(oneBitInk, oneBitMid, smoothstep(0.05, 0.62, oneBitDepth));
+  oneBitTonal = mix(oneBitTonal, oneBitPaper, smoothstep(0.48, 1.0, oneBitDepth));
+  float oneBitChromatic = clamp((color.b - color.r) * 0.28 + (staticTorch0 + staticTorch1 + staticTorch2) * 0.035, 0.0, 0.18);
+  oneBitTonal = mix(oneBitTonal, oneBitAccent, oneBitChromatic);
+  color = mix(color, oneBitTonal, uOneBit);
   gl_FragColor = vec4(color, 1.0);
 }
 `;
@@ -4113,9 +4424,12 @@ uniform float uHealthDanger;
 uniform float uHealthPulse;
 uniform float uHealthPickupFlash;
 uniform float uDamageFlash;
+uniform vec2 uDamageScratchOffset;
+uniform float uDamageScratchRotation;
 uniform float uDeathTint;
 uniform float uDeathProgress;
 uniform float uCutUpFlash;
+uniform float uCutUpCountdown;
 
 varying vec2 vUv;
 
@@ -4173,6 +4487,68 @@ float clawScratch(vec2 uv, vec2 start, float angle, float length, float width) {
   return groove * taper;
 }
 
+float pixelBox(vec2 p, vec2 minCorner, vec2 size) {
+  vec2 inside = step(minCorner, p) * step(p, minCorner + size);
+  return inside.x * inside.y;
+}
+
+float pixelLetter(vec2 p, float code) {
+  float mask = 0.0;
+  if (code < 0.5) {
+    mask += pixelBox(p, vec2(0.62, 0.08), vec2(0.22, 0.68));
+    mask += pixelBox(p, vec2(0.18, 0.08), vec2(0.66, 0.18));
+    mask += pixelBox(p, vec2(0.18, 0.08), vec2(0.18, 0.34));
+  } else if (code < 1.5) {
+    mask += pixelBox(p, vec2(0.14, 0.12), vec2(0.18, 0.76));
+    mask += pixelBox(p, vec2(0.68, 0.12), vec2(0.18, 0.76));
+    mask += pixelBox(p, vec2(0.14, 0.08), vec2(0.72, 0.18));
+  } else if (code < 2.5) {
+    mask += pixelBox(p, vec2(0.12, 0.08), vec2(0.18, 0.80));
+    mask += pixelBox(p, vec2(0.70, 0.08), vec2(0.18, 0.80));
+    mask += pixelBox(p, vec2(0.30, 0.36), vec2(0.16, 0.32));
+    mask += pixelBox(p, vec2(0.54, 0.36), vec2(0.16, 0.32));
+  } else {
+    mask += pixelBox(p, vec2(0.14, 0.08), vec2(0.18, 0.80));
+    mask += pixelBox(p, vec2(0.14, 0.70), vec2(0.52, 0.18));
+    mask += pixelBox(p, vec2(0.66, 0.44), vec2(0.18, 0.26));
+    mask += pixelBox(p, vec2(0.14, 0.36), vec2(0.52, 0.18));
+  }
+  return clamp(mask, 0.0, 1.0);
+}
+
+float pixelDigit(vec2 p, float digit) {
+  float top = pixelBox(p, vec2(0.18, 0.74), vec2(0.64, 0.15));
+  float middle = pixelBox(p, vec2(0.18, 0.43), vec2(0.64, 0.14));
+  float bottom = pixelBox(p, vec2(0.18, 0.10), vec2(0.64, 0.15));
+  float upperLeft = pixelBox(p, vec2(0.12, 0.48), vec2(0.16, 0.32));
+  float upperRight = pixelBox(p, vec2(0.72, 0.48), vec2(0.16, 0.32));
+  float lowerLeft = pixelBox(p, vec2(0.12, 0.16), vec2(0.16, 0.32));
+  float lowerRight = pixelBox(p, vec2(0.72, 0.16), vec2(0.16, 0.32));
+  if (digit < 1.5) return clamp(upperRight + lowerRight, 0.0, 1.0);
+  if (digit < 2.5) return clamp(top + upperRight + middle + lowerLeft + bottom, 0.0, 1.0);
+  return clamp(top + upperRight + middle + lowerRight + bottom, 0.0, 1.0);
+}
+
+float cutUpCountdownMask(vec2 uv) {
+  if (uCutUpCountdown < 0.5) return 0.0;
+  vec2 wordUv = (uv - vec2(0.39, 0.525)) / vec2(0.22, 0.07);
+  vec2 numberUv = (uv - vec2(0.465, 0.395)) / vec2(0.07, 0.11);
+  float wordMask = 0.0;
+  if (wordUv.x >= 0.0 && wordUv.y >= 0.0 && wordUv.x <= 1.0 && wordUv.y <= 1.0) {
+    vec2 wordCell = vec2(fract(wordUv.x * 4.0), wordUv.y);
+    float wordIndex = floor(wordUv.x * 4.0);
+    wordMask += pixelLetter(wordCell, 0.0) * (1.0 - step(0.5, abs(wordIndex - 0.0)));
+    wordMask += pixelLetter(wordCell, 1.0) * (1.0 - step(0.5, abs(wordIndex - 1.0)));
+    wordMask += pixelLetter(wordCell, 2.0) * (1.0 - step(0.5, abs(wordIndex - 2.0)));
+    wordMask += pixelLetter(wordCell, 3.0) * (1.0 - step(0.5, abs(wordIndex - 3.0)));
+  }
+  float numberMask = 0.0;
+  if (numberUv.x >= 0.0 && numberUv.y >= 0.0 && numberUv.x <= 1.0 && numberUv.y <= 1.0) {
+    numberMask = pixelDigit(numberUv, uCutUpCountdown);
+  }
+  return clamp(max(wordMask, numberMask), 0.0, 1.0);
+}
+
 void main() {
   vec2 sourceUv = vec2(vUv.x, mix(vUv.y, 1.0 - vUv.y, uFlipFramebufferY));
   vec2 centered = sourceUv * 2.0 - 1.0;
@@ -4210,15 +4586,23 @@ void main() {
   color += (rand(gl_FragCoord.xy + uTime) - 0.5) * uNoise;
   color *= 1.0 - r2 * uVignette;
   color += vec3(0.42, 0.62, 0.75) * uLightningStrength;
+  float cutUpCountdown = cutUpCountdownMask(sourceUv);
+  vec3 cutUpCountdownColor = vec3(1.0, 0.86, 0.34) * scan + vec3(0.35, 0.12, 0.02) * orderedDither(gl_FragCoord.xy);
+  color = mix(color, cutUpCountdownColor, cutUpCountdown);
   float oneBitTone = dot(color, vec3(0.299, 0.587, 0.114));
-  float oneBitThreshold = orderedDither(gl_FragCoord.xy) * 0.32 + 0.30;
+  float oneBitDepth = floor(clamp(oneBitTone + orderedDither(gl_FragCoord.xy) * 0.16, 0.0, 1.0) * 5.0) / 4.0;
   vec3 oneBitInk = vec3(0.09, 0.075, 0.055);
+  vec3 oneBitMid = vec3(0.34, 0.28, 0.19);
   vec3 oneBitPaper = vec3(0.86, 0.82, 0.67);
-  color = mix(color, mix(oneBitInk, oneBitPaper, step(oneBitThreshold, oneBitTone)), uOneBit);
+  vec3 oneBitAccent = vec3(0.20, 0.45, 0.52);
+  vec3 oneBitGrade = mix(oneBitInk, oneBitMid, smoothstep(0.06, 0.58, oneBitDepth));
+  oneBitGrade = mix(oneBitGrade, oneBitPaper, smoothstep(0.48, 1.0, oneBitDepth));
+  oneBitGrade += oneBitAccent * smoothstep(0.42, 1.0, oneBitDepth) * 0.08;
+  color = mix(color, oneBitGrade, uOneBit * 0.86);
   float damageScratch = 0.0;
-  damageScratch += clawScratch(sourceUv, vec2(0.18, 0.22), 0.74, 0.62, 0.014);
-  damageScratch += clawScratch(sourceUv, vec2(0.32, 0.18), 0.74, 0.58, 0.012);
-  damageScratch += clawScratch(sourceUv, vec2(0.47, 0.17), 0.74, 0.54, 0.011);
+  damageScratch += clawScratch(sourceUv, vec2(0.18, 0.22) + uDamageScratchOffset, 0.74 + uDamageScratchRotation, 0.62, 0.014);
+  damageScratch += clawScratch(sourceUv, vec2(0.32, 0.18) + uDamageScratchOffset, 0.74 + uDamageScratchRotation, 0.58, 0.012);
+  damageScratch += clawScratch(sourceUv, vec2(0.47, 0.17) + uDamageScratchOffset, 0.74 + uDamageScratchRotation, 0.54, 0.011);
   float damagePulse = clamp(uDamageFlash, 0.0, 1.0);
   color = mix(color, vec3(0.9, 0.0, 0.02), damagePulse * 0.38);
   color = mix(color, vec3(1.0, 0.02, 0.02), clamp(damageScratch * damagePulse * 1.1, 0.0, 0.88));

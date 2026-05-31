@@ -6,7 +6,7 @@ import {
 
 const ZOMBIE_SPEED = 1.15;
 const ZOMBIE_RADIUS = 0.38;
-const PLAYER_RADIUS = 0.32;
+const PLAYER_RADIUS = 0.36;
 const TOUCH_VERTICAL_TOLERANCE = 1.05;
 
 export function createZombieEnemies(world) {
@@ -34,6 +34,12 @@ export function isPlayerTouchedByZombie(player, zombies) {
   });
 }
 
+export function resolvePlayerZombieCollision(player, zombies, playerRadius = PLAYER_RADIUS) {
+  return zombies.reduce((position, zombie) => (
+    resolveCapsuleAgainstBody(position, playerRadius, zombie, zombie.radius)
+  ), player);
+}
+
 function updateZombieEnemy(zombie, player, options) {
   const dx = player.x - zombie.x;
   const dz = player.z - zombie.z;
@@ -51,13 +57,45 @@ function updateZombieEnemy(zombie, player, options) {
     options.colliders,
     zombie.radius,
   );
-  const groundY = getGroundYAt(moved, options.walkableSurfaces) ?? zombie.y;
+  const separated = resolveCapsuleAgainstBody(
+    { x: moved.x, y: zombie.y, z: moved.z },
+    zombie.radius,
+    player,
+    PLAYER_RADIUS,
+  );
+  const groundY = getGroundYAt(separated, options.walkableSurfaces) ?? zombie.y;
 
   return {
     ...zombie,
-    x: moved.x,
+    x: separated.x,
     y: groundY,
-    z: moved.z,
+    z: separated.z,
     yaw: Math.atan2(dx, dz),
   };
+}
+
+function resolveCapsuleAgainstBody(position, positionRadius, body, bodyRadius) {
+  if (!capsulesOverlapVertically(position, body)) return position;
+
+  const dx = position.x - body.x;
+  const dz = position.z - body.z;
+  const distance = Math.hypot(dx, dz);
+  const minimumDistance = positionRadius + bodyRadius;
+  if (distance >= minimumDistance) return position;
+
+  const directionX = distance > 0.001 ? dx / distance : 0;
+  const directionZ = distance > 0.001 ? dz / distance : 1;
+  return {
+    ...position,
+    x: body.x + directionX * minimumDistance,
+    z: body.z + directionZ * minimumDistance,
+  };
+}
+
+function capsulesOverlapVertically(a, b) {
+  const aFeet = a.y - PLAYER_EYE_HEIGHT;
+  const bFeet = b.y - PLAYER_EYE_HEIGHT;
+  const aHead = aFeet + PLAYER_EYE_HEIGHT;
+  const bHead = bFeet + PLAYER_EYE_HEIGHT;
+  return aFeet <= bHead && bFeet <= aHead;
 }

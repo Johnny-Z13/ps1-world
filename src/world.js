@@ -1,4 +1,7 @@
 const WALL_HEIGHT = 3.0;
+const SKY_DOME_STARRY = Object.freeze({ mode: 'starry', palette: 'deep-night' });
+const SKY_DOME_ONE_BIT = Object.freeze({ mode: 'starry', palette: 'one-bit-night' });
+const SKY_DOME_CLOUDS = Object.freeze({ mode: 'clouds', palette: 'electric-blue' });
 
 export const SCENE_DEFINITIONS = Object.freeze([
   Object.freeze({ id: 'dungeon', label: 'Dungeon' }),
@@ -197,6 +200,7 @@ function createAlienLandscapeWorld() {
   return withZombies({
     id: 'alien-landscape',
     label: 'Alien landscape',
+    skyDome: SKY_DOME_STARRY,
     clearColor: [0.11, 0.065, 0.14, 1],
     floor: box('alien plain', 0, 0, 80, 80, 0.08, 'alienGround', -0.08),
     ceiling: null,
@@ -359,6 +363,7 @@ function createRotwoodForestWorld() {
   return withZombies({
     id: 'rotwood-forest',
     label: 'Polygonal Rotwood Forest',
+    skyDome: SKY_DOME_STARRY,
     clearColor: [0.025, 0.032, 0.023, 1],
     floor: box('muddy path clearing floor', 0, 0, 68, 68, 0.08, 'rotMud', -0.08),
     ceiling: null,
@@ -377,7 +382,7 @@ function createRotwoodForestWorld() {
     sun: null,
     playerTorch: {
       radius: 12,
-      intensity: 1.45,
+      intensity: 2.9,
       color: [1.0, 0.52, 0.22],
     },
     lights: [
@@ -444,6 +449,7 @@ function createAstralGeometryGardenWorld() {
   return withZombies({
     id: 'astral-geometry-garden',
     label: 'Astral Geometry Garden',
+    skyDome: SKY_DOME_STARRY,
     clearColor: [0.01, 0.0, 0.035, 1],
     floor: floorPieces[0],
     floorPieces,
@@ -544,6 +550,7 @@ function createMotelMirageWorld() {
   return withZombies({
     id: 'motel-mirage',
     label: 'Liminal Motel Mirage',
+    skyDome: SKY_DOME_STARRY,
     clearColor: [0.018, 0.018, 0.03, 1],
     floor: box('wet asphalt courtyard', 0, 0, 60, 60, 0.08, 'wetAsphalt', -0.08),
     ceiling: null,
@@ -696,6 +703,7 @@ function createNeonBackstreetsWorld() {
     id: 'neon-backstreets',
     label: 'Neon backstreets',
     skyMode: 'psychedelic',
+    skyDome: SKY_DOME_CLOUDS,
     clearColor: [0.16, 0.08, 0.55, 1],
     floor: box('floating platform spawn deck', 0, 22, 16, 8, 0.7, 'neonTile', -0.08),
     ceiling: null,
@@ -768,12 +776,13 @@ function createSunkenTempleWorld() {
 
   for (let row = 0; row < 6; row += 1) {
     for (let col = 0; col < 6; col += 1) {
+      const isSkyfall = (row + col) % 3 === 0;
       rainDrops.push({
         x: -22 + col * 8.8 + (row % 2) * 2.1,
-        y: 6.5 + ((row + col) % 3) * 0.6,
+        y: isSkyfall ? 24 + ((row + col) % 4) * 1.2 : 16 + ((row + col) % 3) * 1.1,
         z: -22 + row * 8.8,
-        width: 0.08,
-        height: 4.8 + ((row + col) % 2) * 1.2,
+        width: isSkyfall ? 0.26 : 0.12,
+        height: isSkyfall ? 23 + ((row + col) % 2) * 2.4 : 14 + ((row + col) % 2) * 2.2,
       });
     }
   }
@@ -781,7 +790,8 @@ function createSunkenTempleWorld() {
   return withZombies({
     id: 'sunken-temple',
     label: 'Sunken temple',
-    clearColor: [0.04, 0.08, 0.09, 1],
+    skyDome: SKY_DOME_CLOUDS,
+    clearColor: [0.085, 0.135, 0.155, 1],
     floor: box('flooded temple floor', 0, 0, 54, 54, 0.08, 'water', -0.08),
     ceiling: null,
     walls: [
@@ -901,6 +911,7 @@ function createOneBitCathedralWorld() {
     label: '1-bit cathedral',
     oneBit: true,
     oneBitStyle: 'dithered-gradient',
+    skyDome: SKY_DOME_ONE_BIT,
     clearColor: [0.075, 0.068, 0.052, 1],
     floor: box('one bit floor', 0, 0, 45, 50, 0.08, 'oneBitGrid', -0.08),
     ceiling: null,

@@ -16,11 +16,14 @@ test('renders a center reticule with an options toggle', () => {
 test('offers a small debug HUD with frame and enemy counts', () => {
   assert.match(index, /id="debugHud"/);
   assert.match(index, /id="debugHudToggle"/);
+  assert.match(index, /id="debugScene"/);
   assert.match(index, /Debug HUD/);
   assert.match(styles, /\.debug-hud/);
   assert.match(app, /function updateDebugHud/);
   assert.match(app, /debugHud\.fps/);
   assert.match(app, /effects\.debugHud/);
+  assert.match(app, /debugScene/);
+  assert.match(app, /world\.label/);
   assert.match(app, /zombies\.length/);
 });
 
@@ -72,10 +75,19 @@ test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
 test('warns and flashes before Cut Up jumps scenes', () => {
   assert.match(cutUpMode, /export const CUT_UP_COUNTDOWN_SECONDS = 3/);
   assert.match(cutUpMode, /export const CUT_UP_FLASH_DURATION_MS = 260/);
-  assert.match(cutUpMode, /jump in \$\{Math\.ceil\(remaining\)\}/);
+  assert.doesNotMatch(cutUpMode, /jump in \$\{Math\.ceil\(remaining\)\}/);
   assert.match(app, /cutUpState\.flashStartedAt = now/);
   assert.match(cutUpMode, /function getCutUpJumpFlash/);
   assert.match(app, /uCutUpFlash/);
+  assert.match(app, /uCutUpCountdown/);
+  assert.match(app, /function getCutUpCountdownNumber/);
+  assert.match(app, /float cutUpCountdownMask/);
+  assert.match(app, /vec2 wordUv = \(uv - vec2\(0\.39, 0\.525\)\) \/ vec2\(0\.22, 0\.07\)/);
+  assert.match(app, /vec2 numberUv = \(uv - vec2\(0\.465, 0\.395\)\) \/ vec2\(0\.07, 0\.11\)/);
+  assert.match(app, /pixelDigit/);
+  assert.match(app, /pixelLetter/);
+  assert.doesNotMatch(app, /sin\(uTime \* 15\.0 \+ uv\.y \* 55\.0\)/);
+  assert.doesNotMatch(app, /rand\(floor\(gl_FragCoord\.xy \/ 3\.0\) \+ uTime\)/);
   assert.match(app, /mix\(color,\s*vec3\(1\.0\),\s*uCutUpFlash\)/);
 });
 
@@ -176,6 +188,9 @@ test('renders one-bit scenes with ordered dithering instead of hard clipping', (
   assert.match(app, /orderedDither/);
   assert.match(app, /oneBitPaper/);
   assert.match(app, /oneBitInk/);
+  assert.match(app, /oneBitMid/);
+  assert.match(app, /oneBitAccent/);
+  assert.match(app, /oneBitDepth/);
 });
 
 test('renders scene cards and motion flags for animated preset props', () => {
@@ -185,6 +200,18 @@ test('renders scene cards and motion flags for animated preset props', () => {
   assert.match(app, /scene\.movingBillboards/);
   assert.match(app, /function motionCode/);
   assert.match(app, /attribute float aMotion/);
+});
+
+test('renders camera-centered sky domes instead of flat star planes', () => {
+  assert.match(app, /skyProgram/);
+  assert.match(app, /skyDomeMesh/);
+  assert.match(app, /function createSkyDomeMesh/);
+  assert.match(app, /function drawSkyDome/);
+  assert.match(app, /uSkyMode/);
+  assert.match(app, /uCameraPosition/);
+  assert.match(app, /starrySky/);
+  assert.match(app, /cloudSky/);
+  assert.match(app, /if \(scene\.skyDome\)/);
 });
 
 test('renders low-poly animated torches with static orange light uniforms', () => {
@@ -293,9 +320,12 @@ test('flashes red claw damage and shows a low-health notice after zombie bites',
   assert.match(app, /const LOW_HEALTH_NOTICE_DURATION_MS/);
   assert.match(app, /lastDamageFlashStartedAt = now/);
   assert.match(app, /lowHealthNoticeStartedAt = now/);
+  assert.match(app, /function randomizeDamageScratch/);
   assert.match(app, /function getDamageFlash/);
   assert.match(app, /function updateLowHealthNotice/);
   assert.match(app, /uDamageFlash/);
+  assert.match(app, /uDamageScratchOffset/);
+  assert.match(app, /uDamageScratchRotation/);
   assert.match(app, /clawScratch/);
 });
 
@@ -435,6 +465,16 @@ test('plays audio assets for lightning and scene ambience', () => {
   assert.match(app, /function playAssetOneShot/);
   assert.match(app, /audioState\.ambienceGain\.gain\.setTargetAtTime/);
   assert.doesNotMatch(app, /createNoiseBuffer/);
+});
+
+test('adds procedural water and drip audio for rainy scenes', () => {
+  assert.match(app, /waterfallVoices/);
+  assert.match(app, /function syncRainWaterAudio/);
+  assert.match(app, /function getRainWaterVoice/);
+  assert.match(app, /function scheduleRainDripPulse/);
+  assert.match(app, /function playRainDripPulse/);
+  assert.match(app, /world\.rain/);
+  assert.match(app, /connectSceneAudioNode\(panner,\s*state\.dryGain,\s*state\.reverbInput\)/);
 });
 
 test('crossfades walking and sprinting player footstep loops', () => {

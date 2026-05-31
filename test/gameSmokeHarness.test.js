@@ -40,7 +40,7 @@ test('smoke harness steps Cut-Up countdown and scene jump', () => {
 
   const countdown = harness.stepCutUp(run, 1000 + CUT_UP_INTERVAL_MS - 1900);
   assert.equal(countdown.world.id, SCENE_DEFINITIONS[0].id);
-  assert.equal(countdown.hud, 'jump in 2');
+  assert.match(countdown.hud, /^CUT UP 1\/9 /);
   assert.equal(countdown.flash, 0);
 
   const jumped = harness.stepCutUp(run, 1000 + CUT_UP_INTERVAL_MS);

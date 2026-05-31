@@ -25,9 +25,6 @@ export function getNextCutUpSceneIndex(state) {
 export function getCutUpHudText(state, sceneDefinitions, now) {
   const remaining = getCutUpRemainingSeconds(state, now);
   const scene = sceneDefinitions[state.activeSceneIndex];
-  if (remaining <= CUT_UP_COUNTDOWN_SECONDS && remaining > 0) {
-    return `jump in ${Math.ceil(remaining)}`;
-  }
 
   return `CUT UP ${state.activeSceneIndex + 1}/${state.unlockedSceneCount} ${scene.label} ${remaining.toFixed(1)}s`;
 }

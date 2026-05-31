@@ -70,6 +70,7 @@ test('builds an alien landscape with sun, distant mountains, and low-res texture
   const world = createSceneWorld('alien-landscape');
 
   assert.equal(world.id, 'alien-landscape');
+  assert.deepEqual(world.skyDome, { mode: 'starry', palette: 'deep-night' });
   assert.ok(world.sun);
   assert.ok(world.stars.length >= 30);
   assert.equal(world.shootingStar.texture, 'shootingStar');
@@ -110,7 +111,7 @@ test('builds rotwood forest with dark-fantasy landmarks and living cards', () =>
   assert.ok(world.movingBillboards.some((item) => item.name.includes('moon') && item.motion === 'moon-slide'));
   assert.deepEqual(world.playerTorch, {
     radius: 12,
-    intensity: 1.45,
+    intensity: 2.9,
     color: [1.0, 0.52, 0.22],
   });
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
@@ -156,6 +157,7 @@ test('builds neon backstreets as a psychedelic floating sky scene', () => {
 
   assert.equal(world.id, 'neon-backstreets');
   assert.equal(world.skyMode, 'psychedelic');
+  assert.deepEqual(world.skyDome, { mode: 'clouds', palette: 'electric-blue' });
   assert.ok(objects.filter((item) => item.name.includes('floating platform')).length >= 4);
   assert.ok(objects.filter((item) => item.name.includes('tree')).length >= 8);
   assert.ok(objects.filter((item) => item.name.includes('cloud')).length >= 3);
@@ -171,6 +173,7 @@ test('builds a 1-bit polygon cathedral with black and white texture mapping', ()
   assert.equal(world.id, 'one-bit-cathedral');
   assert.equal(world.label, '1-bit cathedral');
   assert.equal(world.oneBitStyle, 'dithered-gradient');
+  assert.deepEqual(world.skyDome, { mode: 'starry', palette: 'one-bit-night' });
   assert.ok(world.floor);
   assert.ok(world.textures.every((texture) => texture.id.startsWith('oneBit') || texture.id === 'zombie' || texture.id === 'healthPotion'));
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
@@ -183,9 +186,15 @@ test('builds a 1-bit polygon cathedral with black and white texture mapping', ()
 
 test('adds non-colliding rain to the sunken temple scene', () => {
   const world = createSceneWorld('sunken-temple');
+  const highestDrop = Math.max(...world.rain.drops.map((drop) => drop.y));
+  const tallestDrop = Math.max(...world.rain.drops.map((drop) => drop.height));
 
   assert.equal(world.rain?.texture, 'rain');
   assert.ok(world.rain?.drops.length >= 24);
+  assert.ok(highestDrop >= 24);
+  assert.ok(tallestDrop >= 20);
+  assert.equal(world.skyDome?.mode, 'clouds');
+  assert.ok(world.clearColor[0] >= 0.08 && world.clearColor[1] >= 0.13 && world.clearColor[2] >= 0.15);
   assert.ok(world.textures.some((texture) => texture.id === 'rain' && texture.size === 64));
   assert.ok([...world.walls, ...world.crates].every((item) => !item.name.includes('rain')));
 });

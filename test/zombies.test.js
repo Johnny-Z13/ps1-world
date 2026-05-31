@@ -6,6 +6,7 @@ import { createSceneWorld } from '../src/world.js';
 import {
   createZombieEnemies,
   isPlayerTouchedByZombie,
+  resolvePlayerZombieCollision,
   updateZombieEnemies,
 } from '../src/zombies.js';
 
@@ -72,4 +73,16 @@ test('ignores zombies that are horizontally near but vertically separated', () =
   ];
 
   assert.equal(isPlayerTouchedByZombie(player, zombies), false);
+});
+
+test('keeps the player capsule outside zombie body radius on the same level', () => {
+  const player = { x: 0.2, y: PLAYER_EYE_HEIGHT, z: 0 };
+  const zombies = [
+    { x: 0, y: PLAYER_EYE_HEIGHT, z: 0, radius: 0.38 },
+  ];
+
+  const resolved = resolvePlayerZombieCollision(player, zombies);
+  const distance = Math.hypot(resolved.x - zombies[0].x, resolved.z - zombies[0].z);
+
+  assert.ok(distance >= 0.74);
 });
