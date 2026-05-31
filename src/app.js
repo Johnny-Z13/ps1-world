@@ -22,6 +22,7 @@ import {
   resolveMovement,
 } from './playerPhysics.js';
 import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
+import { LEVEL_GLB_URLS, loadLevelGlb } from './levelGlb.js';
 import {
   createZombieEnemies,
   isPlayerTouchedByZombie,
@@ -36,12 +37,27 @@ import {
   getHealthDanger,
   restorePlayerHealth,
 } from './playerHealth.js';
+import {
+  CUT_UP_COUNTDOWN_SECONDS,
+  CUT_UP_INTERVAL_MS,
+  createCutUpState,
+  getCutUpHudText,
+  getCutUpJumpFlash,
+  getNextCutUpSceneIndex,
+  shouldAdvanceCutUpScene,
+} from './cutUpMode.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
+const debugHudPanel = document.querySelector('#debugHud');
+const debugFps = document.querySelector('#debugFps');
+const debugZombies = document.querySelector('#debugZombies');
+const debugEnemies = document.querySelector('#debugEnemies');
 const titleScreen = document.querySelector('#titleScreen');
 const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
+const cutUpButton = document.querySelector('#cutUpButton');
+const cutUpHud = document.querySelector('#cutUpHud');
 const optionsDialog = document.querySelector('#options');
 const touchMove = document.querySelector('#touchMove');
 const touchMoveStick = document.querySelector('#touchMoveStick');
@@ -74,15 +90,25 @@ const DEATH_SCENE_PROFILES = Object.freeze({
   }),
 });
 const GAMEPAD_DEADZONE = 0.18;
+const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS.length;
 const MAX_STATIC_TORCH_LIGHTS = 3;
 const ZOMBIE_MODEL_SCALE = 1.75;
-const ZOMBIE_MODEL_FRONT_ROTATION = Math.PI;
+const ZOMBIE_MODEL_FRONT_ROTATION = -Math.PI / 2;
 const ZOMBIE_GRUNT_LOOP_URL = './assets/audio/sfx/zombie-idle-grunt-8bit-loop.mp3?v=1';
 const LIGHTNING_SOUND_URL = './assets/audio/sfx/lightning-bolt-strike.mp3?v=1';
 const MENU_START_CONFIRM_SOUND_URL = './assets/audio/sfx/menu-start-confirm-8bit.mp3?v=1';
+const TITLE_MUSIC_LOOP_URL = './assets/audio/music/title-menu-psx-8bit-loop.mp3?v=1';
+const FREE_ROAM_MUSIC_LOOP_URL = './assets/audio/music/free-roam-dread-8bit-loop.mp3?v=1';
+const CUT_UP_MUSIC_LOOP_URL = './assets/audio/music/cut-up-clockwork-8bit-loop.mp3?v=1';
+const FREE_ROAM_START_SOUND_URL = './assets/audio/sfx/free-roam-start-warp-8bit.mp3?v=1';
+const CUT_UP_START_SOUND_URL = './assets/audio/sfx/cut-up-start-burst-8bit.mp3?v=1';
+const CUT_UP_SCENE_SLICE_SOUND_URL = './assets/audio/sfx/cut-up-scene-slice-8bit.mp3?v=1';
+const CUT_UP_COUNTDOWN_TICK_SOUND_URL = './assets/audio/sfx/cut-up-countdown-tick-8bit.mp3?v=1';
+const OPTIONS_OPEN_SOUND_URL = './assets/audio/sfx/options-open-static-8bit.mp3?v=1';
+const OPTIONS_CLOSE_SOUND_URL = './assets/audio/sfx/options-close-click-8bit.mp3?v=1';
 const HEALTH_PICKUP_SOUND_URL = './assets/audio/sfx/health-pickup-bing-8bit.mp3?v=1';
 const PLAYER_DEATH_SOUND_URL = './assets/audio/sfx/player-death-8bit.mp3?v=1';
-const PLAYER_DAMAGE_SOUND_URL = './assets/audio/sfx/player-damage-8bit.mp3?v=1';
+const PLAYER_DAMAGE_SOUND_URL = './assets/audio/sfx/player-damage-grunt-8bit.mp3?v=1';
 const PLAYER_WALK_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-walk-8bit-loop.mp3?v=1';
 const PLAYER_SPRINT_FOOTSTEP_LOOP_URL = './assets/audio/sfx/player-footsteps-sprint-8bit-loop.mp3?v=1';
 const PLAYER_LOW_HEALTH_BREATHING_LOOP_URL = './assets/audio/sfx/player-low-health-breathing-8bit-loop.mp3?v=1';
@@ -100,6 +126,12 @@ const SCENE_AMBIENCE_URLS = Object.freeze({
 const SCENE_AMBIENCE_MAX_GAIN = 0.16;
 const LIGHTNING_SOUND_GAIN = 0.55;
 const MENU_START_CONFIRM_SOUND_GAIN = 0.5;
+const TITLE_MUSIC_GAIN = 0.22;
+const FREE_ROAM_MUSIC_GAIN = 0.12;
+const CUT_UP_MUSIC_GAIN = 0.18;
+const UI_SFX_GAIN = 0.58;
+const TRANSITION_SFX_GAIN = 0.72;
+const CUT_UP_AUDIO_DUCK_DURATION_MS = 420;
 const HEALTH_PICKUP_SOUND_GAIN = 0.46;
 const PLAYER_DEATH_SOUND_GAIN = 0.72;
 const PLAYER_DAMAGE_SOUND_GAIN = 0.5;
@@ -132,6 +164,8 @@ const SCENE_REVERB_PRESETS = Object.freeze({
 let world = createSceneWorld(effects.sceneId);
 let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
+const loadedLevels = new Map();
+let sceneLoadRequest = 0;
 let colliders = getSceneColliders(world);
 let walkableSurfaces = getSceneWalkableSurfaces(world);
 let zombies = createZombieEnemies(world);
@@ -173,6 +207,9 @@ const gamepadInput = {
 let touchJumpActive = false;
 let titleActive = true;
 const titleButtonState = { active: false };
+const cutUpButtonState = { active: false };
+const gameState = { mode: 'normal' };
+const cutUpState = createCutUpState(CUT_UP_SCENE_COUNT);
 let mouseLookActive = false;
 let gameModeRequested = false;
 let lastPointerUnlockAt = 0;
@@ -192,15 +229,20 @@ let audioState = null;
 
 let lastTime = performance.now();
 let viewport = { x: 0, y: 0, width: 1, height: 1 };
+const debugHud = {
+  fps: 0,
+};
 
 function frame(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
+  updateDebugHud(dt);
 
   updateGamepadInput();
   applyGamepadLook(dt);
   updateContinuousMouseLook(dt);
   updatePlayer(dt, now);
+  updateCutUpMode(now);
   render(now / 1000, now);
   requestAnimationFrame(frame);
 }
@@ -341,6 +383,7 @@ function render(time, now = performance.now()) {
   gl.uniform1f(postProgram.uniforms.uHealthPickupFlash, getHealthPickupFlash(now));
   gl.uniform1f(postProgram.uniforms.uDeathTint, getDeathTint(now));
   gl.uniform1f(postProgram.uniforms.uDeathProgress, getDeathSceneProgress(now));
+  gl.uniform1f(postProgram.uniforms.uCutUpFlash, getCutUpJumpFlash(cutUpState, now));
   drawQuad(gl, postProgram, quad);
 
   if (titleActive) {
@@ -411,6 +454,12 @@ function ensureAudioState() {
     const reverbWetGain = context.createGain();
     const ambienceGain = context.createGain();
     const lightningGain = context.createGain();
+    const musicGain = context.createGain();
+    const titleMusicGain = context.createGain();
+    const freeRoamMusicGain = context.createGain();
+    const cutUpMusicGain = context.createGain();
+    const uiSfxGain = context.createGain();
+    const transitionSfxGain = context.createGain();
     const playerSfxGain = context.createGain();
     const footstepWalkGain = context.createGain();
     const footstepSprintGain = context.createGain();
@@ -428,6 +477,18 @@ function ensureAudioState() {
     connectSceneAudioNode(ambienceGain, dryGain, reverbInput);
     lightningGain.gain.value = LIGHTNING_SOUND_GAIN;
     connectSceneAudioNode(lightningGain, dryGain, reverbInput);
+    musicGain.gain.value = 1;
+    musicGain.connect(dryGain);
+    titleMusicGain.gain.value = 0;
+    titleMusicGain.connect(musicGain);
+    freeRoamMusicGain.gain.value = 0;
+    freeRoamMusicGain.connect(musicGain);
+    cutUpMusicGain.gain.value = 0;
+    cutUpMusicGain.connect(musicGain);
+    uiSfxGain.gain.value = UI_SFX_GAIN;
+    uiSfxGain.connect(dryGain);
+    transitionSfxGain.gain.value = TRANSITION_SFX_GAIN;
+    transitionSfxGain.connect(dryGain);
     playerSfxGain.gain.value = 1;
     connectSceneAudioNode(playerSfxGain, dryGain, reverbInput);
     footstepWalkGain.gain.value = 0;
@@ -452,6 +513,17 @@ function ensureAudioState() {
       ambienceSource: null,
       activeAmbienceId: null,
       loadingAmbienceId: null,
+      ambienceSlots: [createAmbienceSlot(context, ambienceGain), createAmbienceSlot(context, ambienceGain)],
+      activeAmbienceSlotIndex: 0,
+      musicGain,
+      titleMusicGain,
+      freeRoamMusicGain,
+      cutUpMusicGain,
+      uiSfxGain,
+      transitionSfxGain,
+      musicSources: new Map(),
+      musicLoopsLoading: new Set(),
+      musicLoopsFailed: new Set(),
       lightningGain,
       playerSfxGain,
       footstepWalkGain,
@@ -471,6 +543,8 @@ function ensureAudioState() {
       zombieLoopLoading: false,
       zombieLoopFailed: false,
       lastLightningIndex: -1,
+      lastCutUpCountdownTick: null,
+      cutUpAudioDuckStartedAt: -Infinity,
     };
     applySceneReverb(audioState);
   }
@@ -487,6 +561,18 @@ function connectSceneAudioNode(node, dryGain, reverbInput) {
   node.connect(reverbInput);
 }
 
+function createAmbienceSlot(context, ambienceGain) {
+  const gain = context.createGain();
+  gain.gain.value = 0;
+  gain.connect(ambienceGain);
+  return {
+    id: null,
+    source: null,
+    gain,
+    loadingId: null,
+  };
+}
+
 function ensureSceneAudio() {
   if (!SCENE_AMBIENCE_URLS[world.id] && !world.lightning && !effects.zombies && !(world.torchLights ?? []).length) return;
 
@@ -495,11 +581,25 @@ function ensureSceneAudio() {
 
   applySceneReverb(state);
   ensureSceneAmbienceLoop(state);
+  syncCinematicMusicAudio(state);
   if (world.lightning) loadAudioBuffer(state, LIGHTNING_SOUND_URL);
-  loadAudioBuffer(state, MENU_START_CONFIRM_SOUND_URL);
-  loadAudioBuffer(state, HEALTH_PICKUP_SOUND_URL);
-  loadAudioBuffer(state, PLAYER_DEATH_SOUND_URL);
-  loadAudioBuffer(state, PLAYER_DAMAGE_SOUND_URL);
+  for (const url of [
+    MENU_START_CONFIRM_SOUND_URL,
+    HEALTH_PICKUP_SOUND_URL,
+    PLAYER_DEATH_SOUND_URL,
+    PLAYER_DAMAGE_SOUND_URL,
+    TITLE_MUSIC_LOOP_URL,
+    FREE_ROAM_MUSIC_LOOP_URL,
+    CUT_UP_MUSIC_LOOP_URL,
+    FREE_ROAM_START_SOUND_URL,
+    CUT_UP_START_SOUND_URL,
+    CUT_UP_SCENE_SLICE_SOUND_URL,
+    CUT_UP_COUNTDOWN_TICK_SOUND_URL,
+    OPTIONS_OPEN_SOUND_URL,
+    OPTIONS_CLOSE_SOUND_URL,
+  ]) {
+    loadAudioBuffer(state, url).catch(() => {});
+  }
   ensurePlayerFootstepLoops(state);
   ensureLowHealthBreathingLoop(state);
   ensurePlayerHeartbeatLoop(state);
@@ -541,17 +641,24 @@ function ensureSceneAmbienceLoop(state) {
     .then((buffer) => {
       if (audioState !== state || world.id !== sceneId) return;
 
-      if (state.ambienceSource) {
-        state.ambienceSource.stop();
-      }
+      const nextSlotIndex = (state.activeAmbienceSlotIndex + 1) % state.ambienceSlots.length;
+      const nextSlot = state.ambienceSlots[nextSlotIndex];
+      if (nextSlot.source) nextSlot.source.stop();
+      nextSlot.source = state.context.createBufferSource();
+      nextSlot.source.buffer = buffer;
+      nextSlot.source.loop = true;
+      nextSlot.source.connect(nextSlot.gain);
+      nextSlot.id = sceneId;
+      nextSlot.source.start();
 
-      const source = state.context.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(state.ambienceGain);
-      source.start();
-      state.ambienceSource = source;
+      const previousSlot = state.ambienceSlots[state.activeAmbienceSlotIndex];
+      nextSlot.gain.gain.setTargetAtTime(1, state.context.currentTime, 0.42);
+      previousSlot.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.42);
+      stopAmbienceSlotAfterFade(state, previousSlot);
+
+      state.ambienceSource = nextSlot.source;
       state.activeAmbienceId = sceneId;
+      state.activeAmbienceSlotIndex = nextSlotIndex;
     })
     .catch(() => {})
     .finally(() => {
@@ -559,15 +666,46 @@ function ensureSceneAmbienceLoop(state) {
     });
 }
 
+function stopAmbienceSlotAfterFade(state, slot) {
+  window.setTimeout(() => {
+    if (audioState !== state || !slot.source || state.ambienceSlots[state.activeAmbienceSlotIndex] === slot) return;
+    try {
+      slot.source.stop();
+    } catch {
+      // Already stopped by the browser audio engine.
+    }
+    slot.source = null;
+    slot.id = null;
+  }, 900);
+}
+
 function getSceneAmbienceGain() {
-  if (titleActive || optionsDialog.open || deathState.active || !SCENE_AMBIENCE_URLS[world.id]) return 0;
-  return SCENE_AMBIENCE_MAX_GAIN;
+  if (titleActive || deathState.active || !SCENE_AMBIENCE_URLS[world.id]) return 0;
+
+  const duck = getAudioDuckAmount(performance.now());
+  const optionsDuck = optionsDialog.open ? 0.35 : 1;
+  return SCENE_AMBIENCE_MAX_GAIN * optionsDuck * (1 - duck * 0.52);
+}
+
+function getAudioDuckAmount(now) {
+  if (!audioState) return 0;
+  const elapsed = now - audioState.cutUpAudioDuckStartedAt;
+  if (elapsed < 0 || elapsed > CUT_UP_AUDIO_DUCK_DURATION_MS) return 0;
+  return 1 - elapsed / CUT_UP_AUDIO_DUCK_DURATION_MS;
 }
 
 function playAssetOneShot(state, url, gainNode) {
   const buffer = state.audioBuffers.get(url);
   if (!buffer) {
-    loadAudioBuffer(state, url).catch(() => {});
+    loadAudioBuffer(state, url)
+      .then((loadedBuffer) => {
+        if (audioState !== state) return;
+        const source = state.context.createBufferSource();
+        source.buffer = loadedBuffer;
+        source.connect(gainNode);
+        source.start();
+      })
+      .catch(() => {});
     return;
   }
 
@@ -585,8 +723,95 @@ function playPlayerOneShot(url, volume) {
   playAssetOneShot(state, url, state.playerSfxGain);
 }
 
+function playTransitionOneShot(url, volume = TRANSITION_SFX_GAIN) {
+  const state = ensureAudioState();
+  if (!state) return;
+
+  state.transitionSfxGain.gain.setValueAtTime(volume, state.context.currentTime);
+  playAssetOneShot(state, url, state.transitionSfxGain);
+}
+
+function playUiOneShot(url, volume = UI_SFX_GAIN) {
+  const state = ensureAudioState();
+  if (!state) return;
+
+  state.uiSfxGain.gain.setValueAtTime(volume, state.context.currentTime);
+  playAssetOneShot(state, url, state.uiSfxGain);
+}
+
 function playMenuStartConfirmSound() {
   playPlayerOneShot(MENU_START_CONFIRM_SOUND_URL, MENU_START_CONFIRM_SOUND_GAIN);
+}
+
+function ensureMusicLoop(state, id, url, gainNode) {
+  if (state.musicSources.has(id) || state.musicLoopsLoading.has(id) || state.musicLoopsFailed.has(id)) return;
+
+  state.musicLoopsLoading.add(id);
+  loadAudioBuffer(state, url)
+    .then((buffer) => {
+      if (audioState !== state) return;
+
+      const source = state.context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gainNode);
+      source.start();
+      state.musicSources.set(id, source);
+    })
+    .catch((error) => {
+      state.musicLoopsFailed.add(id);
+      console.warn(error);
+    })
+    .finally(() => {
+      state.musicLoopsLoading.delete(id);
+    });
+}
+
+function syncCinematicMusicAudio(state) {
+  ensureMusicLoop(state, 'title', TITLE_MUSIC_LOOP_URL, state.titleMusicGain);
+  ensureMusicLoop(state, 'free-roam', FREE_ROAM_MUSIC_LOOP_URL, state.freeRoamMusicGain);
+  ensureMusicLoop(state, 'cut-up', CUT_UP_MUSIC_LOOP_URL, state.cutUpMusicGain);
+
+  const duck = getAudioDuckAmount(performance.now());
+  const optionsDuck = optionsDialog.open ? 0.48 : 1;
+  const titleGain = titleActive ? TITLE_MUSIC_GAIN : 0;
+  const freeRoamGain = !titleActive && gameState.mode === 'normal' && !deathState.active ? FREE_ROAM_MUSIC_GAIN : 0;
+  const cutUpGain = !titleActive && gameState.mode === 'cut-up' && !deathState.active ? CUT_UP_MUSIC_GAIN : 0;
+  const musicDuck = optionsDuck * (1 - duck * 0.45);
+
+  state.titleMusicGain.gain.setTargetAtTime(titleGain * musicDuck, state.context.currentTime, 0.5);
+  state.freeRoamMusicGain.gain.setTargetAtTime(freeRoamGain * musicDuck, state.context.currentTime, 0.5);
+  state.cutUpMusicGain.gain.setTargetAtTime(cutUpGain * musicDuck, state.context.currentTime, 0.5);
+}
+
+function syncCutUpCountdownAudio(state) {
+  if (!cutUpState.active || titleActive || optionsDialog.open || deathState.active) {
+    state.lastCutUpCountdownTick = null;
+    cutUpState.lastCutUpCountdownTick = null;
+    return;
+  }
+
+  const remainingMs = cutUpState.sceneStartedAt + CUT_UP_INTERVAL_MS - performance.now();
+  const remainingSeconds = Math.ceil(Math.max(0, remainingMs) / 1000);
+  if (remainingSeconds <= 0 || remainingSeconds > CUT_UP_COUNTDOWN_SECONDS) {
+    state.lastCutUpCountdownTick = null;
+    cutUpState.lastCutUpCountdownTick = null;
+    return;
+  }
+
+  if (state.lastCutUpCountdownTick === remainingSeconds) return;
+  state.lastCutUpCountdownTick = remainingSeconds;
+  cutUpState.lastCutUpCountdownTick = remainingSeconds;
+  playTransitionOneShot(CUT_UP_COUNTDOWN_TICK_SOUND_URL, TRANSITION_SFX_GAIN * 0.44);
+}
+
+function triggerCutUpAudioDuck(now = performance.now()) {
+  const state = ensureAudioState();
+  if (!state) return;
+
+  state.cutUpAudioDuckStartedAt = now;
+  state.lastCutUpCountdownTick = null;
+  cutUpState.lastCutUpCountdownTick = null;
 }
 
 function updateSceneAudio(time, lightningStrength) {
@@ -598,9 +823,11 @@ function updateSceneAudio(time, lightningStrength) {
   ensurePlayerFootstepLoops(audioState);
   ensureLowHealthBreathingLoop(audioState);
   ensurePlayerHeartbeatLoop(audioState);
+  syncCinematicMusicAudio(audioState);
   syncPlayerFootstepAudio(audioState);
   syncLowHealthBreathingAudio(audioState);
   syncPlayerHeartbeatAudio(audioState);
+  syncCutUpCountdownAudio(audioState);
   syncTorchCrackleAudio(audioState);
   syncZombieSpatialAudio(audioState);
   const targetAmbience = getSceneAmbienceGain();
@@ -1125,9 +1352,13 @@ function setupInput() {
   window.addEventListener('resize', resize);
   document.addEventListener('keydown', (event) => {
     if (titleActive) {
+      ensureSceneAudio();
       if (event.code === 'Enter' || event.code === 'Space') {
         event.preventDefault();
         startRandomScene();
+      } else if (event.code === 'KeyC') {
+        event.preventDefault();
+        startCutUpMode();
       }
       return;
     }
@@ -1151,7 +1382,11 @@ function setupInput() {
       const shortcutScene = SCENE_DEFINITIONS[shortcutIndex];
       if (shortcutScene) {
         event.preventDefault();
-        setScene(shortcutScene.id);
+        if (gameState.mode === 'cut-up') {
+          jumpToCutUpScene(shortcutIndex, performance.now());
+        } else {
+          setScene(shortcutScene.id);
+        }
         syncSceneSelect();
       }
       return;
@@ -1162,6 +1397,9 @@ function setupInput() {
     keys.add(event.code);
   }, { capture: true });
   document.addEventListener('keyup', (event) => keys.delete(event.code), { capture: true });
+  titleScreen.addEventListener('pointerdown', () => {
+    if (titleActive) ensureSceneAudio();
+  });
   canvas.addEventListener('pointerdown', (event) => {
     if (event.pointerType === 'touch') return;
     if (titleActive) return;
@@ -1472,6 +1710,9 @@ function setupOptions() {
   startButton.addEventListener('click', () => {
     startRandomScene();
   });
+  cutUpButton.addEventListener('click', () => {
+    startCutUpMode();
+  });
   startButton.addEventListener('pointerenter', () => {
     titleButtonState.active = true;
   });
@@ -1484,14 +1725,39 @@ function setupOptions() {
   startButton.addEventListener('blur', () => {
     titleButtonState.active = false;
   });
+  cutUpButton.addEventListener('pointerenter', () => {
+    cutUpButtonState.active = true;
+  });
+  cutUpButton.addEventListener('pointerleave', () => {
+    cutUpButtonState.active = false;
+  });
+  cutUpButton.addEventListener('focus', () => {
+    cutUpButtonState.active = true;
+  });
+  cutUpButton.addEventListener('blur', () => {
+    cutUpButtonState.active = false;
+  });
 
-  const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise', 'playerTorch', 'zombies'];
-  for (const id of bindings) {
+  const bindings = [
+    ['invertY', 'invertY'],
+    ['showReticule', 'showReticule'],
+    ['scanlines', 'scanlines'],
+    ['crtDistortion', 'crtDistortion'],
+    ['dither', 'dither'],
+    ['warping', 'warping'],
+    ['colorBleed', 'colorBleed'],
+    ['noise', 'noise'],
+    ['playerTorch', 'playerTorch'],
+    ['zombies', 'zombies'],
+    ['debugHudToggle', 'debugHud'],
+  ];
+  for (const [id, key] of bindings) {
     const input = document.querySelector(`#${id}`);
-    input.checked = Boolean(effects[id]);
+    input.checked = Boolean(effects[key]);
     input.addEventListener('change', () => {
-      effects[id] = input.checked;
-      if (id === 'showReticule') syncReticule();
+      effects[key] = input.checked;
+      if (key === 'showReticule') syncReticule();
+      if (key === 'debugHud') updateDebugHud(0);
     });
   }
   syncReticule();
@@ -1519,7 +1785,12 @@ function setupOptions() {
   }));
   syncSceneSelect();
   scene.addEventListener('change', () => {
-    setScene(scene.value);
+    const index = SCENE_DEFINITIONS.findIndex((definition) => definition.id === scene.value);
+    if (gameState.mode === 'cut-up' && index !== -1) {
+      jumpToCutUpScene(index);
+    } else {
+      setScene(scene.value);
+    }
   });
 
   const resolution = document.querySelector('#resolution');
@@ -1552,10 +1823,22 @@ function setupOptions() {
 }
 
 function syncOptionsControls() {
-  const bindings = ['invertY', 'showReticule', 'scanlines', 'crtDistortion', 'dither', 'warping', 'colorBleed', 'noise', 'playerTorch', 'zombies'];
-  for (const id of bindings) {
+  const bindings = [
+    ['invertY', 'invertY'],
+    ['showReticule', 'showReticule'],
+    ['scanlines', 'scanlines'],
+    ['crtDistortion', 'crtDistortion'],
+    ['dither', 'dither'],
+    ['warping', 'warping'],
+    ['colorBleed', 'colorBleed'],
+    ['noise', 'noise'],
+    ['playerTorch', 'playerTorch'],
+    ['zombies', 'zombies'],
+    ['debugHudToggle', 'debugHud'],
+  ];
+  for (const [id, key] of bindings) {
     const input = document.querySelector(`#${id}`);
-    if (input) input.checked = Boolean(effects[id]);
+    if (input) input.checked = Boolean(effects[key]);
   }
 
   const preset = document.querySelector('#preset');
@@ -1569,17 +1852,48 @@ function syncOptionsControls() {
 
   canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
   syncReticule();
+  updateDebugHud(0);
 }
 
 function startRandomScene() {
   if (!titleActive) return;
 
+  gameState.mode = 'normal';
+  cutUpState.active = false;
+  cutUpHud.hidden = true;
   ensureSceneAudio();
   playMenuStartConfirmSound();
+  playTransitionOneShot(FREE_ROAM_START_SOUND_URL);
   const randomScene = SCENE_DEFINITIONS[Math.floor(Math.random() * SCENE_DEFINITIONS.length)];
   setScene(randomScene.id);
   syncSceneSelect();
+  leaveTitleScreen();
+}
 
+function startCutUpMode() {
+  if (!titleActive) return;
+
+  gameState.mode = 'cut-up';
+  cutUpState.active = true;
+  cutUpState.unlockedSceneCount = CUT_UP_SCENE_COUNT;
+  cutUpState.activeSceneIndex = 0;
+  cutUpState.sceneStartedAt = performance.now();
+  cutUpState.flashStartedAt = -Infinity;
+  cutUpState.lastCutUpCountdownTick = null;
+  cutUpState.sceneStates.clear();
+  ensureSceneAudio();
+  playMenuStartConfirmSound();
+  playTransitionOneShot(CUT_UP_START_SOUND_URL);
+  setScene(SCENE_DEFINITIONS[0].id);
+  healthPotions = createSceneHealthPotions(world);
+  resetPlayerToSpawn();
+  rebuildWarehouseMesh();
+  syncSceneSelect();
+  leaveTitleScreen();
+  updateCutUpHud(cutUpState.sceneStartedAt);
+}
+
+function leaveTitleScreen() {
   titleActive = false;
   titleScreen.hidden = true;
   document.body.classList.remove('title-active');
@@ -1623,19 +1937,20 @@ function renderTitleScreen(time) {
   titleContext.imageSmoothingEnabled = false;
   titleContext.clearRect(0, 0, TITLE_WIDTH, TITLE_HEIGHT);
   drawTitleBackdrop(time);
-  drawCenteredBitmapText('512i signal', 44, 3, '#cfc7aa', time);
-  drawCenteredBitmapText('ps1-world', 176, 9, '#17100b', time, { x: 7, y: 8 });
-  drawCenteredBitmapText('ps1-world', 176, 9, '#1ca6a5', time, { x: -2, y: 1 });
-  drawCenteredBitmapText('ps1-world', 176, 9, '#b42638', time, { x: 3, y: 0 });
-  drawCenteredBitmapText('ps1-world', 176, 9, '#f3dc92', time);
+  drawCenteredBitmapText('ps1-world', 148, 9, '#17100b', time, { x: 7, y: 8 });
+  drawCenteredBitmapText('ps1-world', 148, 9, '#1ca6a5', time, { x: -2, y: 1 });
+  drawCenteredBitmapText('ps1-world', 148, 9, '#b42638', time, { x: 3, y: 0 });
+  drawCenteredBitmapText('ps1-world', 148, 9, '#f3dc92', time);
   drawBloodWarningText(time);
-  drawBitmapButton(time);
-  drawCenteredBitmapText('wasd+mouse or gamepad', 360, 2, '#cfc7aa', time);
+  const titleButtonBlink = getTitleButtonBlink(time);
+  drawBitmapButton(time, { y: 286, label: 'start', detail: 'free roam', active: titleButtonState.active, blink: titleButtonBlink });
+  drawBitmapButton(time, { y: 346, label: 'start', detail: 'cut-up mode', active: cutUpButtonState.active, blink: titleButtonBlink });
+  drawCenteredBitmapText('wasd+mouse or gamepad', 404, 2, '#cfc7aa', time);
 }
 
 function drawBloodWarningText(time) {
   const text = 'watch out for the zombies';
-  const y = 268;
+  const y = 252;
   const scale = 2;
   drawCenteredBitmapText(text, y + 2, scale, '#280205', time, { x: 1, y: 1 });
   drawCenteredBitmapText(text, y + 1, scale, '#5e0b16', time, { x: Math.sin(time * 9) > 0.72 ? 1 : 0, y: 0 });
@@ -1678,12 +1993,13 @@ function drawTitleBackdrop(time) {
   titleContext.fillRect(132, 186 + Math.floor(pulse / 8), 248, 94);
 }
 
-function drawBitmapButton(time) {
-  const x = 168;
-  const y = 298;
-  const width = 176;
-  const height = 40;
-  const active = titleButtonState.active || Math.sin(time * 5) > 0.74;
+function drawBitmapButton(time, options) {
+  const width = 184;
+  const height = 46;
+  const textScale = 2;
+  const x = Math.floor((TITLE_WIDTH - width) / 2);
+  const y = options.y;
+  const active = options.active || options.blink;
   titleContext.fillStyle = active ? '#f0d38a' : '#17110d';
   titleContext.fillRect(x, y, width, height);
   titleContext.fillStyle = active ? '#17110d' : '#f0d38a';
@@ -1691,7 +2007,12 @@ function drawBitmapButton(time) {
   titleContext.fillRect(x, y + height - 3, width, 3);
   titleContext.fillRect(x, y, 3, height);
   titleContext.fillRect(x + width - 3, y, 3, height);
-  drawCenteredBitmapText('[start]', y + 12, 3, active ? '#17110d' : '#f7e9b7', time);
+  drawCenteredBitmapText(options.label, y + 6, textScale, active ? '#17110d' : '#f7e9b7', time);
+  drawCenteredBitmapText(options.detail, y + 25, textScale, active ? '#2b2116' : '#cfc7aa', time);
+}
+
+function getTitleButtonBlink(time) {
+  return Math.sin(time * 5) > 0.74;
 }
 
 function drawCenteredBitmapText(text, y, scale, color, time, offset = { x: 0, y: 0 }) {
@@ -1746,12 +2067,16 @@ function openOptions(options = {}) {
   document.body.classList.add('options-open');
   document.body.classList.remove('game-active');
   if (releasePointerLock && document.pointerLockElement) document.exitPointerLock();
-  if (!optionsDialog.open) optionsDialog.showModal();
+  if (!optionsDialog.open) {
+    playUiOneShot(OPTIONS_OPEN_SOUND_URL);
+    optionsDialog.showModal();
+  }
 }
 
 function closeOptions() {
   keys.clear();
   if (optionsDialog.open) {
+    playUiOneShot(OPTIONS_CLOSE_SOUND_URL);
     optionsDialog.close();
   } else {
     enterGameMode({ requestLock: true });
@@ -1769,6 +2094,22 @@ function enterGameMode(options = {}) {
 
 function syncReticule() {
   reticule.hidden = !effects.showReticule;
+}
+
+function updateDebugHud(dt) {
+  const instantFps = dt > 0 ? 1 / dt : 0;
+  debugHud.fps = debugHud.fps ? debugHud.fps * 0.9 + instantFps * 0.1 : instantFps;
+
+  if (!debugHudPanel) return;
+
+  debugHudPanel.hidden = !effects.debugHud;
+  if (!effects.debugHud) return;
+
+  const zombieCount = zombies.length;
+  const enemyCount = effects.zombies ? zombieCount : 0;
+  if (debugFps) debugFps.textContent = String(Math.round(debugHud.fps));
+  if (debugZombies) debugZombies.textContent = String(zombieCount);
+  if (debugEnemies) debugEnemies.textContent = String(enemyCount);
 }
 
 function damagePlayer(now) {
@@ -1940,6 +2281,74 @@ function syncSceneSelect() {
   if (scene) scene.value = effects.sceneId;
 }
 
+function updateCutUpMode(now) {
+  if (!cutUpState.active || titleActive || optionsDialog.open || deathState.active) {
+    updateCutUpHud(now);
+    return;
+  }
+
+  if (shouldAdvanceCutUpScene(cutUpState, now)) {
+    const nextIndex = getNextCutUpSceneIndex(cutUpState);
+    jumpToCutUpScene(nextIndex, now);
+    return;
+  }
+
+  updateCutUpHud(now);
+}
+
+function jumpToCutUpScene(index, now = performance.now()) {
+  if (!cutUpState.active || index < 0 || index >= cutUpState.unlockedSceneCount) return;
+
+  captureCutUpSceneState();
+  cutUpState.activeSceneIndex = index;
+  cutUpState.sceneStartedAt = now;
+  cutUpState.flashStartedAt = now;
+  cutUpState.lastCutUpCountdownTick = null;
+  if (audioState) {
+    audioState.lastCutUpCountdownTick = null;
+    audioState.cutUpAudioDuckStartedAt = now;
+  }
+  playTransitionOneShot(CUT_UP_SCENE_SLICE_SOUND_URL);
+  const sceneId = SCENE_DEFINITIONS[index].id;
+  setScene(sceneId);
+  restoreCutUpSceneState(sceneId);
+  syncSceneSelect();
+  updateCutUpHud(now);
+}
+
+function captureCutUpSceneState() {
+  if (!cutUpState.active) return;
+
+  cutUpState.sceneStates.set(world.id, {
+    player: { ...player },
+    playerHealth: { ...playerHealth },
+    healthPotions: healthPotions.map((potion) => ({ ...potion })),
+    zombies: zombies.map((zombie) => ({ ...zombie })),
+    lastZombieBiteAt,
+    healthPickupFlashStartedAt,
+  });
+}
+
+function restoreCutUpSceneState(sceneId) {
+  const state = cutUpState.sceneStates.get(sceneId);
+  if (!state) return;
+
+  Object.assign(player, state.player);
+  playerHealth = createPlayerHealth(state.playerHealth.value);
+  healthPotions = state.healthPotions.map((potion) => ({ ...potion }));
+  zombies = state.zombies.map((zombie) => ({ ...zombie }));
+  lastZombieBiteAt = state.lastZombieBiteAt;
+  healthPickupFlashStartedAt = state.healthPickupFlashStartedAt;
+  rebuildWarehouseMesh();
+}
+
+function updateCutUpHud(now = performance.now()) {
+  cutUpHud.hidden = gameState.mode !== 'cut-up' || titleActive;
+  if (cutUpHud.hidden) return;
+
+  cutUpHud.textContent = getCutUpHudText(cutUpState, SCENE_DEFINITIONS, now);
+}
+
 function getSceneShortcutIndex(code) {
   const match = code.match(/^(?:Digit([0-9])|Numpad([0-9]))$/);
   if (!match) return -1;
@@ -1958,8 +2367,11 @@ function setRenderResolution(id) {
   renderTarget = createRenderTarget(gl, renderResolution.width, renderResolution.height);
 }
 
-function setScene(id) {
-  const nextWorld = createSceneWorld(id);
+async function setScene(id) {
+  const requestId = ++sceneLoadRequest;
+  const nextWorld = await createSceneRuntimeWorld(id);
+  if (requestId !== sceneLoadRequest) return;
+
   if (world.id === nextWorld.id) {
     syncSceneSelect();
     return;
@@ -1976,11 +2388,45 @@ function setScene(id) {
   deleteMeshBuffers(gl, warehouseMesh);
   deleteMeshBuffers(gl, zombieMesh);
   gl.deleteTexture(atlasTexture);
-  warehouseMesh = createWarehouseMesh(gl, { ...world, healthPotions }, textureIndices);
+  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
   zombieMesh = createZombieMesh(gl);
-  atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
+  atlasTexture = await createSceneTextureAtlas(gl, world, zombieTextureImage);
   if (audioState) ensureSceneAudio();
   syncSceneSelect();
+}
+
+async function createSceneRuntimeWorld(id) {
+  const fallback = createSceneWorld(id);
+  if (!LEVEL_GLB_URLS[fallback.id]) return fallback;
+
+  try {
+    const levelAsset = await getLoadedLevel(fallback.id);
+    return createWorldFromLevelAsset(fallback, levelAsset);
+  } catch (error) {
+    console.warn(`Falling back to procedural scene ${fallback.id}:`, error);
+    return fallback;
+  }
+}
+
+async function getLoadedLevel(id) {
+  if (!loadedLevels.has(id)) {
+    loadedLevels.set(id, loadLevelGlb(id));
+  }
+  return loadedLevels.get(id);
+}
+
+function createWorldFromLevelAsset(fallback, levelAsset) {
+  return {
+    ...fallback,
+    levelAsset,
+    playerSpawn: levelAsset.playerSpawn ?? fallback.playerSpawn,
+    zombieSpawns: levelAsset.zombieSpawns.length ? levelAsset.zombieSpawns : fallback.zombieSpawns,
+    healthPotions: levelAsset.healthPotions.length ? levelAsset.healthPotions : fallback.healthPotions,
+    lights: levelAsset.lights.length ? levelAsset.lights : fallback.lights,
+    torchLights: levelAsset.torchLights.length ? levelAsset.torchLights : fallback.torchLights,
+    killY: levelAsset.killY ?? fallback.killY,
+    textures: createLevelTextureDescriptors(levelAsset, fallback),
+  };
 }
 
 function resetPlayerToSpawn() {
@@ -2010,16 +2456,37 @@ function createSceneHealthPotions(scene) {
 
 function rebuildWarehouseMesh() {
   deleteMeshBuffers(gl, warehouseMesh);
-  warehouseMesh = createWarehouseMesh(gl, { ...world, healthPotions }, textureIndices);
+  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
 }
 
 function getSceneColliders(scene) {
+  if (scene.levelAsset) {
+    return scene.levelAsset.collision.map((collider) => ({
+      minX: collider.minX,
+      maxX: collider.maxX,
+      minY: collider.minY,
+      maxY: collider.maxY,
+      minZ: collider.minZ,
+      maxZ: collider.maxZ,
+    }));
+  }
+
   return [...scene.walls, ...scene.crates, ...(scene.platforms ?? [])]
     .map((item) => item.collider)
     .filter(Boolean);
 }
 
 function getSceneWalkableSurfaces(scene) {
+  if (scene.levelAsset) {
+    return scene.levelAsset.walkableSurfaces.map((surface) => ({
+      minX: surface.minX,
+      maxX: surface.maxX,
+      minZ: surface.minZ,
+      maxZ: surface.maxZ,
+      topY: surface.topY,
+    }));
+  }
+
   const floorPieces = scene.floorPieces ?? [scene.floor];
   return [...floorPieces, ...(scene.platforms ?? []), ...scene.walls, ...scene.crates]
     .filter(Boolean)
@@ -2030,6 +2497,43 @@ function getSceneWalkableSurfaces(scene) {
       maxZ: item.z + item.depth / 2,
       topY: item.y + item.height,
     }));
+}
+
+function createSceneMesh(glContext, scene, indices) {
+  if (scene.levelAsset) {
+    return createLevelMesh(glContext, scene, indices);
+  }
+  return createWarehouseMesh(glContext, scene, indices);
+}
+
+function createLevelMesh(glContext, scene, indices) {
+  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+
+  for (const mesh of scene.levelAsset.artMeshes) {
+    const textureId = indices.get(`level:${mesh.material}`) ?? 0;
+    for (const vertex of mesh.vertices) {
+      geometry.positions.push(vertex.x, vertex.y, vertex.z);
+      geometry.uvs.push(vertex.u, vertex.v);
+      geometry.textureIds.push(textureId);
+      geometry.shades.push(0.92);
+      geometry.motions.push(0);
+    }
+  }
+
+  if (scene.healthPotions) {
+    for (const item of scene.healthPotions) {
+      addHealthPotionFlask(geometry, item, indices);
+    }
+  }
+
+  return {
+    count: geometry.positions.length / 3,
+    position: createBuffer(glContext, new Float32Array(geometry.positions)),
+    uv: createBuffer(glContext, new Float32Array(geometry.uvs)),
+    textureId: createBuffer(glContext, new Float32Array(geometry.textureIds)),
+    shade: createBuffer(glContext, new Float32Array(geometry.shades)),
+    motion: createBuffer(glContext, new Float32Array(geometry.motions)),
+  };
 }
 
 function createWarehouseMesh(glContext, scene, indices) {
@@ -2143,24 +2647,44 @@ function updateZombieMesh(glContext, mesh, zombieList, indices, model = null, ti
 function addZombieModel(geometry, zombie, vertices, indices) {
   const textureId = indices.get('zombie') ?? 0;
   const motion = motionCode('zombie-walk');
-  const sin = Math.sin(zombie.yaw + ZOMBIE_MODEL_FRONT_ROTATION);
-  const cos = Math.cos(zombie.yaw + ZOMBIE_MODEL_FRONT_ROTATION);
+  const zombieMasterYaw = zombie.yaw;
+  const zombieModelYaw = ZOMBIE_MODEL_FRONT_ROTATION;
   const feetY = zombie.y - PLAYER_EYE_HEIGHT;
 
   for (const vertex of vertices) {
     const localX = vertex.x * ZOMBIE_MODEL_SCALE;
     const localY = vertex.y * ZOMBIE_MODEL_SCALE;
     const localZ = vertex.z * ZOMBIE_MODEL_SCALE;
+    const modelSpace = rotateZombieLocalVertex(localX, localY, localZ, zombieModelYaw);
+    const worldSpace = rotateZombieMasterVertex(modelSpace.x, modelSpace.y, modelSpace.z, zombieMasterYaw);
     geometry.positions.push(
-      zombie.x + localX * cos + localZ * sin,
-      feetY + localY,
-      zombie.z + localZ * cos - localX * sin,
+      zombie.x + worldSpace.x,
+      feetY + worldSpace.y,
+      zombie.z + worldSpace.z,
     );
     geometry.uvs.push(vertex.u, vertex.v);
     geometry.textureIds.push(textureId);
     geometry.shades.push(0.98);
     geometry.motions.push(motion);
   }
+}
+
+function rotateZombieLocalVertex(x, y, z, yaw) {
+  return rotateZombieY(x, y, z, yaw);
+}
+
+function rotateZombieMasterVertex(x, y, z, yaw) {
+  return rotateZombieY(x, y, z, yaw);
+}
+
+function rotateZombieY(x, y, z, yaw) {
+  const sin = Math.sin(yaw);
+  const cos = Math.cos(yaw);
+  return {
+    x: x * cos + z * sin,
+    y,
+    z: z * cos - x * sin,
+  };
 }
 
 function addZombieCard(geometry, zombie, indices) {
@@ -2438,6 +2962,35 @@ function drawQuad(glContext, program, buffer) {
   glContext.drawArrays(glContext.TRIANGLES, 0, 6);
 }
 
+function createLevelTextureDescriptors(levelAsset, fallback) {
+  const levelTextures = levelAsset.materials.map((material, index) => ({
+    id: `level:${index}`,
+    size: 128,
+    material,
+  }));
+  const supportTextures = fallback.textures.filter((texture) => (
+    texture.id === 'zombie' || texture.id === 'healthPotion'
+  ));
+  return [...levelTextures, ...supportTextures];
+}
+
+async function createSceneTextureAtlas(glContext, scene, zombieImage = null) {
+  if (!scene.levelAsset) return createTextureAtlas(glContext, scene.textures, zombieImage);
+  return createLevelTextureAtlas(glContext, scene, zombieImage);
+}
+
+async function createLevelTextureAtlas(glContext, scene, zombieImage = null) {
+  const textures = await Promise.all(scene.textures.map(async (texture) => {
+    if (!texture.material?.texture?.bytes) return texture;
+    return {
+      ...texture,
+      image: await loadTextureBytesImage(texture.material.texture),
+    };
+  }));
+
+  return createTextureAtlas(glContext, textures, zombieImage);
+}
+
 function createTextureAtlas(glContext, textures, zombieImage = null) {
   const tile = 128;
   const atlasCanvas = document.createElement('canvas');
@@ -2450,6 +3003,10 @@ function createTextureAtlas(glContext, textures, zombieImage = null) {
     const x = index * tile;
     if (texture.id === 'zombie' && zombieImage) {
       drawZombieModelTexture(ctx, zombieImage, x, 0, tile);
+    } else if (texture.image) {
+      ctx.drawImage(texture.image, x, 0, tile, tile);
+    } else if (texture.material) {
+      drawMaterialColorTexture(ctx, texture.material.baseColor, x, 0, tile);
     } else {
       drawGeneratedTexture(ctx, texture.id, x, 0, tile, texture.size);
     }
@@ -2463,6 +3020,25 @@ function createTextureAtlas(glContext, textures, zombieImage = null) {
   glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_WRAP_T, glContext.CLAMP_TO_EDGE);
   glContext.texImage2D(glContext.TEXTURE_2D, 0, glContext.RGBA, glContext.RGBA, glContext.UNSIGNED_BYTE, atlasCanvas);
   return texture;
+}
+
+async function loadTextureBytesImage(texture) {
+  const blob = new Blob([texture.bytes], { type: texture.mimeType });
+  const image = new Image();
+  const url = URL.createObjectURL(blob);
+  try {
+    image.src = url;
+    await image.decode();
+    return image;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function drawMaterialColorTexture(ctx, baseColor, x, y, tile) {
+  const [r, g, b, a = 1] = baseColor ?? [1, 1, 1, 1];
+  ctx.fillStyle = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`;
+  ctx.fillRect(x, y, tile, tile);
 }
 
 function drawZombieModelTexture(ctx, image, x, y, tile) {
@@ -3070,13 +3646,19 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function start() {
+async function start() {
   sceneProgram = createProgram(gl, sceneVertexShader, sceneFragmentShader);
   postProgram = createProgram(gl, postVertexShader, postFragmentShader);
-  warehouseMesh = createWarehouseMesh(gl, { ...world, healthPotions }, textureIndices);
+  world = await createSceneRuntimeWorld(effects.sceneId);
+  textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
+  colliders = getSceneColliders(world);
+  walkableSurfaces = getSceneWalkableSurfaces(world);
+  healthPotions = createSceneHealthPotions(world);
+  resetPlayerToSpawn();
+  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
   zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);
-  atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
+  atlasTexture = await createSceneTextureAtlas(gl, world, zombieTextureImage);
   renderTarget = createRenderTarget(gl, renderResolution.width, renderResolution.height);
 
   setupOptions();
@@ -3088,7 +3670,7 @@ function start() {
     zombieTextureImage = await loadZombieTextureImage(model.texture);
     if (zombieTextureImage) {
       gl.deleteTexture(atlasTexture);
-      atlasTexture = createTextureAtlas(gl, world.textures, zombieTextureImage);
+      atlasTexture = await createSceneTextureAtlas(gl, world, zombieTextureImage);
     }
   }).catch(() => {
     zombieModel = null;
@@ -3344,6 +3926,7 @@ uniform float uHealthPulse;
 uniform float uHealthPickupFlash;
 uniform float uDeathTint;
 uniform float uDeathProgress;
+uniform float uCutUpFlash;
 
 varying vec2 vUv;
 
@@ -3446,9 +4029,12 @@ void main() {
   blood *= smoothstep(0.18, 0.62, uDeathProgress);
   color = mix(color, vec3(0.58, 0.0, 0.015), clamp(blood, 0.0, 0.94));
   color = mix(color, vec3(0.78, 0.02, 0.02), uDeathTint);
+  color = mix(color, vec3(1.0), uCutUpFlash);
 
   gl_FragColor = vec4(color, 1.0);
 }
 `;
 
-start();
+start().catch((error) => {
+  console.error(error);
+});

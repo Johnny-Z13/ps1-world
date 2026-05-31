@@ -5,11 +5,23 @@ import test from 'node:test';
 const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+const cutUpMode = readFileSync(new URL('../src/cutUpMode.js', import.meta.url), 'utf8');
 
 test('renders a center reticule with an options toggle', () => {
   assert.match(index, /id="reticule"/);
   assert.match(index, /id="showReticule"/);
   assert.match(styles, /\.reticule/);
+});
+
+test('offers a small debug HUD with frame and enemy counts', () => {
+  assert.match(index, /id="debugHud"/);
+  assert.match(index, /id="debugHudToggle"/);
+  assert.match(index, /Debug HUD/);
+  assert.match(styles, /\.debug-hud/);
+  assert.match(app, /function updateDebugHud/);
+  assert.match(app, /debugHud\.fps/);
+  assert.match(app, /effects\.debugHud/);
+  assert.match(app, /zombies\.length/);
 });
 
 test('offers a clean test view video preset in the options menu', () => {
@@ -22,7 +34,7 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(index, /id="titleScreen"/);
   assert.match(index, /id="titleCanvas"/);
   assert.match(index, /id="startButton"/);
-  assert.match(index, /aria-label="\[start\]"/);
+  assert.match(index, /aria-label="Free Roam"/);
   assert.match(styles, /\.title-screen/);
   assert.match(styles, /\.title-canvas/);
   assert.match(styles, /image-rendering:\s*pixelated/);
@@ -32,10 +44,52 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(app, /wasd\+mouse or gamepad/);
   assert.match(app, /watch out for the zombies/);
   assert.match(app, /drawBloodWarningText/);
+  assert.doesNotMatch(app, /512i signal/);
   assert.match(app, /'\+':/);
   assert.match(app, /z:/);
   assert.match(app, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(app, /document\.body\.classList\.remove\('title-active'\)/);
+});
+
+test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
+  assert.match(index, /id="cutUpButton"/);
+  assert.match(index, /aria-label="Cut Up Mode"/);
+  assert.match(index, /id="cutUpHud"/);
+  assert.match(styles, /\.title-cut-up-hitbox/);
+  assert.match(styles, /\.cut-up-hud/);
+  assert.match(cutUpMode, /export const CUT_UP_SCENE_SECONDS = 10/);
+  assert.match(app, /const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS\.length/);
+  assert.match(app, /mode: 'normal'/);
+  assert.match(app, /function startCutUpMode/);
+  assert.match(app, /function updateCutUpMode/);
+  assert.match(app, /function captureCutUpSceneState/);
+  assert.match(app, /function restoreCutUpSceneState/);
+  assert.match(app, /cutUpState\.sceneStates/);
+  assert.match(app, /cutUpState\.unlockedSceneCount = CUT_UP_SCENE_COUNT/);
+  assert.match(cutUpMode, /CUT UP/);
+});
+
+test('warns and flashes before Cut Up jumps scenes', () => {
+  assert.match(cutUpMode, /export const CUT_UP_COUNTDOWN_SECONDS = 3/);
+  assert.match(cutUpMode, /export const CUT_UP_FLASH_DURATION_MS = 260/);
+  assert.match(cutUpMode, /jump in \$\{Math\.ceil\(remaining\)\}/);
+  assert.match(app, /cutUpState\.flashStartedAt = now/);
+  assert.match(cutUpMode, /function getCutUpJumpFlash/);
+  assert.match(app, /uCutUpFlash/);
+  assert.match(app, /mix\(color,\s*vec3\(1\.0\),\s*uCutUpFlash\)/);
+});
+
+test('keeps title mode buttons compact and vertically separated', () => {
+  assert.match(styles, /max-width:\s*184px/);
+  assert.match(styles, /max-height:\s*46px/);
+  assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.36\)/);
+  assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.096\)/);
+  assert.match(app, /const titleButtonBlink = getTitleButtonBlink\(time\)/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 286,\s*label: 'start',\s*detail: 'free roam'/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 346,\s*label: 'start',\s*detail: 'cut-up mode'/);
+  assert.match(app, /const width = 184/);
+  assert.match(app, /const height = 46/);
+  assert.match(app, /const textScale = 2/);
 });
 
 test('plays a retro menu confirm sound when starting from the title screen', () => {
@@ -44,6 +98,56 @@ test('plays a retro menu confirm sound when starting from the title screen', () 
   assert.match(app, /function playMenuStartConfirmSound/);
   assert.match(app, /playPlayerOneShot\(MENU_START_CONFIRM_SOUND_URL,\s*MENU_START_CONFIRM_SOUND_GAIN\)/);
   assert.match(app, /playMenuStartConfirmSound\(\)/);
+});
+
+test('layers generated music beds for title, Free Roam, and Cut Up mode', () => {
+  assert.match(app, /TITLE_MUSIC_LOOP_URL/);
+  assert.match(app, /title-menu-psx-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /FREE_ROAM_MUSIC_LOOP_URL/);
+  assert.match(app, /free-roam-dread-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /CUT_UP_MUSIC_LOOP_URL/);
+  assert.match(app, /cut-up-clockwork-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /musicGain/);
+  assert.match(app, /titleMusicGain/);
+  assert.match(app, /freeRoamMusicGain/);
+  assert.match(app, /cutUpMusicGain/);
+  assert.match(app, /function ensureMusicLoop/);
+  assert.match(app, /function syncCinematicMusicAudio/);
+});
+
+test('adds cinematic transition and UI sounds for game modes', () => {
+  assert.match(app, /FREE_ROAM_START_SOUND_URL/);
+  assert.match(app, /free-roam-start-warp-8bit\.mp3\?v=1/);
+  assert.match(app, /CUT_UP_START_SOUND_URL/);
+  assert.match(app, /cut-up-start-burst-8bit\.mp3\?v=1/);
+  assert.match(app, /CUT_UP_SCENE_SLICE_SOUND_URL/);
+  assert.match(app, /cut-up-scene-slice-8bit\.mp3\?v=1/);
+  assert.match(app, /CUT_UP_COUNTDOWN_TICK_SOUND_URL/);
+  assert.match(app, /cut-up-countdown-tick-8bit\.mp3\?v=1/);
+  assert.match(app, /OPTIONS_OPEN_SOUND_URL/);
+  assert.match(app, /options-open-static-8bit\.mp3\?v=1/);
+  assert.match(app, /OPTIONS_CLOSE_SOUND_URL/);
+  assert.match(app, /options-close-click-8bit\.mp3\?v=1/);
+  assert.match(app, /uiSfxGain/);
+  assert.match(app, /transitionSfxGain/);
+  assert.match(app, /function playTransitionOneShot/);
+  assert.match(app, /function playUiOneShot/);
+  assert.match(app, /playTransitionOneShot\(FREE_ROAM_START_SOUND_URL/);
+  assert.match(app, /playTransitionOneShot\(CUT_UP_START_SOUND_URL/);
+  assert.match(app, /playTransitionOneShot\(CUT_UP_SCENE_SLICE_SOUND_URL/);
+  assert.match(app, /playUiOneShot\(OPTIONS_OPEN_SOUND_URL/);
+  assert.match(app, /playUiOneShot\(OPTIONS_CLOSE_SOUND_URL/);
+});
+
+test('crossfades world ambience and ticks down Cut Up scene jumps', () => {
+  assert.match(app, /ambienceSlots/);
+  assert.match(app, /function createAmbienceSlot/);
+  assert.match(app, /function stopAmbienceSlotAfterFade/);
+  assert.match(app, /CUT_UP_AUDIO_DUCK_DURATION_MS/);
+  assert.match(app, /lastCutUpCountdownTick/);
+  assert.match(app, /function syncCutUpCountdownAudio/);
+  assert.match(app, /playTransitionOneShot\(CUT_UP_COUNTDOWN_TICK_SOUND_URL/);
+  assert.match(app, /cutUpState\.lastCutUpCountdownTick = null/);
 });
 
 test('hides the game canvas cursor during play', () => {
@@ -219,8 +323,11 @@ test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(app, /loadZombieGlb/);
   assert.match(app, /zombieModel/);
   assert.match(app, /addZombieModel/);
-  assert.match(app, /const ZOMBIE_MODEL_FRONT_ROTATION = Math\.PI;/);
-  assert.match(app, /zombie\.yaw \+ ZOMBIE_MODEL_FRONT_ROTATION/);
+  assert.match(app, /const ZOMBIE_MODEL_FRONT_ROTATION = -Math\.PI \/ 2;/);
+  assert.match(app, /const zombieMasterYaw = zombie\.yaw/);
+  assert.match(app, /const zombieModelYaw = ZOMBIE_MODEL_FRONT_ROTATION/);
+  assert.match(app, /rotateZombieLocalVertex/);
+  assert.match(app, /rotateZombieMasterVertex/);
   assert.match(app, /drawZombieModelTexture/);
   assert.match(app, /createZombieEnemies/);
   assert.match(app, /updateZombieEnemies/);
@@ -231,7 +338,18 @@ test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(app, /effects\.zombies/);
   assert.match(app, /damagePlayer\(now\)/);
   assert.match(app, /PLAYER_DAMAGE_SOUND_URL/);
-  assert.match(app, /player-damage-8bit\.mp3\?v=1/);
+  assert.match(app, /player-damage-grunt-8bit\.mp3\?v=1/);
+});
+
+test('loads Blender-authored GLB levels for scene art and collision', () => {
+  assert.match(app, /loadLevelGlb/);
+  assert.match(app, /LEVEL_GLB_URLS/);
+  assert.match(app, /levelAsset/);
+  assert.match(app, /createLevelMesh/);
+  assert.match(app, /createLevelTextureAtlas/);
+  assert.match(app, /sceneLoadRequest/);
+  assert.match(app, /getSceneColliders\(world\)/);
+  assert.match(app, /getSceneWalkableSurfaces\(world\)/);
 });
 
 test('loops zombie grunt audio when zombies are active near the player', () => {

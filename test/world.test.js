@@ -227,8 +227,12 @@ test('dots every scene with two or three zombie spawn points away from the playe
   for (const definition of SCENE_DEFINITIONS) {
     const world = createSceneWorld(definition.id);
 
-    assert.ok(world.zombieSpawns.length >= 2, definition.id);
-    assert.ok(world.zombieSpawns.length <= 3, definition.id);
+    if (definition.id === 'alien-landscape') {
+      assert.equal(world.zombieSpawns.length, 20, definition.id);
+    } else {
+      assert.ok(world.zombieSpawns.length >= 2, definition.id);
+      assert.ok(world.zombieSpawns.length <= 3, definition.id);
+    }
 
     for (const spawn of world.zombieSpawns) {
       const distanceFromPlayer = Math.hypot(spawn.x - world.playerSpawn.x, spawn.z - world.playerSpawn.z);

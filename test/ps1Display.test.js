@@ -30,6 +30,7 @@ test('starts with PS1/CRT effects enabled and adjustable', () => {
   assert.equal(DEFAULT_EFFECTS.colorBleed, true);
   assert.equal(DEFAULT_EFFECTS.playerTorch, true);
   assert.equal(DEFAULT_EFFECTS.zombies, true);
+  assert.equal(DEFAULT_EFFECTS.debugHud, false);
 });
 
 test('includes a stronger portable CRT preset for 1999 TV feel', () => {
@@ -55,6 +56,7 @@ test('video presets are complete whole-option profiles', () => {
     'wobble',
     'playerTorch',
     'zombies',
+    'debugHud',
     'brightness',
     'contrast',
     'saturation',
@@ -83,6 +85,7 @@ test('portable TV preset restores the full crunchy PS1 profile', () => {
   assert.equal(portable.noise, true);
   assert.equal(portable.playerTorch, true);
   assert.equal(portable.zombies, true);
+  assert.equal(portable.debugHud, false);
 });
 
 test('includes a clean test view preset matching the 1024 art-check settings', () => {
@@ -101,6 +104,7 @@ test('includes a clean test view preset matching the 1024 art-check settings', (
   assert.equal(effects.playerTorch, true);
   assert.equal(effects.zombies, true);
   assert.equal(effects.showReticule, true);
+  assert.equal(effects.debugHud, false);
 });
 
 test('offers the requested PlayStation resolution modes', () => {

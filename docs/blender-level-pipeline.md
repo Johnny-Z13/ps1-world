@@ -1,0 +1,121 @@
+# Blender Level Pipeline
+
+This project is moving toward Blender-authored levels. The browser game should treat each exported GLB as a compiled level package, while Blender remains the design/editing tool.
+
+This browser repo is the lead project. A downstream Unity version may consume or mirror concepts from this repo, but agents working here should not modify downstream Unity folders unless the user explicitly asks.
+
+## Source and Runtime Files
+
+- Source authoring file: `assets/models/levels/ps1-world-levels.blend`
+- Runtime exports: `assets/models/levels/<scene-id>.glb`
+- Current seed metadata: `assets/models/levels/level-seed-data.json`
+- Rebuild helper: `scripts/build-level-glbs.py`
+
+The seed GLBs were generated from the current `src/world.js` scene definitions so the first Blender-authored pass starts from the existing game layout.
+
+## Commands
+
+Generate seed data from the fallback JS scene definitions:
+
+```bash
+node scripts/export-level-seed-data.mjs assets/models/levels/level-seed-data.json
+```
+
+Build a new Blender source file and export GLBs from seed data:
+
+```bash
+blender --factory-startup -b --python scripts/build-level-glbs.py -- assets/models/levels
+```
+
+Re-export GLBs from the current Blender source file after editing:
+
+```bash
+blender -b assets/models/levels/ps1-world-levels.blend --python scripts/reexport-level-glbs.py -- assets/models/levels
+```
+
+After any exported GLB changes, bump `LEVEL_GLB_URLS` cache busting in `src/levelGlb.js`.
+
+To regenerate the authoring file and all runtime GLBs from the seed data:
+
+```powershell
+& 'C:\Program Files\Blender Foundation\Blender 4.3\blender.exe' --factory-startup -b --python scripts\build-level-glbs.py -- assets\models\levels
+```
+
+## Node Naming Convention
+
+- `ART_<scene-id>_<name>`: visible level geometry rendered by the game.
+- `COLLISION_<scene-id>_<name>`: simplified blocker geometry used for horizontal collision. This should be hidden in Blender while editing art.
+- `WALKABLE_<scene-id>_<name>`: simplified surfaces used for ground height, stairs, platforms, and ledges.
+- `MARKER_<scene-id>_PLAYER_SPAWN_<name>`: player spawn with `yaw` metadata.
+- `MARKER_<scene-id>_ZOMBIE_SPAWN_<name>`: enemy spawn points.
+- `MARKER_<scene-id>_PICKUP_HEALTH_<name>`: health pickup spawn points.
+- `MARKER_<scene-id>_LIGHT_<name>` and `MARKER_<scene-id>_TORCH_LIGHT_<name>`: gameplay/render light markers.
+- `MARKER_<scene-id>_KILL_PLANE_<name>`: kill-plane metadata.
+
+The GLB exporter writes Blender custom properties as glTF `extras`. The runtime loader should prefer `extras.level_role` when available and fall back to the name prefixes above.
+
+## Runtime Status
+
+The game now loads the exported level GLBs at runtime through `src/levelGlb.js`.
+
+Implemented:
+
+1. A general GLB parser for static level packages. It supports multiple meshes, nodes, materials, embedded textures, transforms, and extras.
+2. A scene-id to GLB URL map:
+   - `dungeon` -> `./assets/models/levels/dungeon.glb`
+   - `alien-landscape` -> `./assets/models/levels/alien-landscape.glb`
+   - all nine scenes are registered with `?v=1` cache-busting.
+3. Visible render buffers are built from `ART_*` nodes.
+4. Collision arrays are built from `COLLISION_*` nodes.
+5. Walkable-surface queries are built from `WALKABLE_*` nodes.
+6. Gameplay state comes from markers: player spawn, zombie spawns, pickups, lights, torch lights, and kill planes.
+7. `src/world.js` remains as fallback metadata for scene labels, audio, generated support textures, and fallback scene data if a GLB fails to load.
+
+Next expansions:
+
+- Add `TRIGGER_*`, `HAZARD_*`, `EMITTER_*`, `SOUND_ZONE_*`, and `SURFACE_*` parsing as those authoring concepts are introduced.
+- Add a Blender export helper that bumps the level GLB cache-busting version after asset changes.
+
+## Runtime Contract
+
+`src/levelGlb.js` is intentionally small and explicit. It currently supports:
+
+- GLB binary container parsing.
+- Multiple mesh primitives.
+- Embedded materials/textures.
+- Node transforms.
+- `extras.level_role` metadata.
+- Prefix fallback for role detection.
+- Marker extras parsed from strings when Blender stores structured values as JSON text.
+
+The runtime expects GLB coordinates to be converted into the browser game's positive-Y-up world convention. Keep tests in `test/levelGlb.test.js` passing when changing export or parser behavior.
+
+If a GLB fails to load, `src/world.js` remains the fallback source for scene layout and metadata. Do not delete fallback data until runtime behavior and downstream consumers are ready.
+
+## Authoring Rules
+
+- Edit art freely in `ART_*` objects.
+- Keep tiling level surfaces box-projected at 32 pixels per world unit. Large floors, walls, stairs, and platforms should have UV coordinates greater than 1 when they span multiple world units; billboard sprites such as stars, suns, rain cards, and signs stay 0-1 with alpha masks.
+- Keep `COLLISION_*` and `WALKABLE_*` simple. Collision should serve gameplay, not match every visual bevel or prop.
+- To add new gameplay concepts, use explicit prefixes and metadata rather than relying on material names alone:
+  - `TRIGGER_*`
+  - `HAZARD_LAVA_*`
+  - `HAZARD_TOXIC_*`
+  - `EMITTER_*`
+  - `SOUND_ZONE_*`
+  - `SURFACE_METAL_*`, `SURFACE_WATER_*`, `SURFACE_STONE_*`
+- Runtime behavior should be driven by `extras.level_role` plus small, documented metadata fields.
+
+## Performance Position
+
+The runtime should load one GLB per active scene, create static WebGL buffers once, and reuse the current low-resolution post pipeline. Collision should use simplified authored objects, not visual triangle soup. That gives the artist a one-to-one Blender workflow without making physics expensive or fragile.
+
+## Agent Checklist
+
+Before changing the art pipeline:
+
+1. Read this file, `README.md`, `AGENTS.md`, and `CLAUDE.md`.
+2. Inspect `src/levelGlb.js`, `scripts/build-level-glbs.py`, and `scripts/reexport-level-glbs.py`.
+3. Run `npm test` before and after changes.
+4. If changing static assets, update cache-busting query strings.
+5. Keep Blender roles explicit. Prefer metadata and documented prefixes over inference.

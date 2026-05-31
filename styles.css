@@ -27,12 +27,14 @@ body.title-active #screen {
 
 body.title-active #screen,
 body.title-active .reticule,
-body.title-active .hud {
+body.title-active .hud,
+body.title-active .debug-hud {
   cursor: default;
 }
 
 body.title-active .reticule,
-body.title-active .hud {
+body.title-active .hud,
+body.title-active .debug-hud {
   display: none;
 }
 
@@ -88,8 +90,10 @@ body.game-active * {
 }
 
 .title-screen {
-  --title-width: min(100vw, calc(100vh * 4 / 3));
-  --title-height: calc(var(--title-width) * 0.75);
+  --title-width: min(100vw, calc(100vh * 16 / 15));
+  --title-height: calc(var(--title-width) * 15 / 16);
+  --title-button-width: calc(var(--title-width) * 0.36);
+  --title-button-height: calc(var(--title-height) * 0.096);
   position: fixed;
   inset: 0;
   z-index: 4;
@@ -107,14 +111,14 @@ body.game-active * {
   image-rendering: crisp-edges;
 }
 
-.title-start-hitbox {
+.title-start-hitbox,
+.title-cut-up-hitbox {
   position: absolute;
   left: 50%;
-  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.6625);
-  width: calc(var(--title-width) * 0.383);
-  max-width: 196px;
-  height: calc(var(--title-height) * 0.121);
-  max-height: 58px;
+  width: var(--title-button-width);
+  max-width: 184px;
+  height: var(--title-button-height);
+  max-height: 46px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -123,7 +127,16 @@ body.game-active * {
   cursor: pointer;
 }
 
-.title-start-hitbox:focus-visible {
+.title-start-hitbox {
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.644);
+}
+
+.title-cut-up-hitbox {
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.769);
+}
+
+.title-start-hitbox:focus-visible,
+.title-cut-up-hitbox:focus-visible {
   outline: 0;
 }
 
@@ -145,6 +158,49 @@ body.game-active * {
   padding: 5px 7px;
   border: 1px solid rgba(237, 226, 196, 0.18);
   background: rgba(10, 10, 9, 0.58);
+}
+
+.debug-hud {
+  position: fixed;
+  top: 8px;
+  right: 10px;
+  z-index: 3;
+  display: grid;
+  gap: 2px;
+  min-width: 86px;
+  padding: 5px 6px;
+  border: 1px solid rgba(129, 244, 151, 0.28);
+  background: rgba(4, 8, 5, 0.62);
+  color: rgba(174, 255, 178, 0.88);
+  font: 10px/1.25 "Courier New", monospace;
+  text-align: right;
+  text-transform: uppercase;
+  pointer-events: none;
+  text-shadow: 1px 1px #050505;
+}
+
+.debug-hud span {
+  display: inline-block;
+  min-width: 26px;
+  color: #f2ffe8;
+}
+
+.cut-up-hud {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 3;
+  width: min(340px, calc(100vw - 24px));
+  padding: 7px 9px;
+  border: 1px solid rgba(247, 233, 183, 0.32);
+  background: rgba(10, 6, 7, 0.64);
+  color: rgba(247, 233, 183, 0.9);
+  font: 12px/1.3 "Courier New", monospace;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 1px 1px #050505;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .touch-move,
