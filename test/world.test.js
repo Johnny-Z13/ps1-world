@@ -96,6 +96,28 @@ test('builds three additional PS1-style wanderable scenes', () => {
   }
 });
 
+test('builds the derelict starship with varied metal ceiling geometry instead of repeated warning chevrons', () => {
+  const world = createSceneWorld('derelict-starship');
+  const objects = [world.floor, world.ceiling, ...world.walls, ...world.crates, ...world.platforms, ...world.props].filter(Boolean);
+  const warningObjects = objects.filter((item) => item.texture === 'warning');
+  const ceilingProps = world.props.filter((item) => item.name.includes('ceiling') || item.name.includes('overhead'));
+  const ceilingHeights = new Set(ceilingProps.map((item) => item.y.toFixed(2)));
+  const starshipGeometry = objects.filter((item) => (
+    /rib|recess|bulkhead|hull|conduit|vent|ceiling|panel|trim|hatch|door/.test(item.name)
+  ));
+
+  assert.equal(world.ceiling.texture, 'shipCeiling');
+  assert.ok(world.textures.some((texture) => texture.id === 'shipCeiling' && texture.size === 128));
+  assert.ok(world.textures.some((texture) => texture.id === 'darkMetal' && texture.size === 128));
+  assert.ok(world.textures.some((texture) => texture.id === 'hullPanel' && texture.size === 128));
+  assert.ok(world.textures.some((texture) => texture.id === 'reactorGlow' && texture.size === 64));
+  assert.ok(warningObjects.length <= 1);
+  assert.ok(ceilingProps.length >= 10);
+  assert.ok(ceilingHeights.size >= 5);
+  assert.ok(starshipGeometry.length >= 24);
+  assert.ok(world.props.every((item) => item.collider === null));
+});
+
 test('builds rotwood forest with dark-fantasy landmarks and living cards', () => {
   const world = createSceneWorld('rotwood-forest');
   const objects = [...world.walls, ...world.crates, ...world.cards];
@@ -105,10 +127,22 @@ test('builds rotwood forest with dark-fantasy landmarks and living cards', () =>
   assert.ok(objects.some((item) => item.name.includes('stone circle')));
   assert.ok(objects.some((item) => item.name.includes('sunken footbridge')));
   assert.ok(objects.some((item) => item.name.includes('black pond')));
+  assert.ok(world.crates.filter((item) => item.mesh === 'whole-tree').length >= 36);
+  assert.ok(world.crates.filter((item) => item.mesh === 'whole-tree').every((item) => item.canopyTexture));
+  assert.equal(world.crates.filter((item) => item.name.includes('black tree trunk')).length, 0);
   assert.ok(world.cards.filter((item) => item.motion === 'sway').length >= 12);
   assert.ok(world.cards.filter((item) => item.motion === 'firefly').length >= 8);
-  assert.ok(world.cards.filter((item) => item.motion === 'falling-leaf').length >= 8);
+  assert.ok(world.cards.filter((item) => item.motion === 'falling-leaf').length >= 80);
+  assert.ok(world.cards.filter((item) => item.texture === 'moonbeam').length >= 5);
   assert.ok(world.movingBillboards.some((item) => item.name.includes('moon') && item.motion === 'moon-slide'));
+  assert.ok(world.textures.some((texture) => texture.id === 'moonbeam'));
+  assert.equal(world.rain?.texture, 'rain');
+  assert.ok(world.rain?.drops.length >= 48);
+  assert.ok(world.rain.drops.every((drop) => drop.y >= 16 && drop.height >= 10));
+  assert.equal(world.lightning?.texture, 'lightning');
+  assert.ok(world.lightning?.bolts.length >= 3);
+  assert.ok(world.textures.some((texture) => texture.id === 'rain'));
+  assert.ok(world.textures.some((texture) => texture.id === 'lightning'));
   assert.deepEqual(world.playerTorch, {
     radius: 12,
     intensity: 2.9,
@@ -125,6 +159,9 @@ test('builds astral geometry garden as a navigable haunted demo-disc sculpture p
   assert.ok(world.floorPieces.length >= 5);
   assert.ok(world.crates.filter((item) => item.motion === 'bob').length >= 4);
   assert.ok(world.crates.filter((item) => item.motion === 'orbit').length >= 8);
+  assert.deepEqual(world.skyDome, { mode: 'clouds', palette: 'liminal-blue' });
+  assert.ok(world.clearColor[2] > world.clearColor[0]);
+  assert.ok(world.clearColor[1] > 0.6);
   assert.ok(world.mountains.filter((item) => item.name.includes('pyramid')).length >= 4);
   assert.ok(world.cards.filter((item) => item.motion === 'flicker-comet').length >= 4);
   assert.equal(world.shootingStar.interval, 10);
@@ -175,7 +212,10 @@ test('builds a 1-bit polygon cathedral with black and white texture mapping', ()
   assert.equal(world.oneBitStyle, 'dithered-gradient');
   assert.deepEqual(world.skyDome, { mode: 'starry', palette: 'one-bit-night' });
   assert.ok(world.floor);
-  assert.ok(world.textures.every((texture) => texture.id.startsWith('oneBit') || texture.id === 'zombie' || texture.id === 'healthPotion'));
+  assert.ok(world.textures.every((texture) => (
+    texture.id.startsWith('oneBit')
+    || ['zombie', 'one-eye-alien', 'molten-sentinel', 'healthPotion', 'warpGate'].includes(texture.id)
+  )));
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
   assert.ok(world.clearColor[0] > 0);
   assert.ok(world.walls.length >= 28);
@@ -194,7 +234,9 @@ test('adds non-colliding rain to the sunken temple scene', () => {
   assert.ok(highestDrop >= 24);
   assert.ok(tallestDrop >= 20);
   assert.equal(world.skyDome?.mode, 'clouds');
-  assert.ok(world.clearColor[0] >= 0.08 && world.clearColor[1] >= 0.13 && world.clearColor[2] >= 0.15);
+  assert.equal(world.skyDome?.palette, 'psychedelic-purple');
+  assert.ok(world.clearColor[2] > world.clearColor[0]);
+  assert.ok(world.clearColor[1] < 0.04);
   assert.ok(world.textures.some((texture) => texture.id === 'rain' && texture.size === 64));
   assert.ok([...world.walls, ...world.crates].every((item) => !item.name.includes('rain')));
 });
@@ -242,6 +284,29 @@ test('spawns every scene in open floor space outside colliders', () => {
   }
 });
 
+test('places Rogue warp gates far from player spawn and outside colliders', () => {
+  const radius = 1.05;
+
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+    const gate = world.warpGate;
+    const distanceFromPlayer = Math.hypot(gate.x - world.playerSpawn.x, gate.z - world.playerSpawn.z);
+    const blocking = [...world.walls, ...world.crates, ...world.platforms]
+      .filter((item) => item.collider)
+      .filter((item) => (
+        gate.x + radius > item.collider.minX
+        && gate.x - radius < item.collider.maxX
+        && gate.z + radius > item.collider.minZ
+        && gate.z - radius < item.collider.maxZ
+      ));
+
+    assert.ok(distanceFromPlayer >= 8, definition.id);
+    assert.deepEqual(blocking.map((item) => item.name), [], definition.id);
+    assert.equal(gate.texture, 'warpGate');
+    assert.ok(world.textures.some((texture) => texture.id === 'warpGate'), definition.id);
+  }
+});
+
 test('dots every scene with two or three zombie spawn points away from the player', () => {
   const playerRadius = 1.6;
   const zombieRadius = 0.38;
@@ -273,6 +338,45 @@ test('dots every scene with two or three zombie spawn points away from the playe
   }
 });
 
+test('adds typed enemy spawners for the alien and molten sentinel to every scene', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+    const enemyTypes = world.enemySpawns.map((spawn) => spawn.enemyType);
+
+    assert.equal(enemyTypes.filter((type) => type === 'one-eye-alien').length, 1, definition.id);
+    if (world.ceiling) {
+      assert.equal(enemyTypes.filter((type) => type === 'molten-sentinel').length, 0, definition.id);
+    } else {
+      assert.equal(enemyTypes.filter((type) => type === 'molten-sentinel').length, 1, definition.id);
+    }
+
+    for (const spawn of world.enemySpawns) {
+      const distanceFromPlayer = Math.hypot(spawn.x - world.playerSpawn.x, spawn.z - world.playerSpawn.z);
+      const overlappingZombie = world.zombieSpawns.find((zombieSpawn) => {
+        const zombieRadius = zombieSpawn.radius ?? 0.38;
+        return Math.hypot(spawn.x - zombieSpawn.x, spawn.z - zombieSpawn.z) < spawn.radius + zombieRadius;
+      });
+      const blocking = [...world.walls, ...world.crates, ...world.platforms]
+        .filter((item) => item.collider)
+        .filter((item) => (
+          spawn.x + spawn.radius > item.collider.minX
+          && spawn.x - spawn.radius < item.collider.maxX
+          && spawn.z + spawn.radius > item.collider.minZ
+          && spawn.z - spawn.radius < item.collider.maxZ
+        ));
+
+      assert.ok(distanceFromPlayer > 3, definition.id);
+      assert.equal(overlappingZombie, undefined, `${definition.id} ${spawn.enemyType}`);
+      assert.deepEqual(blocking.map((item) => item.name), [], `${definition.id} ${spawn.enemyType}`);
+      assert.equal(spawn.role, 'enemy');
+      if (spawn.enemyType === 'molten-sentinel') {
+        assert.equal(world.ceiling, null, definition.id);
+        assert.ok(spawn.minimumHeadClearance >= 4.8, definition.id);
+      }
+    }
+  }
+});
+
 test('places two or three green health potion pickups in every scene', () => {
   for (const definition of SCENE_DEFINITIONS) {
     const world = createSceneWorld(definition.id);
@@ -287,6 +391,23 @@ test('places two or three green health potion pickups in every scene', () => {
       assert.equal(potion.motion, 'pickup-bob');
       assert.ok(Math.hypot(potion.x - world.playerSpawn.x, potion.z - world.playerSpawn.z) > 2, definition.id);
     }
+  }
+});
+
+test('keeps dungeon health flasks clear of cubes and walls', () => {
+  const world = createSceneWorld('dungeon');
+
+  for (const potion of world.healthPotions) {
+    const blocking = [...world.walls, ...world.crates, ...world.platforms]
+      .filter((item) => item.collider)
+      .filter((item) => (
+        potion.x + potion.radius > item.collider.minX
+        && potion.x - potion.radius < item.collider.maxX
+        && potion.z + potion.radius > item.collider.minZ
+        && potion.z - potion.radius < item.collider.maxZ
+      ));
+
+    assert.deepEqual(blocking.map((item) => item.name), [], potion.name);
   }
 });
 

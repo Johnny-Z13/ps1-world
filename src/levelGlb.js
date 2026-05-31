@@ -3,7 +3,7 @@ import { SCENE_DEFINITIONS } from './world.js';
 export const LEVEL_GLB_URLS = Object.freeze(Object.fromEntries(
   SCENE_DEFINITIONS.map((scene) => [
     scene.id,
-    `./assets/models/levels/${scene.id}.glb?v=4`,
+    `./assets/models/levels/${scene.id}.glb?v=9`,
   ]),
 ));
 
@@ -54,6 +54,7 @@ export function parseLevelGlb(arrayBuffer, expectedId = null) {
     walkableSurfaces: [],
     playerSpawn: null,
     zombieSpawns: [],
+    enemySpawns: [],
     healthPotions: [],
     damageZones: [],
     lights: [],
@@ -118,6 +119,10 @@ function applyMarker(level, role, name, position, extras) {
   }
   if (role === 'ZOMBIE_SPAWN') {
     level.zombieSpawns.push(marker);
+    return;
+  }
+  if (role === 'ENEMY_SPAWN') {
+    level.enemySpawns.push({ ...parseMarkerExtras(extras), ...marker });
     return;
   }
   if (role === 'PICKUP_HEALTH') {

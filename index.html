@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PS1 World</title>
-    <link rel="stylesheet" href="./styles.css?v=11">
+    <link rel="stylesheet" href="./styles.css?v=12">
   </head>
   <body class="title-active">
     <canvas id="screen" aria-label="PS1 world renderer"></canvas>
@@ -14,9 +14,18 @@
       <canvas id="titleCanvas" class="title-canvas" width="512" height="480" aria-hidden="true"></canvas>
       <button id="startButton" class="title-start-hitbox" type="button" aria-label="Free Roam"></button>
       <button id="cutUpButton" class="title-cut-up-hitbox" type="button" aria-label="Cut Up Mode"></button>
+      <button id="rogueButton" class="title-rogue-hitbox" type="button" aria-label="Rogue"></button>
     </main>
 
     <div id="cutUpHud" class="cut-up-hud" aria-live="polite" hidden></div>
+    <section id="rogueWinScreen" class="rogue-win-screen" hidden>
+      <div class="rogue-win-panel">
+        <div class="rogue-win-kicker">ROGUE COMPLETE</div>
+        <h1>Congratulations</h1>
+        <p>You have won. All nine worlds are complete.</p>
+        <button id="rogueReturnButton" type="button">Return to title</button>
+      </div>
+    </section>
     <div id="lowHealthNotice" class="low-health-notice" aria-live="polite" hidden>Low health</div>
 
     <div class="hud" aria-hidden="true">
@@ -88,6 +97,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./src/app.js?v=77"></script>
+    <script type="module" src="./src/app.js?v=90"></script>
   </body>
 </html>

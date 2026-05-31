@@ -1,4 +1,9 @@
 export const ZOMBIE_GLB_URL = './src/characters/Zombie/zombie_walk.glb';
+export const CHARACTER_MODEL_URLS = Object.freeze({
+  zombie: ZOMBIE_GLB_URL,
+  'one-eye-alien': './src/characters/one-eye-alien/one-eye-alien.glb',
+  'molten-sentinel': './src/characters/molten-stone-sentinel/moulten-stone-sentienel.glb',
+});
 
 const COMPONENT_FLOAT = 5126;
 const COMPONENT_UNSIGNED_INT = 5125;
@@ -23,9 +28,17 @@ const TYPE_SIZE = Object.freeze({
 });
 
 export async function loadZombieGlb(url = ZOMBIE_GLB_URL) {
+  return loadCharacterGlb('zombie', url);
+}
+
+export async function loadCharacterGlb(enemyType = 'zombie', url = CHARACTER_MODEL_URLS[enemyType]) {
+  if (!url) {
+    throw new Error(`No character GLB registered for enemy type: ${enemyType}`);
+  }
+
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Could not load zombie GLB: ${response.status}`);
+    throw new Error(`Could not load character GLB ${enemyType}: ${response.status}`);
   }
 
   return parseZombieGlb(await response.arrayBuffer());
@@ -89,8 +102,8 @@ export function parseZombieGlb(arrayBuffer) {
   };
 }
 
-export function animateZombieModel(model, time) {
-  const animation = model.animations[0];
+export function animateZombieModel(model, time, animationName = null) {
+  const animation = findAnimation(model, animationName);
   if (!model.skin || !animation) return model.vertices;
 
   const clipTime = animation.loopDuration > 0 ? positiveModulo(time, animation.loopDuration) : time;
@@ -130,6 +143,11 @@ export function animateZombieModel(model, time) {
       z: roundSkinValue(skinned.z),
     };
   });
+}
+
+function findAnimation(model, animationName) {
+  if (!animationName) return model.animations[0];
+  return model.animations.find((animation) => animation.name === animationName) ?? model.animations[0];
 }
 
 function readMaterialTexture(json, bin, materialIndex) {

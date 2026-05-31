@@ -21,6 +21,7 @@ SPRITE_TEXTURE_IDS = {
     "flickerComet",
     "healthPotion",
     "lightning",
+    "moonbeam",
     "paleMoon",
     "rain",
     "shootingStar",
@@ -39,6 +40,11 @@ PALETTE = {
     "rotMud": ("#3d2d2d", "#151313", "#6d573f"),
     "wetAsphalt": ("#252833", "#0d1018", "#506477"),
     "starshipFloor": ("#44515b", "#111820", "#8fa3a7"),
+    "shipCeiling": ("#28323c", "#0b1118", "#4f6572"),
+    "darkMetal": ("#242a31", "#090d12", "#58616a"),
+    "hullPanel": ("#3b4650", "#151b22", "#7d8790"),
+    "reactorGlow": ("#273033", "#121719", "#ff5a38"),
+    "moonbeam": ("#8da5cf", "#31415f", "#d9e6ff"),
     "neonTile": ("#151824", "#00d0ff", "#ff2bd6"),
     "oneBitGrid": ("#050505", "#ffffff", "#777777"),
     "shootingStar": ("#ffda78", "#ff7b38", "#fff7b8"),
@@ -103,9 +109,11 @@ def build_texture_material(texture_id):
     material.blend_method = "BLEND" if is_sprite_texture(texture_id) else "OPAQUE"
     image = build_pixel_image(texture_id)
     nodes = material.node_tree.nodes
+    texture_coordinate_node = nodes.new("ShaderNodeTexCoord")
     texture_node = nodes.new("ShaderNodeTexImage")
     texture_node.image = image
     texture_node.extension = "REPEAT"
+    material.node_tree.links.new(texture_coordinate_node.outputs["UV"], texture_node.inputs["Vector"])
     principled = nodes.get("Principled BSDF")
     if principled:
         material.node_tree.links.new(texture_node.outputs["Color"], principled.inputs["Base Color"])
@@ -225,6 +233,18 @@ def sprite_texture_pixel(texture_id, x, y, primary, secondary, accent):
         streak = ((x + y * 2) % 17) < 2 and 4 < y < 61
         return (*accent, 0.75) if streak else (0.0, 0.0, 0.0, 0.0)
 
+    if texture_id == "moonbeam":
+        center = abs(x + 0.5 - TEXTURE_SIZE / 2) / (TEXTURE_SIZE / 2)
+        vertical = 1 - y / TEXTURE_SIZE
+        dust = ((x * 13 + y * 7) % 29) == 0
+        alpha = max(0.0, (1 - center) * 0.42 * (0.35 + vertical * 0.65))
+        if dust:
+            alpha = min(0.58, alpha + 0.18)
+        if alpha <= 0.03:
+            return (0.0, 0.0, 0.0, 0.0)
+        color = dither(primary, accent, x, y, 0.18)
+        return (*color, alpha)
+
     if texture_id in ("firefly", "torchFlame"):
         if distance > 18:
             return (0.0, 0.0, 0.0, 0.0)
@@ -273,7 +293,10 @@ def build_scene_collection(scene, materials, collision_material, walkable_materi
         art_items.extend((key, item) for item in scene.get(key, []))
 
     for category, item in art_items:
-        add_box(groups["art"], f"ART_{scene['id']}_{slug(item['name'])}", item, materials[item["texture"]], textured=True, uv_scale=uv_scale_for_box_category(category))
+        if item.get("mesh") == "whole-tree":
+            add_whole_tree(groups["art"], f"ART_{scene['id']}_{slug(item['name'])}", item, materials)
+        else:
+            add_box(groups["art"], f"ART_{scene['id']}_{slug(item['name'])}", item, materials[item["texture"]], textured=True, uv_scale=uv_scale_for_box_category(category))
         if category in ("walls", "platforms", "crates"):
             add_box(groups["collision"], f"COLLISION_{scene['id']}_{slug(item['name'])}", item, collision_material, textured=False)
         if category in ("floor", "walls", "platforms", "crates"):
@@ -321,6 +344,11 @@ def add_markers(collection, scene, marker_material):
     add_marker(collection, scene, "PLAYER_SPAWN", scene["playerSpawn"], marker_material, {"yaw": scene["playerSpawn"].get("yaw", 0)})
     for index, spawn in enumerate(scene.get("zombieSpawns", []), start=1):
         add_marker(collection, scene, "ZOMBIE_SPAWN", spawn, marker_material, {"index": index})
+    for index, spawn in enumerate(scene.get("enemySpawns", []), start=1):
+        add_marker(collection, scene, "ENEMY_SPAWN", spawn, marker_material, {
+            "index": index,
+            **marker_extras_from_item(spawn),
+        })
     for index, potion in enumerate(scene.get("healthPotions", []), start=1):
         add_marker(collection, scene, "PICKUP_HEALTH", potion, marker_material, {
             "index": index,
@@ -432,6 +460,76 @@ def add_box(collection, name, item, material, textured, uv_scale=1.0):
     if textured:
         write_box_uvs(mesh, uv_scale)
     collection.objects.link(obj)
+
+
+def add_whole_tree(collection, name, item, materials):
+    mesh = bpy.data.meshes.new(name)
+    vertices = []
+    faces = []
+    material_indices = []
+    bark_material = materials[item.get("texture", "rotBark")]
+    canopy_material = materials[item.get("canopyTexture", "rotPine")]
+
+    add_prism_geometry(
+        vertices,
+        faces,
+        material_indices,
+        item["x"],
+        item["z"],
+        item.get("y", 0),
+        item["width"],
+        item["depth"],
+        item.get("trunkHeight", item["height"] * 0.7),
+        item.get("leanX", 0),
+        item.get("leanZ", 0),
+        0,
+    )
+
+    trunk_height = item.get("trunkHeight", item["height"] * 0.7)
+    canopy_height = item.get("canopyHeight", item["height"] - trunk_height)
+    canopy_x = item["x"] + item.get("canopyOffsetX", 0) + item.get("leanX", 0)
+    canopy_z = item["z"] + item.get("canopyOffsetZ", 0) + item.get("leanZ", 0)
+    canopy_y = item.get("y", 0) + trunk_height
+    canopy_width = item.get("canopyWidth", item["width"] * 4.2)
+    canopy_depth = item.get("canopyDepth", item["depth"] * 4.0)
+    add_prism_geometry(vertices, faces, material_indices, canopy_x, canopy_z, canopy_y, canopy_width, canopy_depth, canopy_height, 0, 0, 1)
+    add_prism_geometry(vertices, faces, material_indices, canopy_x - canopy_width * 0.22, canopy_z + canopy_depth * 0.16, canopy_y - canopy_height * 0.18, canopy_width * 0.68, canopy_depth * 0.58, canopy_height * 0.72, 0, 0, 1)
+    add_prism_geometry(vertices, faces, material_indices, canopy_x + canopy_width * 0.24, canopy_z - canopy_depth * 0.18, canopy_y - canopy_height * 0.08, canopy_width * 0.62, canopy_depth * 0.62, canopy_height * 0.62, 0, 0, 1)
+
+    mesh.from_pydata(vertices, [], faces)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    obj.data.materials.append(bark_material)
+    obj.data.materials.append(canopy_material)
+    for polygon, material_index in zip(mesh.polygons, material_indices):
+        polygon.material_index = material_index
+    obj["level_role"] = "art"
+    obj["scene_id"] = name.split("_")[1]
+    write_box_uvs(mesh, 1.0)
+    collection.objects.link(obj)
+
+
+def add_prism_geometry(vertices, faces, material_indices, x, z, y, width, depth, height, lean_x, lean_z, material_index):
+    min_x = x - width / 2
+    max_x = x + width / 2
+    min_y = z - depth / 2
+    max_y = z + depth / 2
+    min_z = y
+    max_z = y + height
+    top_lean_x = lean_x
+    top_lean_y = lean_z
+    start = len(vertices)
+    vertices.extend([
+        (min_x, min_y, min_z), (max_x, min_y, min_z), (max_x + top_lean_x, min_y + top_lean_y, max_z), (min_x + top_lean_x, min_y + top_lean_y, max_z),
+        (max_x, max_y, min_z), (min_x, max_y, min_z), (min_x + top_lean_x, max_y + top_lean_y, max_z), (max_x + top_lean_x, max_y + top_lean_y, max_z),
+        (min_x, max_y, min_z), (min_x, min_y, min_z), (min_x + top_lean_x, min_y + top_lean_y, max_z), (min_x + top_lean_x, max_y + top_lean_y, max_z),
+        (max_x, min_y, min_z), (max_x, max_y, min_z), (max_x + top_lean_x, max_y + top_lean_y, max_z), (max_x + top_lean_x, min_y + top_lean_y, max_z),
+        (min_x + top_lean_x, min_y + top_lean_y, max_z), (max_x + top_lean_x, min_y + top_lean_y, max_z), (max_x + top_lean_x, max_y + top_lean_y, max_z), (min_x + top_lean_x, max_y + top_lean_y, max_z),
+        (min_x, max_y, min_z), (max_x, max_y, min_z), (max_x, min_y, min_z), (min_x, min_y, min_z),
+    ])
+    prism_faces = [(0, 1, 2, 3), (4, 5, 6, 7), (8, 9, 10, 11), (12, 13, 14, 15), (16, 17, 18, 19), (20, 21, 22, 23)]
+    faces.extend(tuple(start + index for index in face) for face in prism_faces)
+    material_indices.extend([material_index] * len(prism_faces))
 
 
 def add_pyramid(collection, name, item, material):

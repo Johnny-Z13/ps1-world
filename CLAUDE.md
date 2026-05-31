@@ -87,14 +87,15 @@ Each `LEVEL_<scene-id>` collection should keep child collections for render art,
 
 ## Current Gameplay Systems
 
-- Free Roam and Cut-Up title modes.
+- Free Roam, Cut-Up, and Rogue title modes.
 - Cut-Up countdown and white flash before scene jumps.
+- Rogue run progression through all nine scenes using per-scene warp gates, followed by a congratulations screen and return-to-title button.
 - Nine selectable scenes.
 - Scene 2 (`alien-landscape`) has 20 zombies for stress testing.
 - Health, zombie bite damage, death sequence, health pickups.
 - Authored lava floor damage zones.
 - CRT/video presets and debug HUD.
-- Generated ambience and SFX assets.
+- Generated ambience, SFX, Rogue win, and scene-specific weather assets.
 
 ## Safe Change Rules
 

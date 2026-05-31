@@ -2,14 +2,16 @@
 
 The browser runtime uses Web Audio after the first user gesture. Audio is organized around buses rather than one-off element playback, so new sounds should be routed by intent:
 
-- `musicGain`: title, Free Roam, and Cut Up music beds.
+- `musicGain`: title, Free Roam, Cut Up, and Rogue music beds.
 - `ambienceGain`: current scene ambience, crossfaded through two ambience slots.
-- `transitionSfxGain`: mode starts, Cut Up scene slices, and countdown ticks.
+- `transitionSfxGain`: mode starts, Cut Up scene slices, countdown ticks, and Rogue win stingers.
 - `uiSfxGain`: options/menu interface sounds.
 - `playerSfxGain`: player damage, death, pickup, and similar diegetic player events.
 - Spatial emitters: zombies and torches use panners and update from world positions.
 
 The v1 cinematic layer lives in `src/app.js` to match the current runtime shape. Keep helper functions focused and named by responsibility: `ensureMusicLoop`, `syncCinematicMusicAudio`, `ensureSceneAmbienceLoop`, `playTransitionOneShot`, `playUiOneShot`, and `syncCutUpCountdownAudio`.
+
+Rogue mode reuses the transition bus for the final congratulations confetti sound. Scene ambience is data-driven from `src/world.js`, including the Rotwood forest wind/storm leaf beds.
 
 ## Adding Or Replacing Audio
 

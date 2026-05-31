@@ -16,7 +16,7 @@ test('maps every selectable scene to a Blender-authored GLB', () => {
     Object.keys(LEVEL_GLB_URLS),
     SCENE_DEFINITIONS.map((scene) => scene.id),
   );
-  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=4');
+  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=9');
 });
 
 test('parses level GLB art, collision, walkable, and marker roles', () => {
@@ -83,6 +83,8 @@ test('exported level GLBs keep procedural special-effect art meshes', () => {
   assert.ok(hasMaterialMesh(neon, 'LEVELMAT_lightning'), 'neon-backstreets exports lightning bolt geometry');
   assert.ok(hasMaterialMesh(temple, 'LEVELMAT_rain'), 'sunken-temple exports rain drop geometry');
   assert.ok(hasMaterialMesh(rotwood, 'LEVELMAT_paleMoon'), 'rotwood-forest exports the moving moon billboard');
+  assert.ok(hasMaterialMesh(rotwood, 'LEVELMAT_rain'), 'rotwood-forest exports storm rain geometry');
+  assert.ok(hasMaterialMesh(rotwood, 'LEVELMAT_lightning'), 'rotwood-forest exports storm lightning geometry');
 });
 
 test('health pickup markers keep render dimensions and pickup motion', () => {
@@ -111,6 +113,49 @@ test('damage zone markers keep lava material gameplay metadata', () => {
   assert.ok(lavaZone.depth > 0);
   assert.ok(lavaZone.height > 0);
   assert.ok(lavaZone.damagePerSecond > 0);
+});
+
+test('enemy spawn markers preserve typed entity metadata', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const level = readLevel(definition.id);
+    const types = level.enemySpawns.map((spawn) => spawn.enemyType);
+
+    assert.equal(types.filter((type) => type === 'one-eye-alien').length, 1, definition.id);
+    assert.equal(types.filter((type) => type === 'molten-sentinel').length, 1, definition.id);
+    assert.ok(level.enemySpawns.every((spawn) => spawn.role === 'enemy'), definition.id);
+    assert.ok(level.enemySpawns.every((spawn) => spawn.radius > 0), definition.id);
+  }
+});
+
+test('derelict starship GLB exports varied metal ceiling detail instead of repeated warning strips', () => {
+  const level = readLevel('derelict-starship');
+  const textureIds = level.materials.map((material) => material.textureId);
+  const warningMaterial = level.materials.findIndex((material) => material.textureId === 'warning');
+  const warningMeshes = warningMaterial < 0
+    ? []
+    : level.artMeshes.filter((mesh) => mesh.material === warningMaterial);
+  const ceilingMeshes = level.artMeshes.filter((mesh) => /ceiling|overhead/.test(mesh.name));
+  const ceilingTops = new Set(ceilingMeshes.map((mesh) => Math.max(...mesh.vertices.map((vertex) => vertex.y)).toFixed(2)));
+
+  assert.ok(textureIds.includes('shipCeiling'));
+  assert.ok(textureIds.includes('darkMetal'));
+  assert.ok(textureIds.includes('hullPanel'));
+  assert.ok(textureIds.includes('reactorGlow'));
+  assert.ok(warningMeshes.length <= 1);
+  assert.ok(ceilingMeshes.length >= 10);
+  assert.ok(ceilingTops.size >= 5);
+});
+
+test('rotwood forest GLB exports whole-tree meshes, moonbeams, and denser leaf particles', () => {
+  const level = readLevel('rotwood-forest');
+  const wholeTreeMeshes = level.artMeshes.filter((mesh) => mesh.name.includes('whole_black_pine_tree'));
+  const leafMeshes = level.artMeshes.filter((mesh) => mesh.textureId === 'fallingLeaf');
+  const moonbeamMeshes = level.artMeshes.filter((mesh) => mesh.textureId === 'moonbeam');
+
+  assert.ok(wholeTreeMeshes.length >= 36);
+  assert.equal(level.artMeshes.filter((mesh) => mesh.name.includes('black_tree_trunk')).length, 0);
+  assert.ok(leafMeshes.length >= 80);
+  assert.ok(moonbeamMeshes.length >= 5);
 });
 
 test('art mesh metadata preserves texture ids and animation motion', () => {
@@ -173,6 +218,18 @@ test('exported box UV density matches the pre-GLB procedural renderer', () => {
   );
 });
 
+test('thin exported wall end caps keep the same UV density as broad faces', () => {
+  const dungeon = readLevel('dungeon');
+  const wall = findArtMesh(dungeon, 'ART_dungeon_north_wall_a');
+  const ratios = uvWorldRatios(wall);
+
+  assert.ok(ratios.length > 0, 'wall exposes measurable UV edges');
+  assert.ok(
+    ratios.every((ratio) => Math.abs(ratio - 1) < 0.02),
+    `wall UV density includes stretched edges: ${ratios.map((ratio) => ratio.toFixed(3)).join(', ')}`,
+  );
+});
+
 function hasMaterialMesh(level, materialName) {
   const materialIndex = level.materials.findIndex((material) => material.name === materialName);
   assert.notEqual(materialIndex, -1, `${level.id} has ${materialName}`);
@@ -186,6 +243,12 @@ function findArtMesh(level, name) {
 }
 
 function medianUvWorldRatio(mesh) {
+  const ratios = uvWorldRatios(mesh);
+  ratios.sort((a, b) => a - b);
+  return ratios[Math.floor(ratios.length / 2)];
+}
+
+function uvWorldRatios(mesh) {
   const ratios = [];
   for (let index = 0; index < mesh.vertices.length; index += 3) {
     const tri = mesh.vertices.slice(index, index + 3);
@@ -197,8 +260,7 @@ function medianUvWorldRatio(mesh) {
       }
     }
   }
-  ratios.sort((a, b) => a - b);
-  return ratios[Math.floor(ratios.length / 2)];
+  return ratios;
 }
 
 test('sprite textures preserve alpha masks for stars and suns', () => {

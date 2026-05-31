@@ -43,3 +43,28 @@ test('skins the zombie walk animation so vertices leave bind pose and loop', () 
   assert.notDeepEqual(firstFrame[0], laterFrame[0]);
   assert.deepEqual(firstFrame[0], loopedFrame[0]);
 });
+
+test('parses one-eyed alien and molten sentinel character GLBs with named clips', () => {
+  const alienFile = readFileSync(new URL('../src/characters/one-eye-alien/one-eye-alien.glb', import.meta.url));
+  const sentinelFile = readFileSync(new URL('../src/characters/molten-stone-sentinel/moulten-stone-sentienel.glb', import.meta.url));
+  const alien = parseZombieGlb(alienFile.buffer.slice(alienFile.byteOffset, alienFile.byteOffset + alienFile.byteLength));
+  const sentinel = parseZombieGlb(sentinelFile.buffer.slice(sentinelFile.byteOffset, sentinelFile.byteOffset + sentinelFile.byteLength));
+
+  assert.ok(alien.vertexCount > 8000);
+  assert.ok(sentinel.vertexCount > 25000);
+  assert.ok(alien.animations.some((animation) => animation.name === 'Attack'));
+  assert.ok(sentinel.animations.some((animation) => animation.name === 'Running'));
+  assert.ok(sentinel.animations.some((animation) => animation.name === 'Idle'));
+  assert.ok(sentinel.animations.some((animation) => animation.name === 'Confused_Scratch'));
+  assert.ok(alien.texture.bytes.byteLength > 10000);
+  assert.ok(sentinel.texture.bytes.byteLength > 10000);
+});
+
+test('can skin a specific named character animation clip', () => {
+  const file = readFileSync(new URL('../src/characters/molten-stone-sentinel/moulten-stone-sentienel.glb', import.meta.url));
+  const model = parseZombieGlb(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength));
+  const running = animateZombieModel(model, 0.35, 'Running');
+  const idle = animateZombieModel(model, 0.35, 'Idle');
+
+  assert.notDeepEqual(running[0], idle[0]);
+});

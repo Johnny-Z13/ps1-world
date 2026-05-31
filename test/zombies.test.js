@@ -10,14 +10,31 @@ import {
   updateZombieEnemies,
 } from '../src/zombies.js';
 
-test('creates two or three zombie enemies from scene spawn points', () => {
+test('creates zombie enemies plus typed special enemies from scene spawn points', () => {
   const world = createSceneWorld('dungeon');
   const zombies = createZombieEnemies(world);
+  const enemyTypes = zombies.map((zombie) => zombie.enemyType);
 
-  assert.ok(zombies.length >= 2);
-  assert.ok(zombies.length <= 3);
+  assert.ok(zombies.length >= 4);
+  assert.ok(zombies.length <= 5);
   assert.ok(zombies.every((zombie) => zombie.state === 'chasing'));
   assert.ok(zombies.every((zombie) => zombie.radius > 0));
+  assert.ok(enemyTypes.includes('one-eye-alien'));
+  assert.equal(enemyTypes.includes('molten-sentinel'), false);
+});
+
+test('does not spawn enemy capsules on top of each other', () => {
+  const world = createSceneWorld('dungeon');
+  const enemies = createZombieEnemies(world);
+
+  for (let i = 0; i < enemies.length; i += 1) {
+    for (let j = i + 1; j < enemies.length; j += 1) {
+      const a = enemies[i];
+      const b = enemies[j];
+      const distance = Math.hypot(a.x - b.x, a.z - b.z);
+      assert.ok(distance >= a.radius + b.radius, `${a.id} overlaps ${b.id}`);
+    }
+  }
 });
 
 test('moves zombies toward the player without changing their count', () => {
@@ -85,4 +102,20 @@ test('keeps the player capsule outside zombie body radius on the same level', ()
   const distance = Math.hypot(resolved.x - zombies[0].x, resolved.z - zombies[0].z);
 
   assert.ok(distance >= 0.74);
+});
+
+test('separates enemy capsules from each other while chasing', () => {
+  const enemies = [
+    { id: 'zombie-1', enemyType: 'zombie', x: 0, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0, radius: 0.38, speed: 1.15 },
+    { id: 'alien-1', enemyType: 'one-eye-alien', x: 0.1, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0, radius: 0.45, speed: 0.92 },
+  ];
+
+  const updated = updateZombieEnemies(enemies, { x: 4, y: PLAYER_EYE_HEIGHT, z: 0 }, {
+    colliders: [],
+    walkableSurfaces: [{ minX: -100, maxX: 100, minZ: -100, maxZ: 100, topY: 0 }],
+    dt: 0.1,
+  });
+
+  const distance = Math.hypot(updated[0].x - updated[1].x, updated[0].z - updated[1].z);
+  assert.ok(distance >= updated[0].radius + updated[1].radius);
 });

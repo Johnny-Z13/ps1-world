@@ -14,12 +14,14 @@ The current test suite uses Node's built-in test runner. The first harness pass 
 - `test/harness/gameSmokeHarness.js`: reusable smoke harness helpers.
 - `test/gameSmokeHarness.test.js`: first smoke suite.
 - `src/cutUpMode.js`: pure Cut-Up timing/state helpers used by both the app and the harness.
+- `src/rogueMode.js`: pure Rogue progression helpers for scene order, warp advancement, and completion state.
 
 The harness currently covers:
 
 - Free Roam startup state for a playable scene.
 - Every video preset resolving to a valid render resolution.
 - Cut-Up countdown behavior and jump from world 1 to world 2.
+- Rogue advancement through all nine scene ids and completion after the final warp.
 
 ## How To Extend
 
@@ -32,6 +34,7 @@ Good next harness additions:
 - Pickup loop: simulate health restore and pickup removal.
 - Audio asset manifest: assert every referenced MP3 exists and is non-empty.
 - Asset cache checks: assert changed static asset URLs use bumped `?v=N` values.
+- Rogue UI flow: click Rogue, reach a warp gate in each scene, assert the win screen and return button.
 
 Browser/WebGL checks should come later as a separate layer. When added, keep them in a distinct `test/e2e/` or `test/browser/` folder so fast Node smoke tests remain cheap.
 

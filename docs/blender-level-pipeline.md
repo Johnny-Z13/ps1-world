@@ -48,14 +48,15 @@ Each `LEVEL_<scene-id>` collection is an artist-facing container with named chil
 - `01_ART_render_meshes__<scene-id>`: visible level geometry.
 - `02_COLLISION_blockers__<scene-id>`: simplified blocker volumes.
 - `03_WALKABLE_surfaces__<scene-id>`: ground/platform top surfaces.
-- `04_MARKERS_spawns_lights__<scene-id>`: spawn, pickup, light, and kill-plane markers.
+- `04_MARKERS_spawns_lights__<scene-id>`: spawn, enemy spawner, pickup, light, and kill-plane markers.
 - `05_TRIGGERS_damage_zones__<scene-id>`: gameplay trigger volumes.
 
 - `ART_<scene-id>_<name>`: visible level geometry rendered by the game.
 - `COLLISION_<scene-id>_<name>`: simplified blocker geometry used for horizontal collision. This should be hidden in Blender while editing art.
 - `WALKABLE_<scene-id>_<name>`: simplified surfaces used for ground height, stairs, platforms, and ledges.
 - `MARKER_<scene-id>_PLAYER_SPAWN_<name>`: player spawn with `yaw` metadata.
-- `MARKER_<scene-id>_ZOMBIE_SPAWN_<name>`: enemy spawn points.
+- `MARKER_<scene-id>_ZOMBIE_SPAWN_<name>`: standard zombie spawn points.
+- `MARKER_<scene-id>_ENEMY_SPAWN_<name>`: typed enemy spawners. The runtime reads custom properties such as `role: enemy`, `spawnerType: enemy`, `enemyType`, `mesh`, `radius`, `speed`, and `damage`. This is the portable metadata contract for browser and Unity importers.
 - `MARKER_<scene-id>_PICKUP_HEALTH_<name>`: health pickup spawn points.
 - `MARKER_<scene-id>_LIGHT_<name>` and `MARKER_<scene-id>_TORCH_LIGHT_<name>`: gameplay/render light markers.
 - `MARKER_<scene-id>_KILL_PLANE_<name>`: kill-plane metadata.
@@ -79,7 +80,7 @@ Implemented:
 3. Visible render buffers are built from `ART_*` nodes.
 4. Collision arrays are built from `COLLISION_*` nodes.
 5. Walkable-surface queries are built from `WALKABLE_*` nodes.
-6. Gameplay state comes from markers: player spawn, zombie spawns, pickups, lights, torch lights, kill planes, and damage zones.
+6. Gameplay state comes from markers: player spawn, zombie spawns, typed enemy spawns, pickups, lights, torch lights, kill planes, and damage zones.
 7. `src/world.js` remains as fallback metadata for scene labels, audio, generated support textures, and fallback scene data if a GLB fails to load.
 
 Next expansions:
@@ -106,7 +107,7 @@ If a GLB fails to load, `src/world.js` remains the fallback source for scene lay
 ## Authoring Rules
 
 - Edit art freely in `ART_*` objects.
-- Keep tiling level surfaces box-projected to match the original procedural renderer: floors repeat every 2.5 world units, ceilings every 2 world units, walls/platforms/crates/props every 1 world unit, and mountain faces every 4 world units. Large floors, walls, stairs, and platforms should have UV coordinates greater than 1 when they span multiple world units; billboard sprites such as stars, suns, rain cards, and signs stay 0-1 with alpha masks.
+- Keep tiling level surfaces box-projected to match the original procedural renderer: floors repeat every 2.5 world units, ceilings every 2 world units, walls/platforms/crates/props every 1 world unit, and mountain faces every 4 world units. Large floors, walls, stairs, and platforms should have UV coordinates greater than 1 when they span multiple world units; billboard sprites such as stars, suns, rain cards, and signs stay 0-1 with alpha masks. Generated texture materials must explicitly feed the UV output from a Texture Coordinate node into the Image Texture node so Blender's viewport and exported GLBs use the same UV mapping on thin wall end caps.
 - Keep `COLLISION_*` and `WALKABLE_*` simple. Collision should serve gameplay, not match every visual bevel or prop.
 - Use `TRIGGER_*_DAMAGE_ZONE_*` objects for harmful surfaces instead of relying on render material names alone. The trigger volume is cheap and explicit, while the art material remains editable.
 - To add new gameplay concepts, use explicit prefixes and metadata rather than relying on material names alone:

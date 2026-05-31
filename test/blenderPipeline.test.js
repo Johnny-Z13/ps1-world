@@ -19,3 +19,9 @@ test('GLB re-export selects objects recursively from Blender level sub-collectio
   assert.match(reexportScript, /def objects_recursive\(collection\):/);
   assert.match(reexportScript, /for child in collection\.children:/);
 });
+
+test('generated Blender texture materials explicitly use UV coordinates', () => {
+  assert.match(buildScript, /ShaderNodeTexCoord/);
+  assert.match(buildScript, /texture_coordinate_node\.outputs\["UV"\]/);
+  assert.match(buildScript, /texture_node\.inputs\["Vector"\]/);
+});

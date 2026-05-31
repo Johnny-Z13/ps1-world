@@ -25,11 +25,17 @@ import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
 import { LEVEL_GLB_URLS, loadLevelGlb } from './levelGlb.js';
 import {
   createZombieEnemies,
+  getTouchingEnemy,
   isPlayerTouchedByZombie,
   resolvePlayerZombieCollision,
   updateZombieEnemies,
 } from './zombies.js';
-import { animateZombieModel, loadZombieGlb } from './zombieModel.js';
+import {
+  CHARACTER_MODEL_URLS,
+  animateZombieModel,
+  loadCharacterGlb,
+  loadZombieGlb,
+} from './zombieModel.js';
 import {
   MAX_PLAYER_HEALTH,
   ZOMBIE_BITE_DAMAGE,
@@ -47,6 +53,13 @@ import {
   getNextCutUpSceneIndex,
   shouldAdvanceCutUpScene,
 } from './cutUpMode.js';
+import {
+  createRogueRun,
+  getRogueSceneId,
+  getRogueStageLabel,
+  isRogueComplete,
+  stepRogueRun,
+} from './rogueMode.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
@@ -59,7 +72,10 @@ const titleScreen = document.querySelector('#titleScreen');
 const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
 const cutUpButton = document.querySelector('#cutUpButton');
+const rogueButton = document.querySelector('#rogueButton');
 const cutUpHud = document.querySelector('#cutUpHud');
+const rogueWinScreen = document.querySelector('#rogueWinScreen');
+const rogueReturnButton = document.querySelector('#rogueReturnButton');
 const lowHealthNotice = document.querySelector('#lowHealthNotice');
 const optionsDialog = document.querySelector('#options');
 const quitGameButton = document.querySelector('#quitGameButton');
@@ -98,16 +114,30 @@ const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS.length;
 const MAX_STATIC_TORCH_LIGHTS = 3;
 const ZOMBIE_MODEL_SCALE = 1.75;
 const ZOMBIE_MODEL_FRONT_ROTATION = -Math.PI / 2;
+const SENTINEL_DAMAGE = 45;
+const ALIEN_DAMAGE = 18;
+const CHARACTER_MODEL_SCALE = Object.freeze({
+  zombie: ZOMBIE_MODEL_SCALE,
+  'one-eye-alien': 1.45,
+  'molten-sentinel': 2.05,
+});
+const SENTINEL_ATTACK_RANGE = 2.25;
+const SENTINEL_LOCOMOTION_ANIMATION_NAMES = ['Running', 'Run', 'Walk', 'Locomotion'];
+const SENTINEL_ATTACK_ANIMATION_NAMES = ['Attack', 'Attacking', 'Confused_Scratch', 'Scratch', 'Punch', 'Hit'];
+const SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE = 1.2;
+const SPECIAL_ENEMY_LOOP_MAX_DISTANCE = 24;
+const SPECIAL_ENEMY_ATTACK_COOLDOWN_MS = 1450;
 const ZOMBIE_GRUNT_LOOP_URL = './assets/audio/sfx/zombie-idle-grunt-8bit-loop.mp3?v=1';
 const LIGHTNING_SOUND_URL = './assets/audio/sfx/lightning-bolt-strike.mp3?v=1';
 const MENU_START_CONFIRM_SOUND_URL = './assets/audio/sfx/menu-start-confirm-8bit.mp3?v=1';
-const TITLE_MUSIC_LOOP_URL = './assets/audio/music/title-menu-psx-8bit-loop.mp3?v=1';
+const TITLE_MUSIC_LOOP_URL = './assets/audio/music/title-menu-psx-8bit-loop.mp3?v=2';
 const FREE_ROAM_MUSIC_LOOP_URL = './assets/audio/music/free-roam-dread-8bit-loop.mp3?v=1';
 const CUT_UP_MUSIC_LOOP_URL = './assets/audio/music/cut-up-clockwork-8bit-loop.mp3?v=1';
 const FREE_ROAM_START_SOUND_URL = './assets/audio/sfx/free-roam-start-warp-8bit.mp3?v=1';
 const CUT_UP_START_SOUND_URL = './assets/audio/sfx/cut-up-start-burst-8bit.mp3?v=1';
 const CUT_UP_SCENE_SLICE_SOUND_URL = './assets/audio/sfx/cut-up-scene-slice-8bit.mp3?v=1';
 const CUT_UP_COUNTDOWN_TICK_SOUND_URL = './assets/audio/sfx/cut-up-countdown-tick-8bit.mp3?v=1';
+const ROGUE_WIN_SOUND_URL = './assets/audio/sfx/rogue-win-confetti.wav?v=1';
 const OPTIONS_OPEN_SOUND_URL = './assets/audio/sfx/options-open-static-8bit.mp3?v=1';
 const OPTIONS_CLOSE_SOUND_URL = './assets/audio/sfx/options-close-click-8bit.mp3?v=1';
 const HEALTH_PICKUP_SOUND_URL = './assets/audio/sfx/health-pickup-bing-8bit.mp3?v=1';
@@ -123,7 +153,7 @@ const SCENE_AMBIENCE_URLS = Object.freeze({
   'neon-backstreets': './assets/audio/ambience/neon-backstreets-8bit-loop.mp3?v=1',
   'sunken-temple': './assets/audio/ambience/sunken-temple-8bit-loop.mp3?v=1',
   'one-bit-cathedral': './assets/audio/ambience/one-bit-cathedral-8bit-loop.mp3?v=1',
-  'rotwood-forest': './assets/audio/ambience/rotwood-forest-8bit-loop.mp3?v=1',
+  'rotwood-forest': './assets/audio/ambience/rotwood-forest-storm-wind-leaves-loop.wav?v=1',
   'astral-geometry-garden': './assets/audio/ambience/astral-geometry-garden-8bit-loop.mp3?v=1',
   'motel-mirage': './assets/audio/ambience/motel-mirage-8bit-loop.mp3?v=1',
 });
@@ -227,8 +257,10 @@ let touchJumpActive = false;
 let titleActive = true;
 const titleButtonState = { active: false };
 const cutUpButtonState = { active: false };
+const rogueButtonState = { active: false };
 const gameState = { mode: 'normal' };
 const cutUpState = createCutUpState(CUT_UP_SCENE_COUNT);
+let rogueRun = null;
 let mouseLookActive = false;
 let gameModeRequested = false;
 let optionsCloseReturnsToTitle = false;
@@ -244,6 +276,8 @@ let skyDomeMesh;
 let zombieMesh;
 let zombieModel = null;
 let zombieTextureImage = null;
+let characterModels = new Map();
+let characterTextureImages = new Map();
 let quad;
 let atlasTexture;
 let renderTarget;
@@ -265,11 +299,14 @@ function frame(now) {
   updateContinuousMouseLook(dt);
   updatePlayer(dt, now);
   updateCutUpMode(now);
+  updateRogueMode(now);
   render(now / 1000, now);
   requestAnimationFrame(frame);
 }
 
 function updatePlayer(dt, now) {
+  if (!rogueWinScreen.hidden) return;
+
   if (deathState.active) {
     updateDeathSequence(now);
     return;
@@ -333,8 +370,9 @@ function updatePlayer(dt, now) {
       dt,
     });
   }
-  if (effects.zombies && isPlayerTouchedByZombie(player, zombies)) {
-    damagePlayer(now);
+  const touchingEnemy = effects.zombies ? getTouchingEnemy(player, zombies) : null;
+  if (touchingEnemy && isPlayerTouchedByZombie(player, zombies)) {
+    damagePlayer(now, touchingEnemy);
   }
 }
 
@@ -373,7 +411,7 @@ function render(time, now = performance.now()) {
   gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection(now));
   drawMesh(gl, sceneProgram, warehouseMesh);
   if (effects.zombies) {
-    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, zombieModel, time);
+    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, characterModels, time);
     drawMesh(gl, sceneProgram, zombieMesh);
   }
 
@@ -575,6 +613,7 @@ function ensureAudioState() {
       waterfallVoices: new Map(),
       waterNoiseBuffer: createWaterNoiseBuffer(context),
       zombieVoices: new Map(),
+      specialEnemyVoices: new Map(),
       zombieLoopLoading: false,
       zombieLoopFailed: false,
       lastLightningIndex: -1,
@@ -866,6 +905,7 @@ function updateSceneAudio(time, lightningStrength) {
   syncTorchCrackleAudio(audioState);
   syncRainWaterAudio(audioState);
   syncZombieSpatialAudio(audioState);
+  syncSpecialEnemyAudio(audioState);
   const targetAmbience = getSceneAmbienceGain();
   audioState.ambienceGain.gain.setTargetAtTime(targetAmbience, audioState.context.currentTime, 0.36);
 
@@ -1269,6 +1309,7 @@ function syncZombieSpatialAudio(state) {
   const activeIds = new Set();
   if (!titleActive && !optionsDialog.open && !deathState.active && effects.zombies) {
     for (const zombie of zombies) {
+      if ((zombie.enemyType ?? 'zombie') !== 'zombie') continue;
       const gain = getZombieGruntGain(zombie);
       if (gain <= 0) continue;
 
@@ -1342,6 +1383,132 @@ function stopZombieVoice(state, voice) {
       // Already stopped by the browser audio engine.
     }
   }, 160);
+}
+
+function syncSpecialEnemyAudio(state) {
+  const activeIds = new Set();
+  if (!titleActive && !optionsDialog.open && !deathState.active && effects.zombies) {
+    for (const enemy of zombies) {
+      if (!isSpecialEnemy(enemy)) continue;
+      const gain = getSpecialEnemyLoopGain(enemy);
+      if (gain <= 0) continue;
+
+      activeIds.add(enemy.id);
+      const voice = getSpecialEnemyVoice(state, enemy);
+      const occluded = isZombieAudioOccluded(enemy);
+      voice.gain.gain.setTargetAtTime(gain, state.context.currentTime, 0.28);
+      voice.filter.frequency.setTargetAtTime(occluded ? 680 : voice.openFilterHz, state.context.currentTime, 0.18);
+      voice.panner.positionX.setTargetAtTime(enemy.x, state.context.currentTime, 0.08);
+      voice.panner.positionY.setTargetAtTime(enemy.y, state.context.currentTime, 0.08);
+      voice.panner.positionZ.setTargetAtTime(enemy.z, state.context.currentTime, 0.08);
+      if (Math.hypot(player.x - enemy.x, player.z - enemy.z) < 1.7) {
+        playEnemyAttackSound(state, enemy, voice);
+      }
+    }
+  }
+
+  for (const [id, voice] of state.specialEnemyVoices) {
+    if (activeIds.has(id)) continue;
+    stopSpecialEnemyVoice(state, voice);
+    state.specialEnemyVoices.delete(id);
+  }
+}
+
+function isSpecialEnemy(enemy) {
+  return enemy?.enemyType === 'one-eye-alien' || enemy?.enemyType === 'molten-sentinel';
+}
+
+function getSpecialEnemyVoice(state, enemy) {
+  if (state.specialEnemyVoices.has(enemy.id)) return state.specialEnemyVoices.get(enemy.id);
+
+  const oscillator = state.context.createOscillator();
+  const gain = state.context.createGain();
+  const filter = state.context.createBiquadFilter();
+  const panner = state.context.createPanner();
+  const alien = enemy.enemyType === 'one-eye-alien';
+
+  oscillator.type = alien ? 'sawtooth' : 'square';
+  oscillator.frequency.value = alien ? 145 + (enemy.animationSeed ?? 0) * 70 : 42 + (enemy.animationSeed ?? 0) * 18;
+  gain.gain.value = 0;
+  filter.type = alien ? 'bandpass' : 'lowpass';
+  filter.frequency.value = alien ? 980 : 420;
+  filter.Q.value = alien ? 5.5 : 1.4;
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE;
+  panner.maxDistance = SPECIAL_ENEMY_LOOP_MAX_DISTANCE;
+  panner.rolloffFactor = alien ? 2.4 : 2.0;
+  setAudioParam(panner.positionX, enemy.x, state.context.currentTime, 0);
+  setAudioParam(panner.positionY, enemy.y, state.context.currentTime, 0);
+  setAudioParam(panner.positionZ, enemy.z, state.context.currentTime, 0);
+  oscillator.connect(filter);
+  filter.connect(gain);
+  gain.connect(panner);
+  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  oscillator.start();
+
+  const voice = {
+    oscillator,
+    gain,
+    filter,
+    panner,
+    openFilterHz: alien ? 1450 : 580,
+    maxGain: alien ? 0.04 : 0.07,
+    lastAttackSoundAt: -Infinity,
+  };
+  state.specialEnemyVoices.set(enemy.id, voice);
+  return voice;
+}
+
+function stopSpecialEnemyVoice(state, voice) {
+  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
+  setTimeout(() => {
+    try {
+      voice.oscillator.stop();
+    } catch {
+      // Already stopped by the browser audio engine.
+    }
+  }, 160);
+}
+
+function getSpecialEnemyLoopGain(enemy) {
+  const distance = Math.hypot(player.x - enemy.x, player.z - enemy.z);
+  if (distance >= SPECIAL_ENEMY_LOOP_MAX_DISTANCE) return 0;
+  const occlusion = isZombieAudioOccluded(enemy) ? 0.45 : 1;
+  const maxGain = enemy.enemyType === 'molten-sentinel' ? 0.07 : 0.04;
+  if (distance <= SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE) return maxGain * occlusion;
+  const fadeRange = SPECIAL_ENEMY_LOOP_MAX_DISTANCE - SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE;
+  const fade = 1 - (distance - SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE) / fadeRange;
+  return Math.max(0, Math.min(maxGain, fade * fade * maxGain * occlusion));
+}
+
+function playEnemyAttackSound(state, enemy, voice) {
+  const now = performance.now();
+  if (now - voice.lastAttackSoundAt < SPECIAL_ENEMY_ATTACK_COOLDOWN_MS) return;
+  voice.lastAttackSoundAt = now;
+
+  const oscillator = state.context.createOscillator();
+  const gain = state.context.createGain();
+  const panner = state.context.createPanner();
+  const alien = enemy.enemyType === 'one-eye-alien';
+  const startTime = state.context.currentTime;
+  oscillator.type = alien ? 'triangle' : 'sawtooth';
+  oscillator.frequency.setValueAtTime(alien ? 620 : 96, startTime);
+  oscillator.frequency.exponentialRampToValueAtTime(alien ? 180 : 42, startTime + 0.22);
+  gain.gain.setValueAtTime(alien ? 0.12 : 0.18, startTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.26);
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 1;
+  panner.maxDistance = 18;
+  setAudioParam(panner.positionX, enemy.x, startTime, 0);
+  setAudioParam(panner.positionY, enemy.y, startTime, 0);
+  setAudioParam(panner.positionZ, enemy.z, startTime, 0);
+  oscillator.connect(gain);
+  gain.connect(panner);
+  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  oscillator.start(startTime);
+  oscillator.stop(startTime + 0.28);
 }
 
 function getZombieGruntGain(zombie) {
@@ -1866,7 +2033,13 @@ function setupOptions() {
   cutUpButton.addEventListener('click', () => {
     startCutUpMode();
   });
+  rogueButton.addEventListener('click', () => {
+    startRogueMode();
+  });
   quitGameButton.addEventListener('click', () => {
+    quitToTitleScreen();
+  });
+  rogueReturnButton.addEventListener('click', () => {
     quitToTitleScreen();
   });
   startButton.addEventListener('pointerenter', () => {
@@ -1892,6 +2065,18 @@ function setupOptions() {
   });
   cutUpButton.addEventListener('blur', () => {
     cutUpButtonState.active = false;
+  });
+  rogueButton.addEventListener('pointerenter', () => {
+    rogueButtonState.active = true;
+  });
+  rogueButton.addEventListener('pointerleave', () => {
+    rogueButtonState.active = false;
+  });
+  rogueButton.addEventListener('focus', () => {
+    rogueButtonState.active = true;
+  });
+  rogueButton.addEventListener('blur', () => {
+    rogueButtonState.active = false;
   });
 
   const bindings = [
@@ -2055,6 +2240,23 @@ function startCutUpMode() {
   updateCutUpHud(cutUpState.sceneStartedAt);
 }
 
+async function startRogueMode() {
+  if (!titleActive) return;
+
+  gameState.mode = 'rogue';
+  cutUpState.active = false;
+  cutUpHud.hidden = true;
+  rogueRun = createRogueRun(SCENE_DEFINITIONS, performance.now());
+  rogueWinScreen.hidden = true;
+  ensureSceneAudio();
+  playMenuStartConfirmSound();
+  playTransitionOneShot(FREE_ROAM_START_SOUND_URL);
+  const sceneLoaded = await setScene(getRogueSceneId(rogueRun, SCENE_DEFINITIONS));
+  if (!sceneLoaded) return;
+  syncSceneSelect();
+  leaveTitleScreen();
+}
+
 function leaveTitleScreen() {
   titleActive = false;
   titleScreen.hidden = true;
@@ -2066,7 +2268,9 @@ function quitToTitleScreen() {
   keys.clear();
   titleActive = true;
   titleScreen.hidden = false;
-  gameState.mode = 'normal';
+  gameState.mode = 'rogue-complete';
+  rogueRun = null;
+  rogueWinScreen.hidden = true;
   cutUpState.active = false;
   cutUpHud.hidden = true;
   mouseLookActive = false;
@@ -2095,8 +2299,43 @@ function quitToTitleScreen() {
   syncReticule();
 }
 
+async function updateRogueMode(now) {
+  if (gameState.mode !== 'rogue' || !rogueRun?.active || titleActive || optionsDialog.open || deathState.active) return;
+  if (!world.warpGate) return;
+
+  const gate = world.warpGate;
+  const distance = Math.hypot(player.x - gate.x, player.z - gate.z);
+  const verticalDistance = Math.abs((player.y - PLAYER_EYE_HEIGHT) - gate.y);
+  if (distance > (gate.radius ?? 1.05) || verticalDistance > 2.2) return;
+
+  rogueRun = stepRogueRun(rogueRun, SCENE_DEFINITIONS, now);
+  if (isRogueComplete(rogueRun, SCENE_DEFINITIONS)) {
+    completeRogueRun();
+    return;
+  }
+
+  const sceneId = getRogueSceneId(rogueRun, SCENE_DEFINITIONS);
+  playTransitionOneShot(CUT_UP_SCENE_SLICE_SOUND_URL, TRANSITION_SFX_GAIN * 0.58);
+  await setScene(sceneId);
+  syncSceneSelect();
+}
+
+function completeRogueRun() {
+  keys.clear();
+  gameState.mode = 'normal';
+  rogueRun = { ...rogueRun, active: false, complete: true };
+  mouseLookActive = false;
+  gameModeRequested = false;
+  softMouseLockActive = false;
+  resetSoftMouseEdgeTurn();
+  if (document.pointerLockElement) document.exitPointerLock();
+  rogueWinScreen.hidden = false;
+  playUiOneShot(ROGUE_WIN_SOUND_URL, UI_SFX_GAIN);
+}
+
 const TITLE_WIDTH = 512;
 const TITLE_HEIGHT = 480;
+const TITLE_LAST_COMMIT_MESSAGE = 'last commit polish scenes and gameplay feedback';
 const TITLE_FONT = Object.freeze({
   ' ': ['0', '0', '0', '0', '0', '0', '0'],
   '-': ['00000', '00000', '00000', '11110', '00000', '00000', '00000'],
@@ -2115,6 +2354,7 @@ const TITLE_FONT = Object.freeze({
   g: ['01110', '10000', '10000', '10110', '10010', '10010', '01110'],
   h: ['10010', '10010', '10010', '11110', '10010', '10010', '10010'],
   i: ['11100', '01000', '01000', '01000', '01000', '01000', '11100'],
+  k: ['10010', '10100', '11000', '10100', '10010', '10010', '10010'],
   l: ['10000', '10000', '10000', '10000', '10000', '10000', '11110'],
   m: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
   n: ['10010', '11010', '10110', '10010', '10010', '10010', '10010'],
@@ -2125,6 +2365,7 @@ const TITLE_FONT = Object.freeze({
   t: ['11110', '00100', '00100', '00100', '00100', '00100', '00100'],
   u: ['10010', '10010', '10010', '10010', '10010', '10010', '01100'],
   w: ['10001', '10001', '10001', '10101', '10101', '11011', '10001'],
+  y: ['10010', '10010', '10010', '01110', '00100', '00100', '00100'],
   z: ['11110', '00010', '00100', '01000', '10000', '10000', '11110'],
 });
 
@@ -2132,21 +2373,23 @@ function renderTitleScreen(time) {
   titleContext.imageSmoothingEnabled = false;
   titleContext.clearRect(0, 0, TITLE_WIDTH, TITLE_HEIGHT);
   drawTitleBackdrop(time);
-  drawCenteredBitmapText('ps1-world', 148, 9, '#17100b', time, { x: 7, y: 8 });
-  drawCenteredBitmapText('ps1-world', 148, 9, '#1ca6a5', time, { x: -2, y: 1 });
-  drawCenteredBitmapText('ps1-world', 148, 9, '#b42638', time, { x: 3, y: 0 });
-  drawCenteredBitmapText('ps1-world', 148, 9, '#f3dc92', time);
+  drawCenteredBitmapText('ps1-world', 146, 7, '#17100b', time, { x: 6, y: 6 });
+  drawCenteredBitmapText('ps1-world', 146, 7, '#1ca6a5', time, { x: -2, y: 1 });
+  drawCenteredBitmapText('ps1-world', 146, 7, '#b42638', time, { x: 2, y: 0 });
+  drawCenteredBitmapText('ps1-world', 146, 7, '#f3dc92', time);
   drawBloodWarningText(time);
   const titleButtonBlink = getTitleButtonBlink(time);
-  drawBitmapButton(time, { y: 286, label: 'start', detail: 'free roam', active: titleButtonState.active, blink: titleButtonBlink });
-  drawBitmapButton(time, { y: 346, label: 'start', detail: 'cut-up mode', active: cutUpButtonState.active, blink: titleButtonBlink });
-  drawCenteredBitmapText('wasd+mouse or gamepad', 404, 2, '#cfc7aa', time);
+  drawBitmapButton(time, { y: 276, label: 'start', detail: 'free roam', active: titleButtonState.active, blink: titleButtonBlink });
+  drawBitmapButton(time, { y: 324, label: 'start', detail: 'cut-up mode', active: cutUpButtonState.active, blink: titleButtonBlink });
+  drawBitmapButton(time, { y: 372, label: 'start', detail: 'rogue', active: rogueButtonState.active, blink: titleButtonBlink });
+  drawCenteredBitmapText('wasd+mouse or gamepad', 398, 1.5, '#cfc7aa', time);
+  drawCenteredBitmapText(TITLE_LAST_COMMIT_MESSAGE, TITLE_HEIGHT - 16, 1, '#8f8a77', time);
 }
 
 function drawBloodWarningText(time) {
   const text = 'watch out for the zombies';
-  const y = 252;
-  const scale = 2;
+  const y = 248;
+  const scale = 1.5;
   drawCenteredBitmapText(text, y + 2, scale, '#280205', time, { x: 1, y: 1 });
   drawCenteredBitmapText(text, y + 1, scale, '#5e0b16', time, { x: Math.sin(time * 9) > 0.72 ? 1 : 0, y: 0 });
   drawCenteredBitmapText(text, y, scale, '#b42638', time);
@@ -2160,7 +2403,7 @@ function drawBloodDrips(text, y, scale, time) {
   titleContext.fillStyle = '#5e0b16';
   for (const column of dripColumns) {
     const length = 4 + Math.floor(Math.abs(Math.sin(time * 3.2 + column)) * 6);
-    titleContext.fillRect(x + column, y + 15, scale, length);
+    titleContext.fillRect(x + column * 0.75, y + 12, scale, length);
   }
 }
 
@@ -2189,9 +2432,9 @@ function drawTitleBackdrop(time) {
 }
 
 function drawBitmapButton(time, options) {
-  const width = 184;
-  const height = 46;
-  const textScale = 2;
+  const width = 160;
+  const height = 38;
+  const textScale = 1.5;
   const x = Math.floor((TITLE_WIDTH - width) / 2);
   const y = options.y;
   const active = options.active || options.blink;
@@ -2203,7 +2446,7 @@ function drawBitmapButton(time, options) {
   titleContext.fillRect(x, y, 3, height);
   titleContext.fillRect(x + width - 3, y, 3, height);
   drawCenteredBitmapText(options.label, y + 6, textScale, active ? '#17110d' : '#f7e9b7', time);
-  drawCenteredBitmapText(options.detail, y + 25, textScale, active ? '#2b2116' : '#cfc7aa', time);
+  drawCenteredBitmapText(options.detail, y + 22, textScale, active ? '#2b2116' : '#cfc7aa', time);
 }
 
 function getTitleButtonBlink(time) {
@@ -2214,6 +2457,10 @@ function drawCenteredBitmapText(text, y, scale, color, time, offset = { x: 0, y:
   const width = measureBitmapText(text, scale);
   const snap = Math.sin(time * 24 + y) > 0.92 ? 1 : 0;
   drawBitmapText(text, Math.floor((TITLE_WIDTH - width) / 2 + offset.x + snap), y + offset.y, scale, color);
+}
+
+function drawRightAlignedBitmapText(text, right, y, scale, color) {
+  drawBitmapText(text, right - measureBitmapText(text, scale), y, scale, color);
 }
 
 function drawBitmapText(text, x, y, scale, color) {
@@ -2308,11 +2555,11 @@ function updateDebugHud(dt) {
   if (debugEnemies) debugEnemies.textContent = String(enemyCount);
 }
 
-function damagePlayer(now) {
+function damagePlayer(now, enemy = null) {
   if (now - lastZombieBiteAt < ZOMBIE_BITE_COOLDOWN_MS) return;
 
   lastZombieBiteAt = now;
-  playerHealth = applyPlayerDamage(playerHealth, ZOMBIE_BITE_DAMAGE);
+  playerHealth = applyPlayerDamage(playerHealth, getEnemyDamage(enemy));
   randomizeDamageScratch();
   lastDamageFlashStartedAt = now;
   if (!playerHealth.dead && getHealthDanger(playerHealth) > 0) {
@@ -2322,6 +2569,12 @@ function damagePlayer(now) {
   if (playerHealth.dead) {
     startDeathSequence(now, { damage: false });
   }
+}
+
+function getEnemyDamage(enemy) {
+  if (enemy?.enemyType === 'molten-sentinel') return enemy.damage ?? SENTINEL_DAMAGE;
+  if (enemy?.enemyType === 'one-eye-alien') return enemy.damage ?? ALIEN_DAMAGE;
+  return enemy?.damage ?? ZOMBIE_BITE_DAMAGE;
 }
 
 function randomizeDamageScratch() {
@@ -2561,7 +2814,7 @@ function updateCutUpMode(now) {
   updateCutUpHud(now);
 }
 
-function jumpToCutUpScene(index, now = performance.now()) {
+async function jumpToCutUpScene(index, now = performance.now()) {
   if (!cutUpState.active || index < 0 || index >= cutUpState.unlockedSceneCount) return;
 
   captureCutUpSceneState();
@@ -2575,7 +2828,8 @@ function jumpToCutUpScene(index, now = performance.now()) {
   }
   playTransitionOneShot(CUT_UP_SCENE_SLICE_SOUND_URL);
   const sceneId = SCENE_DEFINITIONS[index].id;
-  setScene(sceneId);
+  const sceneLoaded = await setScene(sceneId);
+  if (!sceneLoaded) return;
   restoreCutUpSceneState(sceneId);
   syncSceneSelect();
   updateCutUpHud(now);
@@ -2641,11 +2895,11 @@ function setRenderResolution(id) {
 async function setScene(id) {
   const requestId = ++sceneLoadRequest;
   const nextWorld = await createSceneRuntimeWorld(id);
-  if (requestId !== sceneLoadRequest) return;
+  if (requestId !== sceneLoadRequest) return false;
 
   if (world.id === nextWorld.id) {
     syncSceneSelect();
-    return;
+    return true;
   }
 
   effects.sceneId = nextWorld.id;
@@ -2662,9 +2916,10 @@ async function setScene(id) {
   gl.deleteTexture(atlasTexture);
   warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
   zombieMesh = createZombieMesh(gl);
-  atlasTexture = await createSceneTextureAtlas(gl, world, zombieTextureImage);
+  atlasTexture = await createSceneTextureAtlas(gl, world, characterTextureImages);
   if (audioState) ensureSceneAudio();
   syncSceneSelect();
+  return true;
 }
 
 async function createSceneRuntimeWorld(id) {
@@ -2693,6 +2948,7 @@ function createWorldFromLevelAsset(fallback, levelAsset) {
     levelAsset,
     playerSpawn: levelAsset.playerSpawn ?? fallback.playerSpawn,
     zombieSpawns: levelAsset.zombieSpawns.length ? levelAsset.zombieSpawns : fallback.zombieSpawns,
+    enemySpawns: getRuntimeEnemySpawns(fallback, levelAsset.enemySpawns),
     healthPotions: levelAsset.healthPotions.length ? mergeLevelHealthPotions(levelAsset.healthPotions, fallback.healthPotions) : fallback.healthPotions,
     damageZones: levelAsset.damageZones.length ? levelAsset.damageZones : fallback.damageZones ?? [],
     lights: levelAsset.lights.length ? levelAsset.lights : fallback.lights,
@@ -2700,6 +2956,15 @@ function createWorldFromLevelAsset(fallback, levelAsset) {
     killY: levelAsset.killY ?? fallback.killY,
     textures: createLevelTextureDescriptors(levelAsset, fallback),
   };
+}
+
+function getRuntimeEnemySpawns(fallback, levelEnemySpawns) {
+  const enemySpawns = levelEnemySpawns.length ? levelEnemySpawns : fallback.enemySpawns;
+  return enemySpawns.filter((spawn) => (
+    spawn.enemyType !== 'molten-sentinel'
+    || !fallback.ceiling
+    || (spawn.minimumHeadClearance ?? 0) >= 4.8
+  ));
 }
 
 function resetPlayerToSpawn() {
@@ -2820,6 +3085,10 @@ function createLevelMesh(glContext, scene, indices) {
     }
   }
 
+  if (scene.warpGate) {
+    addWarpGate(geometry, scene.warpGate, indices);
+  }
+
   return {
     count: geometry.positions.length / 3,
     position: createBuffer(glContext, new Float32Array(geometry.positions)),
@@ -2855,6 +3124,7 @@ function isBrightLevelTexture(textureId) {
     || textureId === 'flickerComet'
     || textureId === 'comet'
     || textureId === 'firefly'
+    || textureId === 'moonbeam'
     || textureId === 'torchFlame'
     || textureId === 'lightning'
     || textureId === 'rain';
@@ -2918,6 +3188,10 @@ function createWarehouseMesh(glContext, scene, indices) {
     }
   }
 
+  if (scene.warpGate) {
+    addWarpGate(geometry, scene.warpGate, indices);
+  }
+
   if (scene.movingBillboards) {
     for (const item of scene.movingBillboards) {
       addCard(geometry, item, indices);
@@ -2967,10 +3241,14 @@ function createZombieMesh(glContext) {
   };
 }
 
-function updateZombieMesh(glContext, mesh, zombieList, indices, model = null, time = 0) {
+function updateZombieMesh(glContext, mesh, zombieList, indices, models = new Map(), time = 0) {
   const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
-  const animatedVertices = model ? animateZombieModel(model, time) : null;
   for (const zombie of zombieList) {
+    const model = models.get(zombie.enemyType ?? 'zombie') ?? zombieModel;
+    const animationName = selectEnemyAnimation(zombie, model, time);
+    const animatedVertices = model
+      ? animateZombieModel(model, time + (zombie.animationSeed ?? 0) * 4, animationName)
+      : null;
     if (animatedVertices) {
       addZombieModel(geometry, zombie, animatedVertices, indices);
     } else {
@@ -2986,17 +3264,57 @@ function updateZombieMesh(glContext, mesh, zombieList, indices, model = null, ti
   updateBuffer(glContext, mesh.motion, new Float32Array(geometry.motions));
 }
 
+function selectEnemyAnimation(enemy, model, time) {
+  if (!model?.animations?.length) return null;
+  if ((enemy.enemyType ?? 'zombie') === 'molten-sentinel') {
+    const closeToPlayer = Math.hypot(player.x - enemy.x, player.z - enemy.z) < SENTINEL_ATTACK_RANGE;
+    if (closeToPlayer) {
+      return findPreferredAnimationName(model, SENTINEL_ATTACK_ANIMATION_NAMES)
+        ?? findNonPreferredAnimationName(model, SENTINEL_LOCOMOTION_ANIMATION_NAMES)
+        ?? model.animations[0].name;
+    }
+    return findPreferredAnimationName(model, SENTINEL_LOCOMOTION_ANIMATION_NAMES) ?? model.animations[0].name;
+  }
+  if (enemy.enemyType === 'one-eye-alien') {
+    const closeToPlayer = Math.hypot(player.x - enemy.x, player.z - enemy.z) < 1.8;
+    if (closeToPlayer && model.animations.some((animation) => animation.name === 'Attack')) return 'Attack';
+    const ambientClips = model.animations.filter((animation) => animation.name !== 'Attack');
+    if (!ambientClips.length) return model.animations[0].name;
+    const index = Math.floor((time + (enemy.animationSeed ?? 0) * 9) / 5) % ambientClips.length;
+    return ambientClips[index].name;
+  }
+  return model.animations[0].name;
+}
+
+function findPreferredAnimationName(model, preferredNames) {
+  const normalizedPreferred = preferredNames.map(normalizeAnimationName);
+  const animation = model.animations.find((clip) => normalizedPreferred.includes(normalizeAnimationName(clip.name)));
+  return animation?.name ?? null;
+}
+
+function findNonPreferredAnimationName(model, excludedNames) {
+  const normalizedExcluded = excludedNames.map(normalizeAnimationName);
+  const animation = model.animations.find((clip) => !normalizedExcluded.includes(normalizeAnimationName(clip.name)));
+  return animation?.name ?? null;
+}
+
+function normalizeAnimationName(name) {
+  return String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
 function addZombieModel(geometry, zombie, vertices, indices) {
-  const textureId = indices.get('zombie') ?? 0;
+  const enemyType = zombie.enemyType ?? 'zombie';
+  const textureId = indices.get(enemyType) ?? indices.get('zombie') ?? 0;
   const motion = motionCode('zombie-walk');
   const zombieMasterYaw = zombie.yaw;
   const zombieModelYaw = ZOMBIE_MODEL_FRONT_ROTATION;
   const feetY = zombie.y - PLAYER_EYE_HEIGHT;
+  const scale = CHARACTER_MODEL_SCALE[enemyType] ?? ZOMBIE_MODEL_SCALE;
 
   for (const vertex of vertices) {
-    const localX = vertex.x * ZOMBIE_MODEL_SCALE;
-    const localY = vertex.y * ZOMBIE_MODEL_SCALE;
-    const localZ = vertex.z * ZOMBIE_MODEL_SCALE;
+    const localX = vertex.x * scale;
+    const localY = vertex.y * scale;
+    const localZ = vertex.z * scale;
     const modelSpace = rotateZombieLocalVertex(localX, localY, localZ, zombieModelYaw);
     const worldSpace = rotateZombieMasterVertex(modelSpace.x, modelSpace.y, modelSpace.z, zombieMasterYaw);
     geometry.positions.push(
@@ -3030,7 +3348,7 @@ function rotateZombieY(x, y, z, yaw) {
 }
 
 function addZombieCard(geometry, zombie, indices) {
-  const textureId = indices.get('zombie') ?? 0;
+  const textureId = indices.get(zombie.enemyType ?? 'zombie') ?? indices.get('zombie') ?? 0;
   const motion = motionCode('zombie-walk');
   const width = 0.95;
   const height = 1.75;
@@ -3120,6 +3438,28 @@ function addCard(geometry, item, indices) {
     [item.x + halfWidth, item.y + halfHeight, item.z],
     [item.x - halfWidth, item.y + halfHeight, item.z],
   ], 1, 1, motionCode(item.motion));
+}
+
+function addWarpGate(geometry, item, indices) {
+  const textureId = indices.get(item.texture) ?? 0;
+  const motion = motionCode(item.motion);
+  const halfWidth = item.width / 2;
+  const halfHeight = item.height / 2;
+  const y0 = item.y - halfHeight;
+  const y1 = item.y + halfHeight;
+
+  face(geometry, textureId, 1.42, [
+    [item.x - halfWidth, y0, item.z],
+    [item.x + halfWidth, y0, item.z],
+    [item.x + halfWidth, y1, item.z],
+    [item.x - halfWidth, y1, item.z],
+  ], 1, 1, motion);
+  face(geometry, textureId, 1.25, [
+    [item.x, y0, item.z - halfWidth],
+    [item.x, y0, item.z + halfWidth],
+    [item.x, y1, item.z + halfWidth],
+    [item.x, y1, item.z - halfWidth],
+  ], 1, 1, motion);
 }
 
 function addHealthPotionFlask(geometry, item, indices) {
@@ -3313,6 +3653,8 @@ function getSkyDomeMode(skyDome) {
 function getSkyDomePalette(skyDome) {
   if (skyDome.palette === 'electric-blue') return 1;
   if (skyDome.palette === 'one-bit-night') return 2;
+  if (skyDome.palette === 'psychedelic-purple') return 3;
+  if (skyDome.palette === 'liminal-blue') return 4;
   return 0;
 }
 
@@ -3376,12 +3718,12 @@ function createLevelTextureDescriptors(levelAsset, fallback) {
   return [...fallback.textures, ...missingLevelTextures];
 }
 
-async function createSceneTextureAtlas(glContext, scene, zombieImage = null) {
-  if (!scene.levelAsset) return createTextureAtlas(glContext, scene.textures, zombieImage);
-  return createLevelTextureAtlas(glContext, scene, zombieImage);
+async function createSceneTextureAtlas(glContext, scene, characterImages = characterTextureImages) {
+  if (!scene.levelAsset) return createTextureAtlas(glContext, scene.textures, characterImages);
+  return createLevelTextureAtlas(glContext, scene, characterImages);
 }
 
-async function createLevelTextureAtlas(glContext, scene, zombieImage = null) {
+async function createLevelTextureAtlas(glContext, scene, characterImages = characterTextureImages) {
   const textures = await Promise.all(scene.textures.map(async (texture) => {
     if (!texture.material?.texture?.bytes) return texture;
     return {
@@ -3390,10 +3732,10 @@ async function createLevelTextureAtlas(glContext, scene, zombieImage = null) {
     };
   }));
 
-  return createTextureAtlas(glContext, textures, zombieImage);
+  return createTextureAtlas(glContext, textures, characterImages);
 }
 
-function createTextureAtlas(glContext, textures, zombieImage = null) {
+function createTextureAtlas(glContext, textures, characterImages = characterTextureImages) {
   const tile = 128;
   const atlasCanvas = document.createElement('canvas');
   atlasCanvas.width = tile * textures.length;
@@ -3403,8 +3745,9 @@ function createTextureAtlas(glContext, textures, zombieImage = null) {
 
   textures.forEach((texture, index) => {
     const x = index * tile;
-    if (texture.id === 'zombie' && zombieImage) {
-      drawZombieModelTexture(ctx, zombieImage, x, 0, tile);
+    const characterImage = characterImages?.get?.(texture.id) ?? null;
+    if (characterImage) {
+      drawZombieModelTexture(ctx, characterImage, x, 0, tile);
     } else if (texture.image) {
       ctx.drawImage(texture.image, x, 0, tile, tile);
     } else if (texture.material) {
@@ -3472,6 +3815,7 @@ function motionCode(name) {
     'zombie-walk': 12,
     'torch-flame': 13,
     'pickup-bob': 14,
+    'warp-gate': 15,
   };
   return codes[name] ?? 0;
 }
@@ -3494,6 +3838,11 @@ function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
 
   if (id === 'paleMoon') {
     drawMoonTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'moonbeam') {
+    drawMoonbeamTexture(ctx, x, y, tile);
     return;
   }
 
@@ -3539,6 +3888,11 @@ function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
 
   if (id === 'healthPotion') {
     drawHealthPotionTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'warpGate') {
+    drawWarpGateTexture(ctx, x, y, tile);
     return;
   }
 
@@ -3857,6 +4211,11 @@ function palette(id, n) {
     astralYellow: ['#f8f14a', '#3a3512', '#fff6a3', '#a79d12'],
     astralBlack: ['#020208', '#101022', '#05050a', '#222244'],
     starshipFloor: ['#1f2b32', '#34454a', '#162026', '#4f5f64'],
+    shipCeiling: ['#111820', '#22313c', '#060a0e', '#465965'],
+    darkMetal: ['#11151a', '#252b32', '#07090d', '#4f5963'],
+    hullPanel: ['#202932', '#3b4852', '#111820', '#69737c'],
+    reactorGlow: ['#1a1f20', '#ff4d32', '#2a302e', '#ffad5f'],
+    moonbeam: ['#8da5cf', '#31415f', '#d9e6ff', '#101827'],
     panel: ['#263238', '#3f4b52', '#181f25', '#59656b'],
     motelWall: ['#2c2b31', '#4b4851', '#17171d', '#6a6264'],
     motelDoor: ['#181012', '#39212a', '#5f3141', '#101010'],
@@ -3971,6 +4330,24 @@ function createBuffer(glContext, data) {
   return buffer;
 }
 
+function drawMoonbeamTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const gradient = ctx.createLinearGradient(x, y, x + tile, y);
+  gradient.addColorStop(0, 'rgba(64, 80, 116, 0)');
+  gradient.addColorStop(0.32, 'rgba(124, 148, 196, 0.18)');
+  gradient.addColorStop(0.5, 'rgba(220, 232, 255, 0.38)');
+  gradient.addColorStop(0.68, 'rgba(124, 148, 196, 0.18)');
+  gradient.addColorStop(1, 'rgba(64, 80, 116, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x, y, tile, tile);
+  ctx.fillStyle = 'rgba(230, 238, 255, 0.22)';
+  for (let i = 0; i < 18; i += 1) {
+    const px = x + hash(i, 2, 11) * tile;
+    const py = y + hash(i, 3, 12) * tile;
+    ctx.fillRect(px, py, 2, 2);
+  }
+}
+
 function drawTorchFlameTexture(ctx, x, y, tile) {
   ctx.clearRect(x, y, tile, tile);
   ctx.fillStyle = 'rgba(255, 105, 18, 0.22)';
@@ -3999,6 +4376,31 @@ function drawHealthPotionTexture(ctx, x, y, tile) {
   ctx.fillStyle = '#edffd9';
   ctx.fillRect(x + tile * 0.36, y + tile * 0.44, tile * 0.28, tile * 0.08);
   ctx.fillRect(x + tile * 0.46, y + tile * 0.34, tile * 0.08, tile * 0.28);
+}
+
+function drawWarpGateTexture(ctx, x, y, tile) {
+  const scale = tile / 64;
+  ctx.clearRect(x, y, tile, tile);
+  ctx.strokeStyle = '#1ca6a5';
+  ctx.lineWidth = Math.max(1, 3 * scale);
+  ctx.beginPath();
+  ctx.ellipse(x + 32 * scale, y + 32 * scale, 19 * scale, 27 * scale, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#f0d38a';
+  ctx.lineWidth = Math.max(1, 2 * scale);
+  ctx.beginPath();
+  ctx.ellipse(x + 32 * scale, y + 32 * scale, 11 * scale, 20 * scale, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = '#b42638';
+  for (let index = 0; index < 9; index += 1) {
+    const angle = index * Math.PI * 2 / 9;
+    const px = x + (32 + Math.cos(angle) * 18) * scale;
+    const py = y + (32 + Math.sin(angle) * 26) * scale;
+    ctx.fillRect(px - 2 * scale, py - 2 * scale, 4 * scale, 4 * scale);
+  }
+  ctx.fillStyle = 'rgba(28, 166, 165, 0.5)';
+  ctx.fillRect(x + 28 * scale, y + 12 * scale, 8 * scale, 40 * scale);
+  ctx.fillRect(x + 20 * scale, y + 29 * scale, 24 * scale, 6 * scale);
 }
 
 function createDynamicBuffer(glContext) {
@@ -4067,25 +4469,45 @@ async function start() {
   skyDomeMesh = createSkyDomeMesh(gl);
   zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);
-  atlasTexture = await createSceneTextureAtlas(gl, world, zombieTextureImage);
+  atlasTexture = await createSceneTextureAtlas(gl, world, characterTextureImages);
   renderTarget = createRenderTarget(gl, renderResolution.width, renderResolution.height);
 
   setupOptions();
   setupInput();
   resize();
   renderTitleScreen(0);
-  loadZombieGlb().then(async (model) => {
-    zombieModel = model;
-    zombieTextureImage = await loadZombieTextureImage(model.texture);
-    if (zombieTextureImage) {
+  loadAllCharacterModels().then(async () => {
+    if (characterTextureImages.size > 0) {
       gl.deleteTexture(atlasTexture);
-      atlasTexture = await createSceneTextureAtlas(gl, world, zombieTextureImage);
+      atlasTexture = await createSceneTextureAtlas(gl, world, characterTextureImages);
     }
-  }).catch(() => {
-    zombieModel = null;
-    zombieTextureImage = null;
   });
   requestAnimationFrame(frame);
+}
+
+async function loadAllCharacterModels() {
+  const entries = await Promise.all(Object.entries(CHARACTER_MODEL_URLS).map(async ([enemyType, url]) => {
+    try {
+      const model = enemyType === 'zombie'
+        ? await loadZombieGlb(url)
+        : await loadCharacterGlb(enemyType, url);
+      const image = await loadZombieTextureImage(model.texture);
+      return [enemyType, model, image];
+    } catch (error) {
+      console.warn(`Could not load character model ${enemyType}:`, error);
+      return [enemyType, null, null];
+    }
+  }));
+
+  characterModels = new Map();
+  characterTextureImages = new Map();
+  for (const [enemyType, model, image] of entries) {
+    if (!model) continue;
+    characterModels.set(enemyType, model);
+    if (image) characterTextureImages.set(enemyType, image);
+  }
+  zombieModel = characterModels.get('zombie') ?? null;
+  zombieTextureImage = characterTextureImages.get('zombie') ?? null;
 }
 
 async function loadZombieTextureImage(texture) {
@@ -4169,13 +4591,39 @@ vec3 starrySky(vec3 direction) {
 vec3 cloudSky(vec3 direction) {
   vec3 horizon = vec3(0.22, 0.55, 0.88);
   vec3 zenith = vec3(0.05, 0.18, 0.72);
+  vec3 cloudColor = vec3(0.72, 0.88, 0.98);
+  vec3 weirdGlow = vec3(0.22, 0.04, 0.32);
+  float cloudStrength = 0.72;
+  float weirdStrength = 0.18;
+  if (uSkyPalette > 3.5) {
+    horizon = vec3(0.68, 0.84, 0.96);
+    zenith = vec3(0.22, 0.54, 0.86);
+    cloudColor = vec3(0.93, 0.97, 1.0);
+    weirdGlow = vec3(0.72, 0.88, 1.0);
+    cloudStrength = 0.38;
+    weirdStrength = 0.08;
+  } else if (uSkyPalette > 2.5) {
+    horizon = vec3(0.18, 0.025, 0.28);
+    zenith = vec3(0.015, 0.002, 0.075);
+    cloudColor = vec3(0.95, 0.13, 0.86);
+    weirdGlow = vec3(0.08, 0.95, 0.62);
+    cloudStrength = 0.84;
+    weirdStrength = 0.42;
+  }
   vec3 color = mix(horizon, zenith, smoothstep(0.02, 0.95, vSkyHeight));
   vec2 p = vec2(atan(direction.z, direction.x) * 2.4, direction.y * 3.2);
   float clouds = valueNoise(p * 2.0 + vec2(uTime * 0.018, 0.0));
   clouds += valueNoise(p * 4.6 + vec2(4.0, uTime * 0.01)) * 0.5;
   float cloudBand = smoothstep(0.54, 1.04, clouds) * smoothstep(-0.05, 0.36, direction.y) * (1.0 - smoothstep(0.82, 1.0, direction.y));
-  color = mix(color, vec3(0.72, 0.88, 0.98), cloudBand * 0.72);
-  color += vec3(0.22, 0.04, 0.32) * smoothstep(0.62, 0.94, valueNoise(p * 1.2 + 8.0)) * 0.18;
+  color = mix(color, cloudColor, cloudBand * cloudStrength);
+  color += weirdGlow * smoothstep(0.62, 0.94, valueNoise(p * 1.2 + 8.0)) * weirdStrength;
+  if (uSkyPalette > 2.5) {
+    float spiral = sin(atan(direction.z, direction.x) * 7.0 + direction.y * 18.0 + uTime * 0.32) * 0.5 + 0.5;
+    vec3 spiralA = uSkyPalette > 3.5 ? vec3(0.62, 0.78, 1.0) : vec3(0.42, 0.02, 0.95);
+    vec3 spiralB = uSkyPalette > 3.5 ? vec3(0.92, 0.98, 1.0) : vec3(0.0, 0.85, 0.58);
+    float spiralStrength = uSkyPalette > 3.5 ? 0.055 : 0.22;
+    color += mix(spiralA, spiralB, spiral) * smoothstep(0.08, 0.78, vSkyHeight) * spiralStrength;
+  }
   return color;
 }
 
@@ -4225,7 +4673,10 @@ void main() {
   warped.x += sin(uTime * 1.5 + aPosition.z * 1.8) * 0.24 * swayMask;
   warped.x += sin(uTime * 2.8 + aPosition.y * 3.0) * 0.7 * fireflyMask;
   warped.y += sin(uTime * 3.2 + aPosition.x * 2.0) * 0.36 * fireflyMask;
-  warped.y -= mod(floor(uTime * 3.0 + aPosition.x * 0.7), 5.0) * 0.45 * leafMask;
+  float leafGust = floor(mod(uTime * 4.4 + aPosition.x * 0.41 + aPosition.z * 0.23, 6.0));
+  warped.y -= leafGust * 0.42 * leafMask;
+  warped.x += (leafGust * 0.34 + sin(uTime * 5.6 + aPosition.z * 1.7) * 0.46) * leafMask;
+  warped.z += sin(uTime * 3.8 + aPosition.x * 1.2) * 0.32 * leafMask;
   warped.x += floor(mod(uTime * 0.8, 5.0)) * 0.22 * moonMask;
   warped.y += sin(uTime * 1.3 + aPosition.x) * 0.55 * bobMask;
   vec2 orbitCenter = vec2(0.0, -7.0);

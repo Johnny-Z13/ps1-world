@@ -2,6 +2,8 @@ const WALL_HEIGHT = 3.0;
 const SKY_DOME_STARRY = Object.freeze({ mode: 'starry', palette: 'deep-night' });
 const SKY_DOME_ONE_BIT = Object.freeze({ mode: 'starry', palette: 'one-bit-night' });
 const SKY_DOME_CLOUDS = Object.freeze({ mode: 'clouds', palette: 'electric-blue' });
+const SKY_DOME_PSYCHEDELIC_PURPLE = Object.freeze({ mode: 'clouds', palette: 'psychedelic-purple' });
+const SKY_DOME_LIMINAL_BLUE = Object.freeze({ mode: 'clouds', palette: 'liminal-blue' });
 
 export const SCENE_DEFINITIONS = Object.freeze([
   Object.freeze({ id: 'dungeon', label: 'Dungeon' }),
@@ -297,6 +299,45 @@ function hash(x, y, seed) {
   return Math.abs(Math.sin(x * 12.9898 + y * 78.233 + seed * 37.719) * 43758.5453) % 1;
 }
 
+function wholeTree(name, x, z, options = {}) {
+  const trunkWidth = options.trunkWidth ?? 1.25;
+  const trunkDepth = options.trunkDepth ?? trunkWidth;
+  const trunkHeight = options.trunkHeight ?? 5.8;
+  const canopyWidth = options.canopyWidth ?? trunkWidth * 4.6;
+  const canopyDepth = options.canopyDepth ?? trunkDepth * 4.2;
+  const canopyHeight = options.canopyHeight ?? 3.0;
+  const y = options.y ?? 0;
+
+  return {
+    name,
+    x,
+    y,
+    z,
+    width: trunkWidth,
+    depth: trunkDepth,
+    height: trunkHeight + canopyHeight,
+    texture: options.texture ?? 'rotBark',
+    canopyTexture: options.canopyTexture ?? 'rotPine',
+    mesh: 'whole-tree',
+    trunkHeight,
+    canopyWidth,
+    canopyDepth,
+    canopyHeight,
+    leanX: options.leanX ?? 0,
+    leanZ: options.leanZ ?? 0,
+    canopyOffsetX: options.canopyOffsetX ?? 0,
+    canopyOffsetZ: options.canopyOffsetZ ?? 0,
+    collider: {
+      minX: x - trunkWidth / 2,
+      maxX: x + trunkWidth / 2,
+      minY: y,
+      maxY: y + trunkHeight + canopyHeight,
+      minZ: z - trunkDepth / 2,
+      maxZ: z + trunkDepth / 2,
+    },
+  };
+}
+
 function createRotwoodForestWorld() {
   const textures = [
     { id: 'rotMud', size: 128 },
@@ -307,9 +348,25 @@ function createRotwoodForestWorld() {
     { id: 'blackWater', size: 64 },
     { id: 'deadWood', size: 64 },
     { id: 'paleMoon', size: 64 },
+    { id: 'moonbeam', size: 64 },
+    { id: 'rain', size: 64 },
+    { id: 'lightning', size: 64 },
     { id: 'firefly', size: 64 },
     { id: 'fallingLeaf', size: 64 },
   ];
+  const rainDrops = [];
+  for (let row = 0; row < 7; row += 1) {
+    for (let col = 0; col < 8; col += 1) {
+      const gust = hash(row, col, 29);
+      rainDrops.push({
+        x: -31 + col * 8.8 + (gust - 0.5) * 3.2,
+        y: 16.5 + hash(col, row, 30) * 7.8,
+        z: -30 + row * 10.0 + (hash(col, row, 31) - 0.5) * 3.6,
+        width: 0.13 + hash(row, col, 32) * 0.12,
+        height: 11.5 + hash(col, row, 33) * 8.5,
+      });
+    }
+  }
 
   const walls = [
     box('north fog wall', 0, -34, 68, 0.7, 2.2, 'rotBark'),
@@ -318,8 +375,19 @@ function createRotwoodForestWorld() {
     box('east bramble wall', 34, 0, 0.7, 68, 2.2, 'rotRoot'),
   ];
   const crates = [
-    box('dead hollow tree trunk', -9, -13, 3.4, 3.0, 7.6, 'rotBark'),
-    box('dead hollow tree split crown', -9.5, -14.4, 4.8, 1.0, 2.4, 'deadWood', 6.3),
+    wholeTree('dead hollow tree whole trunk and crown', -9, -13, {
+      trunkWidth: 3.4,
+      trunkDepth: 3.0,
+      trunkHeight: 6.3,
+      canopyWidth: 6.4,
+      canopyDepth: 4.0,
+      canopyHeight: 2.5,
+      canopyTexture: 'deadWood',
+      canopyOffsetX: -0.5,
+      canopyOffsetZ: -1.0,
+      leanX: -0.28,
+      leanZ: -0.36,
+    }),
     box('crooked root arch left', -5.7, -6.2, 1.4, 5.8, 2.7, 'rotRoot'),
     box('crooked root arch right', -1.8, -6.1, 1.2, 5.3, 2.4, 'rotRoot'),
     box('crooked root arch cap', -3.7, -8.8, 4.8, 1.0, 1.2, 'rotRoot', 2.2),
@@ -328,12 +396,35 @@ function createRotwoodForestWorld() {
     box('black pond mirror', 13.5, 7.4, 9.5, 6.4, 0.08, 'blackWater', -0.03, true),
   ];
 
-  for (let i = 0; i < 18; i += 1) {
-    const x = -27 + (i % 6) * 10.5 + (hash(i, 2, 1) - 0.5) * 3;
-    const z = -25 + Math.floor(i / 6) * 14 + (hash(i, 3, 2) - 0.5) * 5;
-    if (Math.abs(x) < 5 && z > 8) continue;
-    crates.push(box(`black tree trunk ${i + 1}`, x, z, 1.2 + hash(i, 4, 3), 1.2 + hash(i, 5, 4), 5.5 + hash(i, 6, 5) * 2, 'rotBark'));
-    crates.push(box(`root cluster ${i + 1}`, x + 1.4, z + 0.8, 3.2, 0.8, 0.65, 'rotRoot'));
+  for (let i = 0; i < 48; i += 1) {
+    const x = -30 + (i % 8) * 8.6 + (hash(i, 2, 1) - 0.5) * 3.6;
+    const z = -29 + Math.floor(i / 8) * 10.8 + (hash(i, 3, 2) - 0.5) * 4.8;
+    const tooCloseToSpawn = [
+      [0, 20],
+      [-18, 18],
+      [16, 14],
+      [2, -22],
+      [-14, 10],
+      [14, -8],
+      [0, -20],
+    ].some(([px, pz]) => Math.hypot(x - px, z - pz) < 3.8);
+    if (tooCloseToSpawn) continue;
+    const trunkWidth = 1.0 + hash(i, 4, 3) * 0.65;
+    const trunkDepth = 1.0 + hash(i, 5, 4) * 0.65;
+    const trunkHeight = 4.9 + hash(i, 6, 5) * 2.4;
+    crates.push(wholeTree(`whole black pine tree ${i + 1}`, x, z, {
+      trunkWidth,
+      trunkDepth,
+      trunkHeight,
+      canopyWidth: 4.8 + hash(i, 14, 13) * 2.6,
+      canopyDepth: 4.2 + hash(i, 15, 14) * 2.4,
+      canopyHeight: 2.2 + hash(i, 16, 15) * 1.8,
+      canopyOffsetX: (hash(i, 17, 16) - 0.5) * 1.4,
+      canopyOffsetZ: (hash(i, 18, 17) - 0.5) * 1.4,
+      leanX: (hash(i, 19, 18) - 0.5) * 0.55,
+      leanZ: (hash(i, 20, 19) - 0.5) * 0.55,
+    }));
+    crates.push(box(`root cluster ${i + 1}`, x + 1.15, z + 0.75, 2.7, 0.72, 0.55, 'rotRoot'));
   }
 
   for (let i = 0; i < 10; i += 1) {
@@ -348,16 +439,19 @@ function createRotwoodForestWorld() {
   ];
 
   const cards = [];
-  for (let i = 0; i < 28; i += 1) {
-    const x = -28 + (i % 7) * 9.4 + (hash(i, 7, 8) - 0.5) * 2.5;
-    const z = -27 + Math.floor(i / 7) * 12.4 + (hash(i, 8, 9) - 0.5) * 3.5;
-    cards.push(card(`flat pine bough ${i + 1}`, x, 6.2 + hash(i, 9, 10) * 2.4, z, 4.8, 3.2, 'rotPine', 'sway'));
+  for (let i = 0; i < 20; i += 1) {
+    const x = -31 + (i % 5) * 15.5 + (hash(i, 7, 8) - 0.5) * 4.5;
+    const z = -30 + Math.floor(i / 5) * 18.5 + (hash(i, 8, 9) - 0.5) * 5.5;
+    cards.push(card(`overhead swaying branch curtain ${i + 1}`, x, 7.8 + hash(i, 9, 10) * 2.0, z, 7.2, 4.4, 'rotPine', 'sway'));
   }
-  for (let i = 0; i < 16; i += 1) {
-    cards.push(card(`firefly pixel ${i + 1}`, -17 + (i % 8) * 4.8, 1.7 + hash(i, 10, 11) * 2.0, -11 + Math.floor(i / 8) * 17, 0.42, 0.42, 'firefly', 'firefly'));
+  for (let i = 0; i < 24; i += 1) {
+    cards.push(card(`firefly pixel ${i + 1}`, -22 + (i % 8) * 6.2, 1.5 + hash(i, 10, 11) * 2.4, -18 + Math.floor(i / 8) * 15.5, 0.42, 0.42, 'firefly', 'firefly'));
   }
-  for (let i = 0; i < 12; i += 1) {
-    cards.push(card(`falling leaf card ${i + 1}`, -22 + (i % 6) * 8.5, 6.8 + hash(i, 11, 12) * 2.6, -18 + Math.floor(i / 6) * 22, 0.55, 0.72, 'fallingLeaf', 'falling-leaf'));
+  for (let i = 0; i < 96; i += 1) {
+    cards.push(card(`windblown falling leaf particle ${i + 1}`, -31 + (i % 12) * 5.6 + (hash(i, 11, 12) - 0.5) * 2.4, 4.4 + hash(i, 12, 13) * 5.8, -30 + Math.floor(i / 12) * 8.8 + (hash(i, 13, 14) - 0.5) * 2.8, 0.42 + hash(i, 21, 20) * 0.28, 0.58 + hash(i, 22, 21) * 0.34, 'fallingLeaf', 'falling-leaf'));
+  }
+  for (let i = 0; i < 7; i += 1) {
+    cards.push(card(`cold moonlight shaft ${i + 1}`, -25 + i * 8.2, 8.8 + (i % 2) * 1.3, -24 + (i % 3) * 8.5, 4.8, 13.5, 'moonbeam', 'sway'));
   }
 
   return withZombies({
@@ -377,9 +471,49 @@ function createRotwoodForestWorld() {
     ],
     cards,
     movingBillboards: [
-      card('sliding pale moon behind treeline', -18, 15, -36, 5.8, 5.8, 'paleMoon', 'moon-slide'),
+      card('sliding pale moon behind dense treeline', -18, 16, -36, 7.2, 7.2, 'paleMoon', 'moon-slide'),
     ],
     sun: null,
+    rain: {
+      texture: 'rain',
+      drops: rainDrops,
+    },
+    lightning: {
+      texture: 'lightning',
+      interval: 11.5,
+      duration: 0.34,
+      bolts: [
+        {
+          name: 'rotwood sky fork main',
+          width: 0.16,
+          points: [
+            { x: 21, y: 19, z: -35.8 },
+            { x: 17, y: 14.2, z: -35.4 },
+            { x: 20, y: 10.0, z: -35.0 },
+            { x: 14, y: 6.8, z: -34.6 },
+            { x: 16, y: 3.8, z: -34.4 },
+          ],
+        },
+        {
+          name: 'rotwood sky fork left branch',
+          width: 0.1,
+          points: [
+            { x: 17, y: 14.2, z: -35.4 },
+            { x: 10.5, y: 12.4, z: -35.2 },
+            { x: 7.8, y: 9.7, z: -34.9 },
+          ],
+        },
+        {
+          name: 'rotwood sky fork right branch',
+          width: 0.11,
+          points: [
+            { x: 20, y: 10.0, z: -35.0 },
+            { x: 26.2, y: 8.1, z: -34.8 },
+            { x: 29.5, y: 5.6, z: -34.4 },
+          ],
+        },
+      ],
+    },
     playerTorch: {
       radius: 12,
       intensity: 2.9,
@@ -449,8 +583,8 @@ function createAstralGeometryGardenWorld() {
   return withZombies({
     id: 'astral-geometry-garden',
     label: 'Astral Geometry Garden',
-    skyDome: SKY_DOME_STARRY,
-    clearColor: [0.01, 0.0, 0.035, 1],
+    skyDome: SKY_DOME_LIMINAL_BLUE,
+    clearColor: [0.42, 0.68, 0.92, 1],
     floor: floorPieces[0],
     floorPieces,
     ceiling: null,
@@ -590,8 +724,37 @@ function createDerelictStarshipWorld() {
   const textures = [
     { id: 'starshipFloor', size: 128 },
     { id: 'panel', size: 64 },
+    { id: 'shipCeiling', size: 128 },
+    { id: 'darkMetal', size: 128 },
+    { id: 'hullPanel', size: 128 },
+    { id: 'reactorGlow', size: 64 },
     { id: 'warning', size: 64 },
     { id: 'metal', size: 128 },
+  ];
+  const derelictProps = [
+    box('low sagging ceiling slab forward', 0, -11.5, 10.8, 4.8, 0.16, 'darkMetal', 2.55, true),
+    box('raised bridge ceiling bay', 0, -2.5, 6.2, 8.8, 0.14, 'shipCeiling', 3.72, true),
+    box('collapsed port ceiling plate', -9.4, 1.2, 5.8, 9.0, 0.18, 'hullPanel', 2.72, true),
+    box('open starboard service ceiling', 9.4, 1.0, 5.6, 8.4, 0.12, 'darkMetal', 3.28, true),
+    box('rear cargo ceiling cassette', 0, 11.2, 14.2, 4.4, 0.18, 'shipCeiling', 2.92, true),
+    box('fore overhead rib 1', 0, -15.2, 30.0, 0.22, 0.28, 'darkMetal', 2.38, true),
+    box('fore overhead rib 2', 0, -10.4, 30.0, 0.22, 0.28, 'darkMetal', 2.52, true),
+    box('central overhead rib', 0, -3.0, 30.0, 0.24, 0.32, 'metal', 2.85, true),
+    box('aft overhead rib 1', 0, 4.8, 30.0, 0.22, 0.28, 'darkMetal', 2.62, true),
+    box('aft overhead rib 2', 0, 12.5, 30.0, 0.22, 0.28, 'darkMetal', 2.46, true),
+    box('port ceiling conduit', -6.2, -3.5, 0.24, 22.0, 0.24, 'metal', 2.5, true),
+    box('starboard ceiling conduit', 6.2, -2.0, 0.24, 19.0, 0.24, 'metal', 2.8, true),
+    box('north wall recessed avionics bay', -9.2, -16.9, 5.4, 0.08, 1.25, 'darkMetal', 0.8, true),
+    box('north wall torn service hatch', 7.4, -16.9, 4.6, 0.08, 1.05, 'hullPanel', 1.15, true),
+    box('south wall broken access recess', -6.4, 16.9, 5.8, 0.08, 1.1, 'darkMetal', 0.7, true),
+    box('south wall cargo pressure door', 8.8, 16.9, 5.2, 0.08, 1.45, 'hullPanel', 0.65, true),
+    box('west wall cable trench', -16.9, -5.8, 0.08, 7.6, 0.75, 'darkMetal', 0.55, true),
+    box('east wall exposed conduit panel', 16.9, -3.8, 0.08, 8.2, 0.9, 'hullPanel', 0.7, true),
+    box('beveled port bulkhead trim', -3.75, -7, 0.18, 16.8, 2.15, 'darkMetal', 0.18, true),
+    box('beveled starboard bulkhead trim', 3.75, -7, 0.18, 16.8, 2.15, 'darkMetal', 0.18, true),
+    box('reactor vent left', -1.8, 2.05, 2.6, 0.1, 0.42, 'reactorGlow', 1.05, true),
+    box('reactor vent right', 1.8, 2.05, 2.6, 0.1, 0.42, 'reactorGlow', 1.05, true),
+    box('single caution strip at blast door', 0, -12.78, 5.4, 0.08, 0.36, 'warning', 0.72, true),
   ];
 
   return withZombies({
@@ -599,31 +762,32 @@ function createDerelictStarshipWorld() {
     label: 'Derelict starship',
     clearColor: [0.025, 0.035, 0.05, 1],
     floor: box('deck plating', 0, 0, 34, 34, 0.08, 'starshipFloor', -0.08),
-    ceiling: box('low ship ceiling', 0, 0, 34, 34, 0.08, 'panel', 3.0),
+    ceiling: box('dark fractured ship ceiling', 0, 0, 34, 34, 0.08, 'shipCeiling', 3.55),
     walls: [
-      box('outer north', 0, -17.2, 34, 0.4, 3.1, 'panel'),
-      box('outer south', 0, 17.2, 34, 0.4, 3.1, 'panel'),
-      box('outer west', -17.2, 0, 0.4, 34, 3.1, 'panel'),
-      box('outer east', 17.2, 0, 0.4, 34, 3.1, 'panel'),
-      box('spine left', -3.2, -7, 0.35, 16, 2.8, 'metal'),
-      box('spine right', 3.2, -7, 0.35, 16, 2.8, 'metal'),
-      box('reactor wall', 0, 2.3, 12, 0.35, 2.8, 'panel'),
-      box('med bay wall', -9, 6.8, 7.5, 0.35, 2.6, 'panel'),
-      box('cargo wall', 9, 7.2, 7.5, 0.35, 2.6, 'panel'),
-      box('broken bulkhead', 0, -13, 6, 0.4, 1.8, 'warning'),
+      box('outer north fractured hull', 0, -17.2, 34, 0.4, 3.35, 'hullPanel'),
+      box('outer south fractured hull', 0, 17.2, 34, 0.4, 3.35, 'hullPanel'),
+      box('outer west torn hull', -17.2, 0, 0.4, 34, 3.25, 'hullPanel'),
+      box('outer east torn hull', 17.2, 0, 0.4, 34, 3.25, 'hullPanel'),
+      box('spine left pressure rib', -3.2, -7, 0.35, 16, 3.05, 'darkMetal'),
+      box('spine right pressure rib', 3.2, -7, 0.35, 16, 3.05, 'darkMetal'),
+      box('reactor wall with missing panels', 0, 2.3, 12, 0.35, 2.9, 'hullPanel'),
+      box('med bay torn partition', -9, 6.8, 7.5, 0.35, 2.7, 'panel'),
+      box('cargo bay pressure partition', 9, 7.2, 7.5, 0.35, 2.75, 'darkMetal'),
+      box('broken blast bulkhead', 0, -13, 6, 0.4, 2.05, 'darkMetal'),
     ],
     crates: [
       box('cryopod 1', -10, -9, 2.4, 1.2, 1.0, 'metal'),
       box('cryopod 2', -10, -6.6, 2.4, 1.2, 1.0, 'metal'),
-      box('reactor core', 0, 6.8, 2.2, 2.2, 2.6, 'warning'),
-      box('server rack', 11, -5.5, 1.2, 3.0, 2.2, 'panel'),
+      box('cracked reactor core', 0, 6.8, 2.2, 2.2, 2.6, 'reactorGlow'),
+      box('server rack with missing faceplates', 11, -5.5, 1.2, 3.0, 2.2, 'hullPanel'),
       box('cargo pallet', 9.8, 10.5, 3.2, 1.7, 1.2, 'metal'),
     ],
     platforms: [
-      box('cargo stair low', 6.4, 10.5, 2.6, 1.7, 0.55, 'metal'),
-      box('cargo stair high', 8.2, 10.5, 2.6, 1.7, 1.1, 'metal'),
-      box('reactor service platform', -2.8, 6.8, 2.4, 2.2, 1.35, 'warning'),
+      box('cargo stair low grated deck', 6.4, 10.5, 2.6, 1.7, 0.55, 'darkMetal'),
+      box('cargo stair high grated deck', 8.2, 10.5, 2.6, 1.7, 1.1, 'darkMetal'),
+      box('reactor service platform', -2.8, 6.8, 2.4, 2.2, 1.35, 'metal'),
     ],
+    props: derelictProps,
     mountains: [],
     sun: null,
     lights: [
@@ -790,8 +954,8 @@ function createSunkenTempleWorld() {
   return withZombies({
     id: 'sunken-temple',
     label: 'Sunken temple',
-    skyDome: SKY_DOME_CLOUDS,
-    clearColor: [0.085, 0.135, 0.155, 1],
+    skyDome: SKY_DOME_PSYCHEDELIC_PURPLE,
+    clearColor: [0.045, 0.018, 0.08, 1],
     floor: box('flooded temple floor', 0, 0, 54, 54, 0.08, 'water', -0.08),
     ceiling: null,
     walls: [
@@ -962,27 +1126,240 @@ function box(name, x, z, width, depth, height, texture, y = 0, noCollider = fals
   };
 }
 
+const SPECIAL_ENEMY_SPAWNER_TYPES = Object.freeze([
+  Object.freeze({
+    enemyType: 'one-eye-alien',
+    label: 'One-Eyed Alien',
+    mesh: 'one-eye-alien',
+    radius: 0.45,
+    speed: 0.92,
+    damage: 18,
+  }),
+  Object.freeze({
+    enemyType: 'molten-sentinel',
+    label: 'Molten Stone Sentinel',
+    mesh: 'molten-sentinel',
+    radius: 0.38,
+    speed: 0.78,
+    damage: 45,
+    minimumHeadClearance: 4.8,
+  }),
+]);
+
 function withZombies(scene, zombieSpawns) {
   const healthPotions = scene.healthPotions ?? createHealthPotions(scene.id);
   const texturesWithZombie = scene.textures.some((texture) => texture.id === 'zombie')
     ? scene.textures
     : [...scene.textures, { id: 'zombie', size: 64 }];
-  const textures = texturesWithZombie.some((texture) => texture.id === 'healthPotion')
-    ? texturesWithZombie
-    : [...texturesWithZombie, { id: 'healthPotion', size: 64 }];
+  const texturesWithSpecialEnemies = SPECIAL_ENEMY_SPAWNER_TYPES.reduce((textures, enemy) => (
+    textures.some((texture) => texture.id === enemy.enemyType)
+      ? textures
+      : [...textures, { id: enemy.enemyType, size: 64 }]
+  ), texturesWithZombie);
+  const texturesWithHealth = texturesWithSpecialEnemies.some((texture) => texture.id === 'healthPotion')
+    ? texturesWithSpecialEnemies
+    : [...texturesWithSpecialEnemies, { id: 'healthPotion', size: 64 }];
+  const textures = texturesWithHealth.some((texture) => texture.id === 'warpGate')
+    ? texturesWithHealth
+    : [...texturesWithHealth, { id: 'warpGate', size: 64 }];
 
   return {
     ...scene,
     zombieSpawns,
+    enemySpawns: createTypedEnemySpawns(scene, zombieSpawns),
+    warpGate: createRogueWarpGate(scene, zombieSpawns),
     healthPotions,
     audio: scene.audio ?? { reverb: getSceneReverb(scene.id) },
     textures,
   };
 }
 
+function createRogueWarpGate(scene, zombieSpawns) {
+  const radius = 1.05;
+  const candidates = [
+    ...(zombieSpawns ?? []),
+    ...(scene.healthPotions ?? createHealthPotions(scene.id)),
+    { x: scene.playerSpawn.x, z: scene.playerSpawn.z - 18 },
+    { x: scene.playerSpawn.x + 18, z: scene.playerSpawn.z },
+    { x: scene.playerSpawn.x - 18, z: scene.playerSpawn.z },
+    { x: scene.playerSpawn.x, z: scene.playerSpawn.z + 18 },
+  ]
+    .map((candidate) => ({
+      x: candidate.x,
+      z: candidate.z,
+      y: candidate.y ?? getSceneFloorHeightAt(scene, candidate) ?? 0,
+    }))
+    .filter((candidate) => Math.hypot(candidate.x - scene.playerSpawn.x, candidate.z - scene.playerSpawn.z) >= 8)
+    .filter((candidate) => !intersectsSceneCollider(scene, candidate, radius));
+
+  const gate = candidates
+    .sort((a, b) => (
+      Math.hypot(b.x - scene.playerSpawn.x, b.z - scene.playerSpawn.z)
+      - Math.hypot(a.x - scene.playerSpawn.x, a.z - scene.playerSpawn.z)
+    ))[0] ?? { x: scene.playerSpawn.x, y: scene.playerSpawn.y - 1.45, z: scene.playerSpawn.z - 10 };
+
+  return {
+    name: `${scene.id} rogue warp gate`,
+    x: gate.x,
+    y: gate.y + 1.4,
+    z: gate.z,
+    width: 2.4,
+    height: 3.4,
+    radius,
+    texture: 'warpGate',
+    motion: 'warp-gate',
+  };
+}
+
+function createTypedEnemySpawns(scene, zombieSpawns) {
+  const used = new Set();
+
+  return SPECIAL_ENEMY_SPAWNER_TYPES.flatMap((enemy, index) => {
+    const candidates = getEnemySpawnCandidates(scene, zombieSpawns, enemy);
+    if (enemy.minimumHeadClearance && !candidates.length) return [];
+
+    const pool = candidates.length ? candidates : zombieSpawns;
+    const candidateIndex = chooseSpawnIndex(scene.id, enemy.enemyType, pool.length, used);
+    const spawn = pool[candidateIndex] ?? zombieSpawns[index % zombieSpawns.length];
+    used.add(candidateIndex);
+    const offset = getEnemySpawnOffset(scene, spawn, enemy.radius, zombieSpawns);
+    return [{
+      name: `${scene.id} ${enemy.enemyType} spawner`,
+      role: 'enemy',
+      spawnerType: 'enemy',
+      enemyType: enemy.enemyType,
+      label: enemy.label,
+      mesh: enemy.mesh,
+      x: spawn.x + offset.x,
+      y: spawn.y ?? scene.playerSpawn.y,
+      z: spawn.z + offset.z,
+      yaw: spawn.yaw ?? 0,
+      radius: enemy.radius,
+      speed: enemy.speed,
+      damage: enemy.damage,
+      minimumHeadClearance: enemy.minimumHeadClearance,
+    }];
+  });
+}
+
+function getEnemySpawnCandidates(scene, zombieSpawns, enemy) {
+  const candidates = zombieSpawns
+    .filter((spawn) => Math.hypot(spawn.x - scene.playerSpawn.x, spawn.z - scene.playerSpawn.z) > 3)
+    .filter((spawn) => !intersectsSceneCollider(scene, spawn, enemy.radius));
+
+  if (!enemy.minimumHeadClearance) return candidates;
+
+  const cleared = candidates.filter((spawn) => hasEnemyHeadClearance(scene, spawn, enemy.minimumHeadClearance));
+  return cleared.length ? cleared : createOpenSentinelSpawnFallbacks(scene, enemy);
+}
+
+function getEnemySpawnOffset(scene, spawn, radius, zombieSpawns) {
+  const minimumDistance = radius + 0.38 + 0.12;
+  const directions = [
+    { x: 1, z: 0 },
+    { x: -1, z: 0 },
+    { x: 0, z: 1 },
+    { x: 0, z: -1 },
+    { x: 0.707, z: 0.707 },
+    { x: -0.707, z: 0.707 },
+    { x: 0.707, z: -0.707 },
+    { x: -0.707, z: -0.707 },
+  ];
+
+  for (const distance of [minimumDistance, minimumDistance * 1.6, minimumDistance * 2.2, minimumDistance * 3]) {
+    for (const direction of directions) {
+      const offset = { x: direction.x * distance, z: direction.z * distance };
+      const candidate = { ...spawn, x: spawn.x + offset.x, z: spawn.z + offset.z };
+      if (intersectsSceneCollider(scene, candidate, radius)) continue;
+      if (zombieSpawns.some((zombieSpawn) => Math.hypot(candidate.x - zombieSpawn.x, candidate.z - zombieSpawn.z) < minimumDistance)) continue;
+      return offset;
+    }
+  }
+
+  return { x: 0, z: 0 };
+}
+
+function hasEnemyHeadClearance(scene, spawn, minimumHeadClearance) {
+  if (!scene.ceiling?.collider) return true;
+
+  const floorY = getSceneFloorHeightAt(scene, spawn) ?? 0;
+  const overhead = getLowestOverheadHeightAt(scene, spawn);
+  return overhead === null || overhead - floorY >= minimumHeadClearance;
+}
+
+function getSceneFloorHeightAt(scene, spawn) {
+  const surfaces = [scene.floor, ...(scene.floorPieces ?? []), ...(scene.platforms ?? []), ...(scene.walls ?? []), ...(scene.crates ?? [])]
+    .filter((item) => item?.collider)
+    .filter((item) => (
+      spawn.x >= item.collider.minX
+      && spawn.x <= item.collider.maxX
+      && spawn.z >= item.collider.minZ
+      && spawn.z <= item.collider.maxZ
+    ))
+    .map((item) => item.collider.maxY);
+
+  return surfaces.length ? Math.max(...surfaces) : null;
+}
+
+function getLowestOverheadHeightAt(scene, spawn) {
+  const overheads = [scene.ceiling, ...(scene.props ?? [])]
+    .filter((item) => item?.collider)
+    .filter((item) => (
+      spawn.x >= item.collider.minX
+      && spawn.x <= item.collider.maxX
+      && spawn.z >= item.collider.minZ
+      && spawn.z <= item.collider.maxZ
+    ))
+    .map((item) => item.collider.minY);
+
+  return overheads.length ? Math.min(...overheads) : null;
+}
+
+function createOpenSentinelSpawnFallbacks(scene, enemy) {
+  if (scene.ceiling) return [];
+
+  const candidates = [
+    { x: scene.playerSpawn.x + 8, z: scene.playerSpawn.z - 8 },
+    { x: scene.playerSpawn.x - 8, z: scene.playerSpawn.z - 8 },
+    { x: scene.playerSpawn.x + 10, z: scene.playerSpawn.z + 6 },
+    { x: scene.playerSpawn.x - 10, z: scene.playerSpawn.z + 6 },
+  ];
+
+  return candidates.filter((spawn) => !intersectsSceneCollider(scene, spawn, enemy.radius));
+}
+
+function chooseSpawnIndex(sceneId, enemyType, count, used) {
+  if (count <= 0) return 0;
+  let index = Math.floor(stableHash(`${sceneId}:${enemyType}`) * count) % count;
+  for (let attempt = 0; attempt < count && used.has(index); attempt += 1) {
+    index = (index + 1) % count;
+  }
+  return index;
+}
+
+function intersectsSceneCollider(scene, spawn, radius) {
+  return [...(scene.walls ?? []), ...(scene.crates ?? []), ...(scene.platforms ?? [])]
+    .filter((item) => item.collider)
+    .some((item) => (
+      spawn.x + radius > item.collider.minX
+      && spawn.x - radius < item.collider.maxX
+      && spawn.z + radius > item.collider.minZ
+      && spawn.z - radius < item.collider.maxZ
+    ));
+}
+
+function stableHash(value) {
+  let hash = 2166136261;
+  for (const character of value) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
+}
+
 function createHealthPotions(sceneId) {
   const placements = {
-    dungeon: [[-8, -8], [8, 8], [0, -2]],
+    dungeon: [[-10.4, -6.2], [-10.8, 4.4], [0.2, -4.4]],
     'alien-landscape': [[-12, 6], [13, -8], [0, -18]],
     'derelict-starship': [[-10, -4], [10, 8], [0, -12]],
     'neon-backstreets': [[-12, 0], [10, 2], [0, -15]],

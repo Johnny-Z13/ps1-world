@@ -5,6 +5,7 @@ import test from 'node:test';
 const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+const zombieModel = readFileSync(new URL('../src/zombieModel.js', import.meta.url), 'utf8');
 const cutUpMode = readFileSync(new URL('../src/cutUpMode.js', import.meta.url), 'utf8');
 
 test('renders a center reticule with an options toggle', () => {
@@ -44,6 +45,8 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(app, /function startRandomScene/);
   assert.match(app, /const TITLE_WIDTH = 512/);
   assert.match(app, /drawBitmapGlyph/);
+  assert.match(app, /TITLE_LAST_COMMIT_MESSAGE = 'last commit polish scenes and gameplay feedback'/);
+  assert.match(app, /drawCenteredBitmapText\(TITLE_LAST_COMMIT_MESSAGE,\s*TITLE_HEIGHT - 16,\s*1,\s*'#8f8a77',\s*time/);
   assert.match(app, /wasd\+mouse or gamepad/);
   assert.match(app, /watch out for the zombies/);
   assert.match(app, /drawBloodWarningText/);
@@ -67,9 +70,28 @@ test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
   assert.match(app, /function updateCutUpMode/);
   assert.match(app, /function captureCutUpSceneState/);
   assert.match(app, /function restoreCutUpSceneState/);
+  assert.match(app, /const sceneLoaded = await setScene\(sceneId\);\s*if \(!sceneLoaded\) return;\s*restoreCutUpSceneState\(sceneId\);/);
   assert.match(app, /cutUpState\.sceneStates/);
   assert.match(app, /cutUpState\.unlockedSceneCount = CUT_UP_SCENE_COUNT/);
   assert.match(cutUpMode, /CUT UP/);
+});
+
+test('offers Rogue title mode with warp progression and a victory screen', () => {
+  assert.match(index, /id="rogueButton"/);
+  assert.match(index, /aria-label="Rogue"/);
+  assert.match(index, /id="rogueWinScreen"/);
+  assert.match(index, /id="rogueReturnButton"/);
+  assert.match(styles, /\.title-rogue-hitbox/);
+  assert.match(styles, /\.rogue-win-screen/);
+  assert.match(app, /ROGUE_WIN_SOUND_URL/);
+  assert.match(app, /rogue-win-confetti\.wav\?v=1/);
+  assert.match(app, /function startRogueMode/);
+  assert.match(app, /function updateRogueMode/);
+  assert.match(app, /function completeRogueRun/);
+  assert.match(app, /gameState\.mode = 'rogue'/);
+  assert.match(app, /world\.warpGate/);
+  assert.match(app, /addWarpGate/);
+  assert.match(app, /rogueReturnButton\.addEventListener\('click'/);
 });
 
 test('warns and flashes before Cut Up jumps scenes', () => {
@@ -92,16 +114,19 @@ test('warns and flashes before Cut Up jumps scenes', () => {
 });
 
 test('keeps title mode buttons compact and vertically separated', () => {
-  assert.match(styles, /max-width:\s*184px/);
-  assert.match(styles, /max-height:\s*46px/);
-  assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.36\)/);
-  assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.096\)/);
+  assert.match(styles, /max-width:\s*160px/);
+  assert.match(styles, /max-height:\s*38px/);
+  assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.31\)/);
+  assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.079\)/);
   assert.match(app, /const titleButtonBlink = getTitleButtonBlink\(time\)/);
-  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 286,\s*label: 'start',\s*detail: 'free roam'/);
-  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 346,\s*label: 'start',\s*detail: 'cut-up mode'/);
-  assert.match(app, /const width = 184/);
-  assert.match(app, /const height = 46/);
-  assert.match(app, /const textScale = 2/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 276,\s*label: 'start',\s*detail: 'free roam'/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 324,\s*label: 'start',\s*detail: 'cut-up mode'/);
+  assert.match(app, /drawBitmapButton\(time,\s*\{ y: 372,\s*label: 'start',\s*detail: 'rogue'/);
+  assert.match(app, /const width = 160/);
+  assert.match(app, /const height = 38/);
+  assert.match(app, /const textScale = 1\.5/);
+  assert.match(app, /drawCenteredBitmapText\('ps1-world', 146, 7/);
+  assert.match(styles, /font-size:\s*11px/);
 });
 
 test('plays a retro menu confirm sound when starting from the title screen', () => {
@@ -114,7 +139,7 @@ test('plays a retro menu confirm sound when starting from the title screen', () 
 
 test('layers generated music beds for title, Free Roam, and Cut Up mode', () => {
   assert.match(app, /TITLE_MUSIC_LOOP_URL/);
-  assert.match(app, /title-menu-psx-8bit-loop\.mp3\?v=1/);
+  assert.match(app, /title-menu-psx-8bit-loop\.mp3\?v=2/);
   assert.match(app, /FREE_ROAM_MUSIC_LOOP_URL/);
   assert.match(app, /free-roam-dread-8bit-loop\.mp3\?v=1/);
   assert.match(app, /CUT_UP_MUSIC_LOOP_URL/);
@@ -211,6 +236,10 @@ test('renders camera-centered sky domes instead of flat star planes', () => {
   assert.match(app, /uCameraPosition/);
   assert.match(app, /starrySky/);
   assert.match(app, /cloudSky/);
+  assert.match(app, /psychedelic-purple/);
+  assert.match(app, /liminal-blue/);
+  assert.match(app, /uSkyPalette > 3\.5/);
+  assert.match(app, /uSkyPalette > 2\.5/);
   assert.match(app, /if \(scene\.skyDome\)/);
 });
 
@@ -398,7 +427,7 @@ test('adds roaming zombie enemies that can kill the player', () => {
   assert.match(app, /updateZombieMesh/);
   assert.match(app, /drawZombieTexture/);
   assert.match(app, /effects\.zombies/);
-  assert.match(app, /damagePlayer\(now\)/);
+  assert.match(app, /damagePlayer\(now,\s*touchingEnemy\)/);
   assert.match(app, /PLAYER_DAMAGE_SOUND_URL/);
   assert.match(app, /player-damage-grunt-8bit\.mp3\?v=1/);
 });
@@ -433,6 +462,27 @@ test('loops zombie grunt audio when zombies are active near the player', () => {
   assert.match(app, /Math\.hypot\(player\.x - zombie\.x,\s*player\.z - zombie\.z\)/);
 });
 
+test('loads typed enemy models and gives special enemies unique audio hooks', () => {
+  assert.match(app, /CHARACTER_MODEL_URLS/);
+  assert.match(zombieModel, /one-eye-alien\.glb/);
+  assert.match(zombieModel, /moulten-stone-sentienel\.glb/);
+  assert.match(app, /loadCharacterGlb/);
+  assert.match(app, /characterModels/);
+  assert.match(app, /selectEnemyAnimation/);
+  assert.match(app, /molten-sentinel/);
+  assert.match(app, /one-eye-alien/);
+  assert.match(app, /SENTINEL_LOCOMOTION_ANIMATION_NAMES = \['Running', 'Run', 'Walk', 'Locomotion'\]/);
+  assert.match(app, /SENTINEL_ATTACK_ANIMATION_NAMES = \['Attack', 'Attacking', 'Confused_Scratch', 'Scratch', 'Punch', 'Hit'\]/);
+  assert.match(app, /findPreferredAnimationName\(model,\s*SENTINEL_ATTACK_ANIMATION_NAMES\)/);
+  assert.match(app, /findPreferredAnimationName\(model,\s*SENTINEL_LOCOMOTION_ANIMATION_NAMES\)/);
+  assert.match(app, /function getRuntimeEnemySpawns/);
+  assert.match(app, /spawn\.enemyType !== 'molten-sentinel'/);
+  assert.match(app, /SENTINEL_DAMAGE/);
+  assert.match(app, /function syncSpecialEnemyAudio/);
+  assert.match(app, /function playEnemyAttackSound/);
+  assert.match(app, /specialEnemyVoices/);
+});
+
 test('routes scene audio through cheap per-scene reverb settings', () => {
   assert.match(app, /SCENE_REVERB_PRESETS/);
   assert.match(app, /createConvolver/);
@@ -454,12 +504,12 @@ test('plays audio assets for lightning and scene ambience', () => {
     'neon-backstreets',
     'sunken-temple',
     'one-bit-cathedral',
-    'rotwood-forest',
     'astral-geometry-garden',
     'motel-mirage',
   ]) {
     assert.match(app, new RegExp(`${sceneId}-8bit-loop\\.mp3\\?v=1`));
   }
+  assert.match(app, /rotwood-forest-storm-wind-leaves-loop\.wav\?v=1/);
   assert.match(app, /function loadAudioBuffer/);
   assert.match(app, /function ensureSceneAmbienceLoop/);
   assert.match(app, /function playAssetOneShot/);

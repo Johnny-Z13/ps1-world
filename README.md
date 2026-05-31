@@ -1,6 +1,6 @@
 # PS1 World
 
-Browser-based PS1-style first-person world prototype: low-res WebGL rendering, CRT/post effects, authored levels, roaming zombies, health pickups, spatial audio, and a Cut-Up scene-jump mode.
+Browser-based PS1-style first-person world prototype: low-res WebGL rendering, CRT/post effects, authored levels, roaming zombies, health pickups, spatial audio, Cut-Up scene jumps, and a Rogue run mode.
 
 This repository is the lead project. A downstream Unity version may be scaffolded from it, but agents should not edit that downstream folder from this repo unless the user explicitly asks.
 
@@ -34,18 +34,20 @@ On touch devices, press the left side to spawn a floating movement joystick, dra
 
 ## Current Gameplay
 
-- Title screen with Free Roam and Cut-Up Mode.
+- Title screen with Free Roam, Cut-Up Mode, and Rogue.
 - Cut-Up Mode cycles through all nine worlds, warns with `jump in 3/2/1`, flashes white, then jumps to the next world.
+- Rogue starts in world 1, places a far warp gate in each scene, advances through all nine worlds, then shows a congratulations screen with confetti SFX and a title return button.
 - CRT/video presets, resolution modes, reticule toggle, debug HUD, player torch, and zombie toggle.
 - Player health, low-health screen/audio pressure, red damage flash/scratch feedback, zombie bite damage, authored lava damage zones, death sequence, health flasks, and pickup flash.
-- Generated MP3 ambience/SFX assets, spatial zombie grunts, torch crackle, footsteps, heartbeat, menu confirm, damage, death, and pickup sounds.
+- Generated ambience/SFX assets, spatial zombie grunts, torch crackle, footsteps, heartbeat, menu confirm, damage, death, pickup, Rogue win, and scene-specific weather sounds.
 - Scene 2 (`alien-landscape`) is currently a 20-zombie stress scene.
 
 ## Project Map
 
 - `index.html`: app shell, title controls, HUDs, options dialog, cache-busted JS/CSS references.
 - `styles.css`: fixed UI, title hitboxes, HUDs, touch controls, options dialog.
-- `src/app.js`: main runtime orchestration, WebGL render path, input, audio, gameplay, title/Cut-Up flow.
+- `src/app.js`: main runtime orchestration, WebGL render path, input, audio, gameplay, title/Cut-Up/Rogue flow.
+- `src/rogueMode.js`: pure Rogue run progression helpers.
 - `src/world.js`: scene registry and fallback/generated scene metadata.
 - `src/levelGlb.js`: runtime GLB parser for Blender-authored level packages.
 - `src/ps1Display.js`: video presets, resolution modes, effect defaults.
