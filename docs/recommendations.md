@@ -15,11 +15,13 @@ Health snapshot from this review:
 
 ## Highest-Value Feature Requests
 
-1. Add authored encounter set pieces. Status: initial authoring/runtime contract implemented.
+1. Add authored encounter set pieces. Status: behavior binding started.
    Blender-authored generic set-piece trigger volumes now have a runtime data path: `src/levelGlb.js` parses `ENCOUNTER_TRIGGER` roles from either `extras.level_role` or `TRIGGER_<scene-id>_ENCOUNTER_TRIGGER_*` names, preserving metadata such as `encounterType`, `targetId`, `soundId`, `width`, `depth`, `height`, `oneShot`, and `enabled`. `src/sceneRuntime.js` carries parsed triggers into `world.encounterTriggers`, fallback worlds expose an empty list, and the contract is documented in `docs/blender-level-pipeline.md`. Next behavior slices can bind these triggers to ambush closets, one-time jump scares, monster wake volumes, radio/noise emitters, and warp-door traps.
+   `src/encounterRuntime.js` now evaluates authored trigger volumes, one-shot bookkeeping, and horde wake/tuning decisions. `src/app.js` applies those decisions to the existing horde director, short corrupted notices, and existing stinger audio.
 
-2. Add per-scene objective rituals. Status: initial authoring/runtime contract implemented.
+2. Add per-scene objective rituals. Status: behavior binding started.
    Blender-authored objective markers and trigger volumes now have a runtime data path: `src/levelGlb.js` parses `OBJECTIVE` and `OBJECTIVE_TRIGGER` roles from `extras.level_role`, `MARKER_<scene-id>_OBJECTIVE_*`, or `TRIGGER_<scene-id>_OBJECTIVE_TRIGGER_*` names, preserving metadata such as `objectiveId`, `objectiveType`, `label`, `targetId`, `countRequired`, `requiredInRogue`, and `enabled`. `src/sceneRuntime.js` carries parsed objectives into `world.objectives`, fallback worlds expose an empty list, and the contract is documented in `docs/blender-level-pipeline.md`. Next behavior slices can make objectives optional in Free Roam and required in Rogue.
+   `src/objectiveRuntime.js` now tracks objective progress, required Rogue completion, and corrupted HUD text. Rogue warp gates refuse to advance while required scene objectives remain incomplete.
 
 3. Add monster ecology. Status: implemented initial targeting overrides.
    `src/enemyCatalog.js` now exposes `createEnemyTargeting`, and `enemyEncounter.ecology` lets scenes override hostile factions and secondary target range per enemy type without replacing the catalog. Spawned enemies carry that targeting profile, so `src/zombies.js` can make aliens, zombies, and sentinels pick different monster targets per scene. Alien Landscape now widens alien/zombie infighting range, and Neon Backstreets gives the molten sentinel a wider punishment radius. Future slices can layer on noise punishers, look-triggered enemies, and warp-gate followers using the same ecology data path.
@@ -27,11 +29,13 @@ Health snapshot from this review:
 4. Add diegetic map weirdness. Status: initial scene metadata implemented.
    Every fallback scene now exposes `world.diegeticMap` with an unreliable in-world navigation artifact: soot-scratched service plans, alien star-chart scars, starship bulkhead diagrams, corrupted transit adverts, waterlogged temple reliefs, cathedral stained-glass floor hints, bark compasses, demo-disc orbit maps, and motel fire-exit plans. The data includes `artifactType`, `title`, `clueText`, `reliable: false`, and `glitchIntensity`, giving the next UI/render pass a concrete target without adding a clean minimap.
 
-5. Add authored sound zones. Status: initial authoring/runtime contract implemented.
+5. Add authored sound zones. Status: behavior binding started.
    Blender-authored sound zones now have a runtime data path: `src/levelGlb.js` parses `SOUND_ZONE` roles from either `extras.level_role` or `TRIGGER_<scene-id>_SOUND_ZONE_*` names, preserving metadata such as `soundZoneType`, `soundId`, `targetBus`, `gain`, `width`, `depth`, `height`, and `enabled`. `src/sceneRuntime.js` carries parsed zones into `world.soundZones`, fallback worlds expose an empty list, and the contract is documented in `docs/blender-level-pipeline.md`. Next behavior slices can bind these zones to humming walls, wet tunnels, hostile silence, radio bleed, and monster lure areas.
+   `src/soundZoneRuntime.js` now selects active zones, lets silence/ambience zones affect ambience gain, and gives radio-bleed zones a conservative existing-stinger audio hook.
 
-6. Add authored point emitters. Status: initial authoring/runtime contract implemented.
+6. Add authored point emitters. Status: behavior binding started.
    Blender-authored emitter markers now have a runtime data path: `src/levelGlb.js` parses `EMITTER` roles from either `extras.level_role`, `MARKER_<scene-id>_EMITTER_*`, or compatible emitter names, preserving metadata such as `emitterId`, `emitterType`, `targetId`, `textureId`, `soundId`, `targetBus`, `gain`, `radius`, `rate`, and `enabled`. `src/sceneRuntime.js` carries parsed emitters into `world.emitters`, fallback worlds expose an empty list, and the contract is documented in `docs/blender-level-pipeline.md`. Next behavior slices can bind these anchors to drips, sparks, radio hiss, lure noises, and localized particles.
+   Nearby authored emitters now produce pure runtime decisions and can trigger existing drip/stinger one-shots with per-emitter cooldowns.
 
 ## Ordered Horde And Monster Combat Backlog
 

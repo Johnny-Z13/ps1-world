@@ -68,6 +68,24 @@ import {
   stepRogueRun,
 } from './rogueMode.js';
 import {
+  createObjectiveState,
+  getObjectiveHudText,
+  isRogueGateUnlocked,
+  updateObjectiveState,
+} from './objectiveRuntime.js';
+import {
+  createEncounterState,
+  updateEncounterState,
+} from './encounterRuntime.js';
+import {
+  getActiveEmitterDecisions,
+  getActiveSoundZoneDecision,
+} from './soundZoneRuntime.js';
+import {
+  createSurfaceProfile,
+  getSurfaceAtPlayer,
+} from './surfaceRuntime.js';
+import {
   skyVertexShader,
   skyFragmentShader,
   sceneVertexShader,
@@ -267,6 +285,13 @@ let hordeState = createHordeState(world);
 let bloodBursts = [];
 let healthPotions = createSceneHealthPotions(world);
 let damageZones = createSceneDamageZones(world);
+let objectiveState = createObjectiveState(world);
+let encounterState = createEncounterState(world);
+let surfaceProfile = createSurfaceProfile(world);
+let activeSurface = null;
+let activeSoundZone = null;
+let authoredHordeTuning = null;
+let authoredHordeTuningExpiresAt = -Infinity;
 let playerHealth = createPlayerHealth();
 let lastZombieBiteAt = -Infinity;
 let lastDamageZoneSoundAt = -Infinity;
@@ -275,6 +300,7 @@ let lastDamageFlashStartedAt = -Infinity;
 let damageScratchOffset = { x: 0, y: 0 };
 let damageScratchRotation = 0;
 let lowHealthNoticeStartedAt = -Infinity;
+let lowHealthNoticeText = 'Low health';
 let bossImpactShakeStartedAt = -Infinity;
 let bossImpactShakeStrength = 0;
 const player = {
@@ -287,6 +313,7 @@ const player = {
   grounded: true,
   groundY: world.playerSpawn.y,
 };
+activeSurface = getSurfaceAtPlayer(surfaceProfile, player, walkableSurfaces);
 
 const keys = new Set();
 const deathState = {
@@ -417,10 +444,12 @@ function updatePlayer(dt, now) {
     return;
   }
 
+  activeSurface = getSurfaceAtPlayer(surfaceProfile, player, walkableSurfaces);
   updateDamageZones(dt, now);
   if (deathState.active) return;
 
   updateHealthPotions(now);
+  updateAuthoredGameplayBindings(now);
 
   if (effects.zombies) {
     const previousEnemies = zombies;
@@ -430,7 +459,7 @@ function updatePlayer(dt, now) {
       dt,
       now,
     });
-    const hordeUpdate = updateHordeSpawns(zombies, world, player, hordeState, { now });
+    const hordeUpdate = updateHordeSpawns(zombies, getWorldWithAuthoredHordeTuning(now), player, hordeState, { now });
     zombies = hordeUpdate.enemies;
     hordeState = hordeUpdate.state;
     bloodBursts = [
@@ -586,13 +615,16 @@ function ensureSceneAudio() {
 }
 
 function getSceneAmbienceGain() {
-  return getSceneAmbienceTargetGain({
+  const baseGain = getSceneAmbienceTargetGain({
     titleActive,
     deathActive: deathState.active,
     hasAmbience: Boolean(SCENE_AMBIENCE_URLS[world.id]),
     optionsOpen: optionsDialog.open,
     duckAmount: getCutUpAudioDuckAmount(audioState, performance.now()),
   });
+  if (activeSoundZone?.type === 'silence') return baseGain * activeSoundZone.gain;
+  if (activeSoundZone?.type === 'ambience') return baseGain * activeSoundZone.gain;
+  return baseGain;
 }
 
 function isCurrentAudioState(state) {
@@ -712,6 +744,45 @@ function syncWorldStingerAudio(state) {
   state.nextWorldStingerAt = now + 18000 + Math.random() * 24000;
 }
 
+function syncAuthoredReactiveAudio(state) {
+  const now = performance.now();
+  if (titleActive || optionsDialog.open || deathState.active) return;
+
+  if (activeSoundZone?.type === 'radio_bleed' && now >= (state.nextAuthoredSoundZoneAt ?? 0)) {
+    playSpatialOneShot(state, getAuthoredSoundUrl(activeSoundZone.soundId), {
+      x: player.x,
+      y: player.y,
+      z: player.z,
+    }, Math.min(0.22, 0.08 + activeSoundZone.gain * 0.08), {
+      refDistance: 2.5,
+      maxDistance: 18,
+      rolloffFactor: 1.1,
+      fallbackY: player.y,
+      isCurrent: isCurrentAudioState,
+    });
+    state.nextAuthoredSoundZoneAt = now + 4200;
+  }
+
+  const emitter = getActiveEmitterDecisions(world, player)[0];
+  if (!emitter || now < (state.nextAuthoredEmitterAt?.[emitter.id] ?? 0)) return;
+
+  state.nextAuthoredEmitterAt = {
+    ...(state.nextAuthoredEmitterAt ?? {}),
+    [emitter.id]: now + getEmitterCooldownMs(emitter),
+  };
+  playSpatialOneShot(state, getAuthoredSoundUrl(emitter.soundId, emitter.type), {
+    x: emitter.x,
+    y: emitter.y ?? player.y,
+    z: emitter.z,
+  }, Math.min(0.24, emitter.gain * 0.18), {
+    refDistance: 2,
+    maxDistance: emitter.radius,
+    rolloffFactor: 1.2,
+    fallbackY: player.y,
+    isCurrent: isCurrentAudioState,
+  });
+}
+
 function updateSceneAudio(time, lightningStrength) {
   if (!audioState) return;
 
@@ -734,6 +805,7 @@ function updateSceneAudio(time, lightningStrength) {
   syncZombieSpatialAudio(audioState);
   syncSpecialEnemyAudio(audioState);
   syncWorldStingerAudio(audioState);
+  syncAuthoredReactiveAudio(audioState);
   const targetAmbience = getSceneAmbienceGain();
   audioState.ambienceGain.gain.setTargetAtTime(targetAmbience, audioState.context.currentTime, 0.36);
 
@@ -1671,6 +1743,12 @@ async function updateRogueMode(now) {
   const verticalDistance = Math.abs((player.y - PLAYER_EYE_HEIGHT) - gate.y);
   if (distance > (gate.radius ?? 1.05) || verticalDistance > 2.2) return;
 
+  if (!isRogueGateUnlocked(world, objectiveState)) {
+    showGameplayNotice(getObjectiveHudText(world, objectiveState, 'rogue') || 'FEED THE DOOR', now);
+    playUiOneShot(UI_TOGGLE_SOUND_URL, UI_SFX_GAIN * 0.32);
+    return;
+  }
+
   rogueTransitionPending = true;
   rogueRun = stepRogueRun(rogueRun, SCENE_DEFINITIONS, now);
   if (isRogueComplete(rogueRun, SCENE_DEFINITIONS)) {
@@ -1787,7 +1865,7 @@ function damagePlayer(now, enemy = null) {
   randomizeDamageScratch();
   lastDamageFlashStartedAt = now;
   if (!playerHealth.dead && getHealthDanger(playerHealth) > 0) {
-    lowHealthNoticeStartedAt = now;
+    showGameplayNotice('Low health', now);
   }
   const state = ensureAudioState();
   if (state && enemy) {
@@ -1804,6 +1882,87 @@ function damagePlayer(now, enemy = null) {
 
 function getEnemyDamage(enemy) {
   return enemy?.damage ?? getEnemyDefinition(enemy?.enemyType).base.attackDamage ?? ZOMBIE_BITE_DAMAGE;
+}
+
+function updateAuthoredGameplayBindings(now) {
+  activeSurface = getSurfaceAtPlayer(surfaceProfile, player, walkableSurfaces);
+  activeSoundZone = getActiveSoundZoneDecision(world, player);
+
+  const objectiveUpdate = updateObjectiveState(world, objectiveState, player, now);
+  objectiveState = objectiveUpdate.state;
+  if (objectiveUpdate.completed.length) {
+    showGameplayNotice(getObjectiveHudText(world, objectiveState, gameState.mode), now);
+    playUiOneShot(UI_SELECT_SOUND_URL, UI_SFX_GAIN * 0.36);
+  }
+
+  const encounterUpdate = updateEncounterState(getAuthoredEncounterWorld(), encounterState, player, now);
+  encounterState = encounterUpdate.state;
+  for (const action of encounterUpdate.actions) {
+    applyEncounterAction(action, now);
+  }
+}
+
+function getAuthoredEncounterWorld() {
+  return {
+    ...world,
+    encounterTriggers: [
+      ...(world.encounterTriggers ?? []),
+      ...(world.hordeTriggers ?? []).map((trigger) => ({
+        ...trigger,
+        encounterType: trigger.triggerType ?? 'awaken_horde',
+      })),
+    ],
+  };
+}
+
+function applyEncounterAction(action, now) {
+  if (action.type === 'awaken_horde' || action.type === 'awaken-horde') {
+    authoredHordeTuning = {
+      enabled: true,
+      maxAlive: action.maxAlive,
+      pulseIntervalMs: action.pulseIntervalMs,
+    };
+    authoredHordeTuningExpiresAt = now + 12000;
+    hordeState = {
+      ...hordeState,
+      nextPulseAt: Math.min(hordeState.nextPulseAt ?? now, now),
+    };
+    showGameplayNotice('THE DEAD HEARD YOU', now);
+  } else if (action.type === 'jump_scare' || action.type === 'set_piece') {
+    showGameplayNotice('SIGNAL TEARS OPEN', now);
+  }
+
+  playTransitionOneShot(getAuthoredSoundUrl(action.soundId), TRANSITION_SFX_GAIN * 0.34);
+}
+
+function getAuthoredSoundUrl(soundId, type = '') {
+  const key = String(soundId ?? type).toLowerCase();
+  if (key.includes('drip') || key.includes('water') || key.includes('wet')) return RAIN_SPOT_DRIP_SOUND_URL;
+  return WORLD_RARE_STINGER_SOUND_URL;
+}
+
+function getEmitterCooldownMs(emitter) {
+  if (emitter.type === 'water_drip' || emitter.type === 'drip') return 1800;
+  if (emitter.type === 'spark') return 2600;
+  return 3600;
+}
+
+function getWorldWithAuthoredHordeTuning(now) {
+  if (!authoredHordeTuning || now > authoredHordeTuningExpiresAt) return world;
+
+  const baseHorde = world.enemyEncounter?.horde ?? {};
+  return {
+    ...world,
+    enemyEncounter: {
+      ...world.enemyEncounter,
+      horde: {
+        ...baseHorde,
+        enabled: true,
+        maxAlive: authoredHordeTuning.maxAlive ?? baseHorde.maxAlive,
+        pulseIntervalMs: authoredHordeTuning.pulseIntervalMs ?? baseHorde.pulseIntervalMs,
+      },
+    },
+  };
 }
 
 function createEnemyBloodBursts(previousEnemies, currentEnemies, now) {
@@ -1863,7 +2022,7 @@ function updateDamageZones(dt, now) {
   playerHealth = applyPlayerDamage(playerHealth, zone.damagePerSecond * dt);
   lastDamageFlashStartedAt = now;
   if (!playerHealth.dead && getHealthDanger(playerHealth) > 0) {
-    lowHealthNoticeStartedAt = now;
+    showGameplayNotice(activeSurface?.damagePerSecond > 0 ? 'BAD FLOOR' : 'Low health', now);
   }
   if (now - lastDamageZoneSoundAt >= DAMAGE_ZONE_SOUND_INTERVAL_MS) {
     lastDamageZoneSoundAt = now;
@@ -1898,6 +2057,7 @@ function updateHealthPotions(now) {
   playerHealth = restorePlayerHealth(playerHealth);
   healthPickupFlashStartedAt = now;
   lowHealthNoticeStartedAt = -Infinity;
+  lowHealthNoticeText = 'Low health';
   if (lowHealthNotice) lowHealthNotice.hidden = true;
   playPlayerOneShot(HEALTH_PICKUP_SOUND_URL, HEALTH_PICKUP_SOUND_GAIN);
   healthPotions = healthPotions.filter((_, index) => index !== pickedIndex);
@@ -1940,7 +2100,14 @@ function updateLowHealthNotice(now) {
     && !deathState.active
     && elapsed >= 0
     && elapsed <= LOW_HEALTH_NOTICE_DURATION_MS;
+  lowHealthNotice.textContent = lowHealthNoticeText;
   lowHealthNotice.hidden = !visible;
+}
+
+function showGameplayNotice(text, now) {
+  lowHealthNoticeText = text || 'Low health';
+  lowHealthNoticeStartedAt = now;
+  if (lowHealthNotice) lowHealthNotice.textContent = lowHealthNoticeText;
 }
 
 function startDeathSequence(now, options = {}) {
@@ -2119,6 +2286,7 @@ async function setScene(id) {
   walkableSurfaces = getSceneWalkableSurfaces(world);
   healthPotions = createSceneHealthPotions(world);
   damageZones = createSceneDamageZones(world);
+  resetAuthoredRuntimeState();
   resetPlayerToSpawn();
 
   deleteMeshBuffers(gl, warehouseMesh);
@@ -2153,10 +2321,22 @@ function resetPlayerToSpawn() {
   damageScratchOffset = { x: 0, y: 0 };
   damageScratchRotation = 0;
   lowHealthNoticeStartedAt = -Infinity;
+  lowHealthNoticeText = 'Low health';
   lastDamageZoneSoundAt = -Infinity;
   if (lowHealthNotice) lowHealthNotice.hidden = true;
   lastZombieBiteAt = -Infinity;
   zombies = createZombieEnemies(world);
+  activeSurface = getSurfaceAtPlayer(surfaceProfile, player, walkableSurfaces);
+}
+
+function resetAuthoredRuntimeState() {
+  objectiveState = createObjectiveState(world);
+  encounterState = createEncounterState(getAuthoredEncounterWorld());
+  surfaceProfile = createSurfaceProfile(world);
+  activeSoundZone = null;
+  authoredHordeTuning = null;
+  authoredHordeTuningExpiresAt = -Infinity;
+  hordeState = createHordeState(world);
 }
 
 function rebuildWarehouseMesh() {
@@ -2185,6 +2365,7 @@ async function start() {
   walkableSurfaces = getSceneWalkableSurfaces(world);
   healthPotions = createSceneHealthPotions(world);
   damageZones = createSceneDamageZones(world);
+  resetAuthoredRuntimeState();
   resetPlayerToSpawn();
   warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
   skyDomeMesh = createSkyDomeMesh(gl);

@@ -97,7 +97,7 @@ Implemented:
 
 Next expansions:
 
-- Bind parsed surface metadata to footsteps, splashes, damage feedback, and friction behavior when those gameplay systems are ready.
+- Continue tuning parsed surface metadata for footsteps, splashes, damage feedback, and friction behavior. The browser runtime now has a first behavior-binding pass for surface profiles and authored sound/emitter/encounter/objective contracts.
 - Add a Blender export helper that bumps the level GLB cache-busting version after asset changes.
 
 ## Runtime Contract
