@@ -21,19 +21,25 @@ import {
   isBelowKillPlane,
   resolveMovement,
 } from './playerPhysics.js';
-import { normalizeEnemySpawns } from './enemySpawnValidation.js';
 import { SCENE_DEFINITIONS, createSceneWorld } from './world.js';
-import { LEVEL_GLB_URLS, loadLevelGlb } from './levelGlb.js';
 import {
+  createSceneDamageZones,
+  createSceneHealthPotions,
+  createSceneRuntimeWorld,
+  getSceneColliders,
+  getSceneWalkableSurfaces,
+} from './sceneRuntime.js';
+import {
+  createHordeState,
   createZombieEnemies,
   getTouchingEnemy,
   isPlayerTouchedByZombie,
   resolvePlayerZombieCollision,
+  updateHordeSpawns,
   updateZombieEnemies,
 } from './zombies.js';
 import {
   CHARACTER_MODEL_URLS,
-  animateZombieModel,
   loadCharacterGlb,
   loadZombieGlb,
 } from './zombieModel.js';
@@ -61,7 +67,6 @@ import {
   isRogueComplete,
   stepRogueRun,
 } from './rogueMode.js';
-import { motionCode, drawGeneratedTexture } from './generatedTextures.js';
 import {
   skyVertexShader,
   skyFragmentShader,
@@ -89,8 +94,6 @@ import {
   PLAYER_DAMAGE_SOUND_URL,
   PLAYER_JUMP_SOUND_URL,
   PLAYER_LAND_SOUND_URL,
-  PLAYER_WALK_FOOTSTEP_LOOP_URL,
-  PLAYER_SPRINT_FOOTSTEP_LOOP_URL,
   PLAYER_LOW_HEALTH_BREATHING_LOOP_URL,
   UI_HOVER_SOUND_URL,
   UI_TOGGLE_SOUND_URL,
@@ -99,51 +102,120 @@ import {
   WORLD_RARE_STINGER_SOUND_URL,
   ENEMY_AUDIO_PROFILES,
   SCENE_AMBIENCE_URLS,
-  SCENE_AMBIENCE_MAX_GAIN,
-  LIGHTNING_SOUND_GAIN,
   MENU_START_CONFIRM_SOUND_GAIN,
-  TITLE_MUSIC_GAIN,
-  FREE_ROAM_MUSIC_GAIN,
-  CUT_UP_MUSIC_GAIN,
   UI_SFX_GAIN,
   TRANSITION_SFX_GAIN,
-  CUT_UP_AUDIO_DUCK_DURATION_MS,
   HEALTH_PICKUP_SOUND_GAIN,
   PLAYER_DEATH_SOUND_GAIN,
   PLAYER_DAMAGE_SOUND_GAIN,
   PLAYER_JUMP_SOUND_GAIN,
   PLAYER_LAND_SOUND_GAIN,
-  PLAYER_WALK_FOOTSTEP_GAIN,
-  PLAYER_SPRINT_FOOTSTEP_GAIN,
   PLAYER_LOW_HEALTH_BREATHING_GAIN,
-  HEALTH_PICKUP_FLASH_DURATION_MS,
-  DAMAGE_FLASH_DURATION_MS,
   DAMAGE_SCRATCH_MAX_OFFSET,
   DAMAGE_SCRATCH_MAX_ROTATION,
   LOW_HEALTH_NOTICE_DURATION_MS,
   ZOMBIE_BITE_COOLDOWN_MS,
   DAMAGE_ZONE_SOUND_INTERVAL_MS,
-  PLAYER_HEARTBEAT_BASE_INTERVAL_MS,
-  PLAYER_HEARTBEAT_DANGER_INTERVAL_MS,
-  PLAYER_HEARTBEAT_BASE_GAIN,
-  PLAYER_HEARTBEAT_DANGER_GAIN,
-  PLAYER_HEARTBEAT_DANGER_DISTANCE,
-  TORCH_CRACKLE_MAX_DISTANCE,
-  TORCH_CRACKLE_REF_DISTANCE,
   TORCH_CRACKLE_GAIN,
-  RAIN_WATER_MAX_DISTANCE,
-  RAIN_WATER_REF_DISTANCE,
   RAIN_WATER_BED_GAIN,
-  RAIN_DRIP_GAIN,
+  SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE,
+  SPECIAL_ENEMY_LOOP_MAX_DISTANCE,
   ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE,
   ZOMBIE_GRUNT_MAX_DISTANCE,
   ZOMBIE_GRUNT_MAX_GAIN,
   ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER,
   ZOMBIE_GRUNT_OPEN_FILTER_HZ,
   ZOMBIE_GRUNT_OCCLUDED_FILTER_HZ,
-  SCENE_REVERB_PRESETS,
 } from './audioConfig.js';
+import {
+  applySceneReverb,
+  connectSceneAudioNode,
+  createAudioRuntimeState,
+  ensureLoopSource,
+  ensureMusicLoop,
+  ensurePlayerFootstepLoopSources,
+  ensurePlayerHeartbeatLoop,
+  ensureSceneAmbienceLoop,
+  ensureZombieGruntLoop,
+  getCutUpAudioDuckAmount,
+  getCinematicMusicTargetGains,
+  getEnemyAudioUrls,
+  getPlayerHeartbeatParams,
+  getPlayerFootstepTargetGains,
+  getRainWaterVoice,
+  getSceneAmbienceTargetGain,
+  getSpecialEnemyVoice,
+  getTorchCrackleVoice,
+  getZombieVoice,
+  isAudioPathOccluded,
+  loadAudioBuffer,
+  playAssetOneShot,
+  playBusOneShot,
+  playEnemyAttackSound,
+  playHeartbeatThump,
+  playOneShotToNode,
+  playSpatialOneShot,
+  setAudioParam,
+  syncPlayerHeartbeatGain,
+  stopRainWaterVoice,
+  stopSpecialEnemyVoice,
+  stopTorchCrackleVoice,
+  stopZombieVoice,
+  stopZombieVoices,
+  updateAudioListener,
+} from './audioRuntime.js';
 import { getEnemyDefinition } from './enemyCatalog.js';
+import { createBloodBurst, updateBloodBursts } from './bloodEffects.js';
+import { renderTitleScreen as drawTitleScreen } from './titleRenderer.js';
+import {
+  DEATH_RESPAWN_DELAY_MS,
+  createDeathScene,
+  getDamageFlash as getDamageFlashAmount,
+  getDeathSceneCamera,
+  getDeathSceneFinalProgress as getDeathSceneFinalProgressAmount,
+  getDeathSceneProgress as getDeathSceneProgressAmount,
+  getDeathTint as getDeathTintAmount,
+  getHealthEffectStrength as getHealthEffectStrengthAmount,
+  getHealthPickupFlash as getHealthPickupFlashAmount,
+} from './playerFeedback.js';
+import {
+  createGamepadSnapshot,
+  createSoftMouseEdgeTurn,
+  createTouchJoystickState,
+} from './inputRuntime.js';
+import {
+  getLightningStrength,
+} from './sceneEffects.js';
+import {
+  clamp,
+  multiplyMat4,
+  perspective,
+} from './renderMath.js';
+import {
+  createRenderTarget,
+  deleteMeshBuffers,
+  deleteRenderTarget,
+} from './webglResources.js';
+import { createProgram } from './webglPrograms.js';
+import {
+  createPostQuad,
+  createSkyDomeMesh,
+} from './renderMeshes.js';
+import {
+  createSceneMesh,
+} from './renderSceneMeshes.js';
+import {
+  createZombieMesh,
+  updateZombieMesh,
+} from './renderEnemyMeshes.js';
+import { createSceneTextureAtlas } from './renderTextureAtlas.js';
+import { drawSkyDome as drawSkyDomeMesh } from './renderSkyDome.js';
+import { drawPostPass } from './renderPostPass.js';
+import { drawScenePass } from './renderScenePass.js';
+import {
+  applyDebugHudSnapshot,
+  createDebugHudSnapshot,
+} from './debugHud.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
@@ -180,33 +252,19 @@ if (!gl) {
 
 const effects = createEffectState();
 effects.sceneId = 'dungeon';
-const DEATH_RESPAWN_DELAY_MS = 2500;
-const DEATH_SCENE_PROFILES = Object.freeze({
-  collapseSplat: Object.freeze({
-    id: 'collapseSplat',
-    impactAt: 0.5,
-    finalJiggleStart: 0.8,
-    finalJiggleStrength: 0.028,
-    dropDistance: 1.15,
-    pitchDrop: 0.92,
-    bounceHeight: 0.24,
-    bounceCount: 2.5,
-  }),
-});
-const GAMEPAD_DEADZONE = 0.18;
 const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS.length;
-const MAX_STATIC_TORCH_LIGHTS = 3;
-const SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE = 1.2;
-const SPECIAL_ENEMY_LOOP_MAX_DISTANCE = 24;
-const SPECIAL_ENEMY_ATTACK_COOLDOWN_MS = 1450;
+const BOSS_IMPACT_SHAKE_DURATION_MS = 360;
+const BOSS_IMPACT_SHAKE_DISTANCE = 10;
+const BOSS_IMPACT_SHAKE_STRENGTH = 0.045;
 let world = createSceneWorld(effects.sceneId);
 let renderResolution = getResolutionMode(effects.resolutionId);
 let textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
-const loadedLevels = new Map();
 let sceneLoadRequest = 0;
 let colliders = getSceneColliders(world);
 let walkableSurfaces = getSceneWalkableSurfaces(world);
 let zombies = createZombieEnemies(world);
+let hordeState = createHordeState(world);
+let bloodBursts = [];
 let healthPotions = createSceneHealthPotions(world);
 let damageZones = createSceneDamageZones(world);
 let playerHealth = createPlayerHealth();
@@ -217,6 +275,8 @@ let lastDamageFlashStartedAt = -Infinity;
 let damageScratchOffset = { x: 0, y: 0 };
 let damageScratchRotation = 0;
 let lowHealthNoticeStartedAt = -Infinity;
+let bossImpactShakeStartedAt = -Infinity;
+let bossImpactShakeStrength = 0;
 const player = {
   x: world.playerSpawn.x,
   y: world.playerSpawn.y,
@@ -363,12 +423,23 @@ function updatePlayer(dt, now) {
   updateHealthPotions(now);
 
   if (effects.zombies) {
+    const previousEnemies = zombies;
     zombies = updateZombieEnemies(zombies, player, {
       colliders,
       walkableSurfaces,
       dt,
       now,
     });
+    const hordeUpdate = updateHordeSpawns(zombies, world, player, hordeState, { now });
+    zombies = hordeUpdate.enemies;
+    hordeState = hordeUpdate.state;
+    bloodBursts = [
+      ...updateBloodBursts(bloodBursts, now),
+      ...createEnemyBloodBursts(previousEnemies, zombies, now),
+    ];
+    triggerBossImpactFeedback(previousEnemies, zombies, now);
+  } else {
+    bloodBursts = [];
   }
   const touchingEnemy = effects.zombies ? getTouchingEnemy(player, zombies) : null;
   if (touchingEnemy && isPlayerTouchedByZombie(player, zombies)) {
@@ -390,30 +461,30 @@ function render(time, now = performance.now()) {
 
   drawSkyDome(time, now);
 
-  gl.useProgram(sceneProgram.program);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, atlasTexture);
-  gl.uniform1i(sceneProgram.uniforms.uAtlas, 0);
-  gl.uniform1f(sceneProgram.uniforms.uTextureCount, world.textures.length);
-  gl.uniform1f(sceneProgram.uniforms.uTime, time);
-  gl.uniform1f(sceneProgram.uniforms.uOneBit, world.oneBit ? 1 : 0);
-  gl.uniform1f(sceneProgram.uniforms.uLightningTextureId, getTextureIndex(world.lightning?.texture));
-  gl.uniform1f(sceneProgram.uniforms.uLightningStrength, lightningStrength);
-  gl.uniform1f(sceneProgram.uniforms.uRainTextureId, getTextureIndex(world.rain?.texture));
-  gl.uniform1f(sceneProgram.uniforms.uShootingStarTextureId, getTextureIndex(world.shootingStar?.texture));
-  gl.uniform1f(sceneProgram.uniforms.uWarping, effects.warping ? 1 : 0);
-  gl.uniform3f(sceneProgram.uniforms.uTorchPosition, player.x, player.y + 0.25, player.z);
-  gl.uniform3f(sceneProgram.uniforms.uTorchColor, ...(world.playerTorch?.color ?? [1, 0.55, 0.22]));
-  gl.uniform1f(sceneProgram.uniforms.uTorchRadius, world.playerTorch?.radius ?? 0);
-  gl.uniform1f(sceneProgram.uniforms.uTorchIntensity, world.playerTorch?.intensity ?? 0);
-  gl.uniform1f(sceneProgram.uniforms.uTorchEnabled, effects.playerTorch && world.playerTorch ? 1 : 0);
-  setStaticTorchUniforms(sceneProgram, world.torchLights ?? [], time);
-  gl.uniformMatrix4fv(sceneProgram.uniforms.uViewProjection, false, createViewProjection(now));
-  drawMesh(gl, sceneProgram, warehouseMesh);
+  const dynamicEnemyMesh = effects.zombies ? zombieMesh : null;
   if (effects.zombies) {
-    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, characterModels, time);
-    drawMesh(gl, sceneProgram, zombieMesh);
+    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, characterModels, time, now, bloodBursts, zombieModel);
   }
+  drawScenePass(gl, {
+    program: sceneProgram,
+    atlasTexture,
+    textureCount: world.textures.length,
+    textureIndices,
+    time,
+    oneBit: world.oneBit,
+    lightningTexture: world.lightning?.texture,
+    lightningStrength,
+    rainTexture: world.rain?.texture,
+    shootingStarTexture: world.shootingStar?.texture,
+    warping: effects.warping,
+    player,
+    playerTorch: world.playerTorch,
+    playerTorchEnabled: effects.playerTorch,
+    torchLights: world.torchLights,
+    viewProjection: createViewProjection(now),
+    staticMesh: warehouseMesh,
+    dynamicMesh: dynamicEnemyMesh,
+  });
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.disable(gl.DEPTH_TEST);
@@ -422,39 +493,27 @@ function render(time, now = performance.now()) {
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
 
-  const preset = getPresetValues(effects);
-  gl.useProgram(postProgram.program);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, renderTarget.texture);
-  gl.uniform1i(postProgram.uniforms.uScene, 0);
-  gl.uniform2f(postProgram.uniforms.uResolution, viewport.width, viewport.height);
-  gl.uniform1f(postProgram.uniforms.uTime, time);
-  gl.uniform1f(postProgram.uniforms.uScanlines, effects.scanlines ? 1 : 0);
-  gl.uniform1f(postProgram.uniforms.uDistortion, effects.crtDistortion ? preset.distortion : 0);
-  gl.uniform1f(postProgram.uniforms.uDither, effects.dither ? 1 : 0);
-  gl.uniform1f(postProgram.uniforms.uNoise, effects.noise ? preset.noise : 0);
-  gl.uniform1f(postProgram.uniforms.uColorBleed, effects.colorBleed ? preset.colorBleed : 0);
-  gl.uniform1f(postProgram.uniforms.uScanlineStrength, preset.scanlineStrength);
-  gl.uniform1f(postProgram.uniforms.uVignette, preset.vignette);
-  gl.uniform1f(postProgram.uniforms.uBrightness, effects.brightness);
-  gl.uniform1f(postProgram.uniforms.uContrast, effects.contrast);
-  gl.uniform1f(postProgram.uniforms.uSaturation, effects.saturation);
-  gl.uniform1f(postProgram.uniforms.uPixelScale, effects.pixelScale);
-  gl.uniform2f(postProgram.uniforms.uSourceResolution, renderResolution.width, renderResolution.height);
-  gl.uniform1f(postProgram.uniforms.uFlipFramebufferY, effects.flipFramebufferY ? 1 : 0);
-  gl.uniform1f(postProgram.uniforms.uOneBit, world.oneBit ? 1 : 0);
-  gl.uniform1f(postProgram.uniforms.uLightningStrength, lightningStrength);
-  gl.uniform1f(postProgram.uniforms.uHealthDanger, healthEffect.danger);
-  gl.uniform1f(postProgram.uniforms.uHealthPulse, healthEffect.pulse);
-  gl.uniform1f(postProgram.uniforms.uHealthPickupFlash, getHealthPickupFlash(now));
-  gl.uniform1f(postProgram.uniforms.uDamageFlash, getDamageFlash(now));
-  gl.uniform2f(postProgram.uniforms.uDamageScratchOffset, damageScratchOffset.x, damageScratchOffset.y);
-  gl.uniform1f(postProgram.uniforms.uDamageScratchRotation, damageScratchRotation);
-  gl.uniform1f(postProgram.uniforms.uDeathTint, getDeathTint(now));
-  gl.uniform1f(postProgram.uniforms.uDeathProgress, getDeathSceneProgress(now));
-  gl.uniform1f(postProgram.uniforms.uCutUpFlash, getCutUpJumpFlash(cutUpState, now));
-  gl.uniform1f(postProgram.uniforms.uCutUpCountdown, getCutUpCountdownNumber(cutUpState, now));
-  drawQuad(gl, postProgram, quad);
+  drawPostPass(gl, {
+    program: postProgram,
+    sceneTexture: renderTarget.texture,
+    quad,
+    viewport,
+    renderResolution,
+    time,
+    effects,
+    preset: getPresetValues(effects),
+    oneBit: world.oneBit,
+    lightningStrength,
+    healthEffect,
+    healthPickupFlash: getHealthPickupFlash(now),
+    damageFlash: getDamageFlash(now),
+    damageScratchOffset,
+    damageScratchRotation,
+    deathTint: getDeathTint(now),
+    deathProgress: getDeathSceneProgress(now),
+    cutUpFlash: getCutUpJumpFlash(cutUpState, now),
+    cutUpCountdown: getCutUpCountdownNumber(cutUpState, now),
+  });
 
   if (titleActive) {
     renderTitleScreen(time);
@@ -462,168 +521,17 @@ function render(time, now = performance.now()) {
   updateLowHealthNotice(now);
 }
 
-function getTextureIndex(id) {
-  if (!id) return -1;
-  return textureIndices.get(id) ?? -1;
-}
-
-function getLightningStrength(time, lightning) {
-  if (!lightning) return 0;
-
-  const interval = lightning.interval ?? 8;
-  const duration = lightning.duration ?? 0.4;
-  const phase = time % interval;
-  if (phase > duration) return 0;
-
-  const envelope = 1 - phase / duration;
-  const strobe = Math.sin(phase * 95) > -0.15 ? 1 : 0.35;
-  return Math.min(1, Math.max(0, envelope * strobe));
-}
-
-function setStaticTorchUniforms(program, torchLights, time) {
-  const count = Math.min(torchLights.length, MAX_STATIC_TORCH_LIGHTS);
-  if (program.uniforms.uStaticTorchCount) {
-    gl.uniform1f(program.uniforms.uStaticTorchCount, count);
-  }
-
-  for (let i = 0; i < MAX_STATIC_TORCH_LIGHTS; i += 1) {
-    const torchLight = torchLights[i] ?? {};
-    const flicker = getTorchFlicker(torchLight, i, time);
-    const position = [torchLight.x ?? 0, torchLight.y ?? 0, torchLight.z ?? 0];
-    const color = torchLight.color ?? [1, 0.43, 0.12];
-    const radius = i < count ? (torchLight.radius ?? 0) * (0.96 + flicker * 0.08) : 0;
-    const intensity = i < count ? (torchLight.intensity ?? 0) * (0.72 + flicker * 0.42) : 0;
-    const positionLocation = program.uniforms[`uStaticTorchPosition${i}`];
-    const colorLocation = program.uniforms[`uStaticTorchColor${i}`];
-    const radiusLocation = program.uniforms[`uStaticTorchRadius${i}`];
-    const intensityLocation = program.uniforms[`uStaticTorchIntensity${i}`];
-
-    if (positionLocation) gl.uniform3f(positionLocation, ...position);
-    if (colorLocation) gl.uniform3f(colorLocation, ...color);
-    if (radiusLocation) gl.uniform1f(radiusLocation, radius);
-    if (intensityLocation) gl.uniform1f(intensityLocation, intensity);
-  }
-}
-
-function getTorchFlicker(torchLight, index, time) {
-  const seed = (torchLight.x ?? 0) * 3.7 + (torchLight.z ?? 0) * 5.1 + index * 9.3;
-  const quick = Math.sin(time * 17.0 + seed) * 0.5 + 0.5;
-  const slow = Math.sin(time * 5.4 + seed * 1.7) * 0.5 + 0.5;
-  const dart = Math.sin(time * 31.0 + seed * 2.3) > 0.86 ? 1 : 0;
-  return Math.max(0, Math.min(1, quick * 0.55 + slow * 0.3 + dart * 0.25));
-}
-
 function ensureAudioState() {
   if (!audioState) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return null;
 
-    const context = new AudioContextClass();
-    const dryGain = context.createGain();
-    const reverbInput = context.createGain();
-    const convolver = context.createConvolver();
-    const reverbWetGain = context.createGain();
-    const ambienceGain = context.createGain();
-    const lightningGain = context.createGain();
-    const musicGain = context.createGain();
-    const titleMusicGain = context.createGain();
-    const freeRoamMusicGain = context.createGain();
-    const cutUpMusicGain = context.createGain();
-    const uiSfxGain = context.createGain();
-    const transitionSfxGain = context.createGain();
-    const playerSfxGain = context.createGain();
-    const footstepWalkGain = context.createGain();
-    const footstepSprintGain = context.createGain();
-    const lowHealthBreathingGain = context.createGain();
-    const heartbeatGain = context.createGain();
-
-    dryGain.gain.value = 1;
-    dryGain.connect(context.destination);
-    reverbInput.gain.value = 0.8;
-    reverbInput.connect(convolver);
-    convolver.connect(reverbWetGain);
-    reverbWetGain.gain.value = 0;
-    reverbWetGain.connect(context.destination);
-    ambienceGain.gain.value = 0;
-    connectSceneAudioNode(ambienceGain, dryGain, reverbInput);
-    lightningGain.gain.value = LIGHTNING_SOUND_GAIN;
-    connectSceneAudioNode(lightningGain, dryGain, reverbInput);
-    musicGain.gain.value = 1;
-    musicGain.connect(dryGain);
-    titleMusicGain.gain.value = 0;
-    titleMusicGain.connect(musicGain);
-    freeRoamMusicGain.gain.value = 0;
-    freeRoamMusicGain.connect(musicGain);
-    cutUpMusicGain.gain.value = 0;
-    cutUpMusicGain.connect(musicGain);
-    uiSfxGain.gain.value = UI_SFX_GAIN;
-    uiSfxGain.connect(dryGain);
-    transitionSfxGain.gain.value = TRANSITION_SFX_GAIN;
-    transitionSfxGain.connect(dryGain);
-    playerSfxGain.gain.value = 1;
-    connectSceneAudioNode(playerSfxGain, dryGain, reverbInput);
-    footstepWalkGain.gain.value = 0;
-    connectSceneAudioNode(footstepWalkGain, dryGain, reverbInput);
-    footstepSprintGain.gain.value = 0;
-    connectSceneAudioNode(footstepSprintGain, dryGain, reverbInput);
-    lowHealthBreathingGain.gain.value = 0;
-    lowHealthBreathingGain.connect(dryGain);
-    heartbeatGain.gain.value = 0;
-    heartbeatGain.connect(dryGain);
-
-    audioState = {
-      context,
-      audioBuffers: new Map(),
-      audioBufferLoads: new Map(),
-      dryGain,
-      reverbInput,
-      convolver,
-      reverbWetGain,
-      activeReverbId: null,
-      ambienceGain,
-      ambienceSource: null,
-      activeAmbienceId: null,
-      loadingAmbienceId: null,
-      ambienceSlots: [createAmbienceSlot(context, ambienceGain), createAmbienceSlot(context, ambienceGain)],
-      activeAmbienceSlotIndex: 0,
-      musicGain,
-      titleMusicGain,
-      freeRoamMusicGain,
-      cutUpMusicGain,
-      uiSfxGain,
-      transitionSfxGain,
-      musicSources: new Map(),
-      musicLoopsLoading: new Set(),
-      musicLoopsFailed: new Set(),
-      lightningGain,
-      playerSfxGain,
-      footstepWalkGain,
-      footstepSprintGain,
-      lowHealthBreathingGain,
-      heartbeatGain,
-      footstepWalkSource: null,
-      footstepSprintSource: null,
-      footstepLoopsLoading: false,
-      footstepLoopsFailed: false,
-      lowHealthBreathingSource: null,
-      lowHealthBreathingLoading: false,
-      lowHealthBreathingFailed: false,
-      heartbeatLoopTimer: null,
-      torchCrackleVoices: new Map(),
-      waterfallVoices: new Map(),
-      waterNoiseBuffer: createWaterNoiseBuffer(context),
-      zombieVoices: new Map(),
-      specialEnemyVoices: new Map(),
-      enemyAttackTimes: new Map(),
-      zombieLoopLoading: false,
-      zombieLoopFailed: false,
-      lastLightningIndex: -1,
-      lastCutUpCountdownTick: null,
-      cutUpAudioDuckStartedAt: -Infinity,
-      nextWorldStingerAt: performance.now() + 14000,
-      worldStingerSceneId: world.id,
-    };
-    applySceneReverb(audioState);
+    audioState = createAudioRuntimeState({
+      AudioContextClass,
+      now: performance.now(),
+      sceneId: world.id,
+    });
+    applySceneReverb(audioState, world.audio.reverb);
   }
 
   if (audioState.context.state === 'suspended') {
@@ -633,31 +541,14 @@ function ensureAudioState() {
   return audioState;
 }
 
-function connectSceneAudioNode(node, dryGain, reverbInput) {
-  node.connect(dryGain);
-  node.connect(reverbInput);
-}
-
-function createAmbienceSlot(context, ambienceGain) {
-  const gain = context.createGain();
-  gain.gain.value = 0;
-  gain.connect(ambienceGain);
-  return {
-    id: null,
-    source: null,
-    gain,
-    loadingId: null,
-  };
-}
-
 function ensureSceneAudio() {
   if (!SCENE_AMBIENCE_URLS[world.id] && !world.lightning && !effects.zombies && !(world.torchLights ?? []).length) return;
 
   const state = ensureAudioState();
   if (!state) return;
 
-  applySceneReverb(state);
-  ensureSceneAmbienceLoop(state);
+  applySceneReverb(state, world.audio.reverb);
+  ensureSceneAmbienceLoop(state, world.id, SCENE_AMBIENCE_URLS, { isCurrent: isCurrentSceneAudioState });
   syncCinematicMusicAudio(state);
   if (world.lightning) loadAudioBuffer(state, LIGHTNING_SOUND_URL);
   for (const url of [
@@ -685,197 +576,52 @@ function ensureSceneAudio() {
   ]) {
     loadAudioBuffer(state, url).catch(() => {});
   }
-  ensurePlayerFootstepLoops(state);
-  ensureLowHealthBreathingLoop(state);
-  ensurePlayerHeartbeatLoop(state);
+  ensurePlayerFootstepLoopSources(state, { isCurrent: isCurrentAudioState });
+  ensureLowHealthBreathingLoopSource(state);
+  ensurePlayerHeartbeatLoop(state, {
+    getHeartbeatParams: getCurrentPlayerHeartbeatParams,
+    isCurrent: isCurrentAudioState,
+  });
   ensureZombieGruntLoop(state);
 }
 
-function getEnemyAudioUrls() {
-  return Object.values(ENEMY_AUDIO_PROFILES).flatMap((profile) => [profile.loopUrl, profile.attackUrl]);
-}
-
-function loadAudioBuffer(state, url) {
-  if (state.audioBuffers.has(url)) return Promise.resolve(state.audioBuffers.get(url));
-  if (state.audioBufferLoads.has(url)) return state.audioBufferLoads.get(url);
-
-  const loading = fetch(url)
-    .then((response) => {
-      if (!response.ok) throw new Error(`Could not load audio asset ${url}: ${response.status}`);
-      return response.arrayBuffer();
-    })
-    .then((arrayBuffer) => state.context.decodeAudioData(arrayBuffer))
-    .then((buffer) => {
-      state.audioBuffers.set(url, buffer);
-      state.audioBufferLoads.delete(url);
-      return buffer;
-    })
-    .catch((error) => {
-      state.audioBufferLoads.delete(url);
-      console.warn(error);
-      throw error;
-    });
-
-  state.audioBufferLoads.set(url, loading);
-  return loading;
-}
-
-function ensureSceneAmbienceLoop(state) {
-  const sceneId = world.id;
-  const url = SCENE_AMBIENCE_URLS[sceneId];
-  if (!url || state.activeAmbienceId === sceneId || state.loadingAmbienceId === sceneId) return;
-
-  state.loadingAmbienceId = sceneId;
-  loadAudioBuffer(state, url)
-    .then((buffer) => {
-      if (audioState !== state || world.id !== sceneId) return;
-
-      const nextSlotIndex = (state.activeAmbienceSlotIndex + 1) % state.ambienceSlots.length;
-      const nextSlot = state.ambienceSlots[nextSlotIndex];
-      if (nextSlot.source) nextSlot.source.stop();
-      nextSlot.source = state.context.createBufferSource();
-      nextSlot.source.buffer = buffer;
-      nextSlot.source.loop = true;
-      nextSlot.source.connect(nextSlot.gain);
-      nextSlot.id = sceneId;
-      nextSlot.source.start();
-
-      const previousSlot = state.ambienceSlots[state.activeAmbienceSlotIndex];
-      nextSlot.gain.gain.setTargetAtTime(1, state.context.currentTime, 0.42);
-      previousSlot.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.42);
-      stopAmbienceSlotAfterFade(state, previousSlot);
-
-      state.ambienceSource = nextSlot.source;
-      state.activeAmbienceId = sceneId;
-      state.activeAmbienceSlotIndex = nextSlotIndex;
-    })
-    .catch(() => {})
-    .finally(() => {
-      if (state.loadingAmbienceId === sceneId) state.loadingAmbienceId = null;
-    });
-}
-
-function stopAmbienceSlotAfterFade(state, slot) {
-  window.setTimeout(() => {
-    if (audioState !== state || !slot.source || state.ambienceSlots[state.activeAmbienceSlotIndex] === slot) return;
-    try {
-      slot.source.stop();
-    } catch {
-      // Already stopped by the browser audio engine.
-    }
-    slot.source = null;
-    slot.id = null;
-  }, 900);
-}
-
 function getSceneAmbienceGain() {
-  if (titleActive || deathState.active || !SCENE_AMBIENCE_URLS[world.id]) return 0;
-
-  const duck = getAudioDuckAmount(performance.now());
-  const optionsDuck = optionsDialog.open ? 0.35 : 1;
-  return SCENE_AMBIENCE_MAX_GAIN * optionsDuck * (1 - duck * 0.52);
+  return getSceneAmbienceTargetGain({
+    titleActive,
+    deathActive: deathState.active,
+    hasAmbience: Boolean(SCENE_AMBIENCE_URLS[world.id]),
+    optionsOpen: optionsDialog.open,
+    duckAmount: getCutUpAudioDuckAmount(audioState, performance.now()),
+  });
 }
 
-function getAudioDuckAmount(now) {
-  if (!audioState) return 0;
-  const elapsed = now - audioState.cutUpAudioDuckStartedAt;
-  if (elapsed < 0 || elapsed > CUT_UP_AUDIO_DUCK_DURATION_MS) return 0;
-  return 1 - elapsed / CUT_UP_AUDIO_DUCK_DURATION_MS;
+function isCurrentAudioState(state) {
+  return audioState === state;
 }
 
-function playAssetOneShot(state, url, gainNode) {
-  const buffer = state.audioBuffers.get(url);
-  if (!buffer) {
-    loadAudioBuffer(state, url)
-      .then((loadedBuffer) => {
-        if (audioState !== state) return;
-        const source = state.context.createBufferSource();
-        source.buffer = loadedBuffer;
-        source.connect(gainNode);
-        source.start();
-      })
-      .catch(() => {});
-    return;
-  }
-
-  const source = state.context.createBufferSource();
-  source.buffer = buffer;
-  source.connect(gainNode);
-  source.start();
-}
-
-function playOneShotToNode(state, url, outputNode, volume = 1) {
-  const buffer = state.audioBuffers.get(url);
-  if (!buffer) {
-    loadAudioBuffer(state, url)
-      .then(() => {
-        if (audioState === state) playOneShotToNode(state, url, outputNode, volume);
-      })
-      .catch(() => {});
-    return;
-  }
-
-  const source = state.context.createBufferSource();
-  const gain = state.context.createGain();
-  source.buffer = buffer;
-  gain.gain.value = volume;
-  source.connect(gain);
-  gain.connect(outputNode);
-  source.start();
-}
-
-function playSpatialOneShot(state, url, position, volume = 1, options = {}) {
-  const buffer = state.audioBuffers.get(url);
-  if (!buffer) {
-    loadAudioBuffer(state, url)
-      .then(() => {
-        if (audioState === state) playSpatialOneShot(state, url, position, volume, options);
-      })
-      .catch(() => {});
-    return;
-  }
-
-  const source = state.context.createBufferSource();
-  const gain = state.context.createGain();
-  const panner = state.context.createPanner();
-  source.buffer = buffer;
-  gain.gain.value = volume;
-  panner.panningModel = 'HRTF';
-  panner.distanceModel = 'inverse';
-  panner.refDistance = options.refDistance ?? 1.2;
-  panner.maxDistance = options.maxDistance ?? 20;
-  panner.rolloffFactor = options.rolloffFactor ?? 1.8;
-  setAudioParam(panner.positionX, position.x, state.context.currentTime, 0);
-  setAudioParam(panner.positionY, position.y ?? player.y, state.context.currentTime, 0);
-  setAudioParam(panner.positionZ, position.z, state.context.currentTime, 0);
-  source.connect(gain);
-  gain.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
-  source.start();
+function isCurrentSceneAudioState(state, sceneId) {
+  return audioState === state && (sceneId === undefined || world.id === sceneId);
 }
 
 function playPlayerOneShot(url, volume) {
   const state = ensureAudioState();
   if (!state) return;
 
-  state.playerSfxGain.gain.setValueAtTime(volume, state.context.currentTime);
-  playAssetOneShot(state, url, state.playerSfxGain);
+  playBusOneShot(state, url, state.playerSfxGain, volume, { isCurrent: isCurrentAudioState });
 }
 
 function playTransitionOneShot(url, volume = TRANSITION_SFX_GAIN) {
   const state = ensureAudioState();
   if (!state) return;
 
-  state.transitionSfxGain.gain.setValueAtTime(volume, state.context.currentTime);
-  playAssetOneShot(state, url, state.transitionSfxGain);
+  playBusOneShot(state, url, state.transitionSfxGain, volume, { isCurrent: isCurrentAudioState });
 }
 
 function playUiOneShot(url, volume = UI_SFX_GAIN) {
   const state = ensureAudioState();
   if (!state) return;
 
-  state.uiSfxGain.gain.setValueAtTime(volume, state.context.currentTime);
-  playAssetOneShot(state, url, state.uiSfxGain);
+  playBusOneShot(state, url, state.uiSfxGain, volume, { isCurrent: isCurrentAudioState });
 }
 
 function playMenuStartConfirmSound() {
@@ -894,45 +640,22 @@ function playUiSelectSound() {
   playUiOneShot(UI_SELECT_SOUND_URL, UI_SFX_GAIN * 0.46);
 }
 
-function ensureMusicLoop(state, id, url, gainNode) {
-  if (state.musicSources.has(id) || state.musicLoopsLoading.has(id) || state.musicLoopsFailed.has(id)) return;
-
-  state.musicLoopsLoading.add(id);
-  loadAudioBuffer(state, url)
-    .then((buffer) => {
-      if (audioState !== state) return;
-
-      const source = state.context.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(gainNode);
-      source.start();
-      state.musicSources.set(id, source);
-    })
-    .catch((error) => {
-      state.musicLoopsFailed.add(id);
-      console.warn(error);
-    })
-    .finally(() => {
-      state.musicLoopsLoading.delete(id);
-    });
-}
-
 function syncCinematicMusicAudio(state) {
-  ensureMusicLoop(state, 'title', TITLE_MUSIC_LOOP_URL, state.titleMusicGain);
-  ensureMusicLoop(state, 'free-roam', FREE_ROAM_MUSIC_LOOP_URL, state.freeRoamMusicGain);
-  ensureMusicLoop(state, 'cut-up', CUT_UP_MUSIC_LOOP_URL, state.cutUpMusicGain);
+  ensureMusicLoop(state, 'title', TITLE_MUSIC_LOOP_URL, state.titleMusicGain, { isCurrent: isCurrentAudioState });
+  ensureMusicLoop(state, 'free-roam', FREE_ROAM_MUSIC_LOOP_URL, state.freeRoamMusicGain, { isCurrent: isCurrentAudioState });
+  ensureMusicLoop(state, 'cut-up', CUT_UP_MUSIC_LOOP_URL, state.cutUpMusicGain, { isCurrent: isCurrentAudioState });
 
-  const duck = getAudioDuckAmount(performance.now());
-  const optionsDuck = optionsDialog.open ? 0.48 : 1;
-  const titleGain = titleActive ? TITLE_MUSIC_GAIN : 0;
-  const freeRoamGain = !titleActive && gameState.mode === 'normal' && !deathState.active ? FREE_ROAM_MUSIC_GAIN : 0;
-  const cutUpGain = !titleActive && gameState.mode === 'cut-up' && !deathState.active ? CUT_UP_MUSIC_GAIN : 0;
-  const musicDuck = optionsDuck * (1 - duck * 0.45);
+  const gains = getCinematicMusicTargetGains({
+    titleActive,
+    gameMode: gameState.mode,
+    deathActive: deathState.active,
+    optionsOpen: optionsDialog.open,
+    duckAmount: getCutUpAudioDuckAmount(state, performance.now()),
+  });
 
-  state.titleMusicGain.gain.setTargetAtTime(titleGain * musicDuck, state.context.currentTime, 0.5);
-  state.freeRoamMusicGain.gain.setTargetAtTime(freeRoamGain * musicDuck, state.context.currentTime, 0.5);
-  state.cutUpMusicGain.gain.setTargetAtTime(cutUpGain * musicDuck, state.context.currentTime, 0.5);
+  state.titleMusicGain.gain.setTargetAtTime(gains.title, state.context.currentTime, 0.5);
+  state.freeRoamMusicGain.gain.setTargetAtTime(gains.freeRoam, state.context.currentTime, 0.5);
+  state.cutUpMusicGain.gain.setTargetAtTime(gains.cutUp, state.context.currentTime, 0.5);
 }
 
 function syncCutUpCountdownAudio(state) {
@@ -979,19 +702,28 @@ function syncWorldStingerAudio(state) {
     x: player.x + Math.sin(now * 0.0017) * 5,
     y: player.y + 0.4,
     z: player.z + Math.cos(now * 0.0013) * 5,
-  }, 0.16, { refDistance: 3.5, maxDistance: 28, rolloffFactor: 0.9 });
+  }, 0.16, {
+    refDistance: 3.5,
+    maxDistance: 28,
+    rolloffFactor: 0.9,
+    fallbackY: player.y,
+    isCurrent: isCurrentAudioState,
+  });
   state.nextWorldStingerAt = now + 18000 + Math.random() * 24000;
 }
 
 function updateSceneAudio(time, lightningStrength) {
   if (!audioState) return;
 
-  updateAudioListener(audioState);
-  applySceneReverb(audioState);
-  ensureSceneAmbienceLoop(audioState);
-  ensurePlayerFootstepLoops(audioState);
-  ensureLowHealthBreathingLoop(audioState);
-  ensurePlayerHeartbeatLoop(audioState);
+  updateAudioListener(audioState.context.listener, player, audioState.context.currentTime);
+  applySceneReverb(audioState, world.audio.reverb);
+  ensureSceneAmbienceLoop(audioState, world.id, SCENE_AMBIENCE_URLS, { isCurrent: isCurrentSceneAudioState });
+  ensurePlayerFootstepLoopSources(audioState, { isCurrent: isCurrentAudioState });
+  ensureLowHealthBreathingLoopSource(audioState);
+  ensurePlayerHeartbeatLoop(audioState, {
+    getHeartbeatParams: getCurrentPlayerHeartbeatParams,
+    isCurrent: isCurrentAudioState,
+  });
   syncCinematicMusicAudio(audioState);
   syncPlayerFootstepAudio(audioState);
   syncLowHealthBreathingAudio(audioState);
@@ -1011,47 +743,7 @@ function updateSceneAudio(time, lightningStrength) {
   if (index === audioState.lastLightningIndex) return;
 
   audioState.lastLightningIndex = index;
-  playAssetOneShot(audioState, LIGHTNING_SOUND_URL, audioState.lightningGain);
-}
-
-function ensurePlayerFootstepLoops(state) {
-  if (
-    state.footstepWalkSource
-    || state.footstepSprintSource
-    || state.footstepLoopsLoading
-    || state.footstepLoopsFailed
-  ) return;
-
-  state.footstepLoopsLoading = true;
-  Promise.all([
-    loadAudioBuffer(state, PLAYER_WALK_FOOTSTEP_LOOP_URL),
-    loadAudioBuffer(state, PLAYER_SPRINT_FOOTSTEP_LOOP_URL),
-  ])
-    .then(([walkBuffer, sprintBuffer]) => {
-      if (audioState !== state) return;
-
-      const walkSource = state.context.createBufferSource();
-      walkSource.buffer = walkBuffer;
-      walkSource.loop = true;
-      walkSource.connect(state.footstepWalkGain);
-      walkSource.start();
-
-      const sprintSource = state.context.createBufferSource();
-      sprintSource.buffer = sprintBuffer;
-      sprintSource.loop = true;
-      sprintSource.connect(state.footstepSprintGain);
-      sprintSource.start();
-
-      state.footstepWalkSource = walkSource;
-      state.footstepSprintSource = sprintSource;
-    })
-    .catch((error) => {
-      state.footstepLoopsFailed = true;
-      console.warn(error);
-    })
-    .finally(() => {
-      state.footstepLoopsLoading = false;
-    });
+  playAssetOneShot(audioState, LIGHTNING_SOUND_URL, audioState.lightningGain, { isCurrent: isCurrentAudioState });
 }
 
 function syncPlayerFootstepAudio(state) {
@@ -1061,21 +753,20 @@ function syncPlayerFootstepAudio(state) {
 }
 
 function getPlayerFootstepGains() {
-  if (titleActive || optionsDialog.open || deathState.active || !player.grounded) return { walk: 0, sprint: 0 };
-
   const moving = keys.has('KeyW')
     || keys.has('KeyA')
     || keys.has('KeyS')
     || keys.has('KeyD')
     || Math.hypot(touchMovement.x, touchMovement.z) > 0.12
     || Math.hypot(gamepadInput.x, gamepadInput.z) > 0.12;
-  if (!moving) return { walk: 0, sprint: 0 };
-
-  const sprinting = keys.has('ShiftLeft') || gamepadInput.sprint;
-  return {
-    walk: sprinting ? 0 : PLAYER_WALK_FOOTSTEP_GAIN,
-    sprint: sprinting ? PLAYER_SPRINT_FOOTSTEP_GAIN : 0,
-  };
+  return getPlayerFootstepTargetGains({
+    titleActive,
+    optionsOpen: optionsDialog.open,
+    deathActive: deathState.active,
+    grounded: player.grounded,
+    moving,
+    sprinting: keys.has('ShiftLeft') || gamepadInput.sprint,
+  });
 }
 
 function syncPlayerMovementSpotAudio(wasGrounded, isGrounded, previousVelocityY, currentVelocityY) {
@@ -1090,28 +781,15 @@ function syncPlayerMovementSpotAudio(wasGrounded, isGrounded, previousVelocityY,
   }
 }
 
-function ensureLowHealthBreathingLoop(state) {
-  if (state.lowHealthBreathingSource || state.lowHealthBreathingLoading || state.lowHealthBreathingFailed) return;
-
-  state.lowHealthBreathingLoading = true;
-  loadAudioBuffer(state, PLAYER_LOW_HEALTH_BREATHING_LOOP_URL)
-    .then((buffer) => {
-      if (audioState !== state) return;
-
-      const source = state.context.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(state.lowHealthBreathingGain);
-      source.start();
-      state.lowHealthBreathingSource = source;
-    })
-    .catch((error) => {
-      state.lowHealthBreathingFailed = true;
-      console.warn(error);
-    })
-    .finally(() => {
-      state.lowHealthBreathingLoading = false;
-    });
+function ensureLowHealthBreathingLoopSource(state) {
+  ensureLoopSource(state, {
+    url: PLAYER_LOW_HEALTH_BREATHING_LOOP_URL,
+    outputNode: state.lowHealthBreathingGain,
+    sourceKey: 'lowHealthBreathingSource',
+    loadingKey: 'lowHealthBreathingLoading',
+    failedKey: 'lowHealthBreathingFailed',
+    isCurrent: isCurrentAudioState,
+  });
 }
 
 function syncLowHealthBreathingAudio(state) {
@@ -1120,65 +798,17 @@ function syncLowHealthBreathingAudio(state) {
   state.lowHealthBreathingGain.gain.setTargetAtTime(targetGain, state.context.currentTime, 0.18);
 }
 
-function ensurePlayerHeartbeatLoop(state) {
-  if (state.heartbeatLoopTimer) return;
-
-  scheduleHeartbeatPulse(state, PLAYER_HEARTBEAT_BASE_INTERVAL_MS);
-}
-
-function scheduleHeartbeatPulse(state, delayMs) {
-  state.heartbeatLoopTimer = window.setTimeout(() => {
-    state.heartbeatLoopTimer = null;
-    if (audioState !== state) return;
-
-    const heartbeat = getPlayerHeartbeatParams();
-    if (heartbeat.gain > 0) {
-      playHeartbeatThump(state, state.context.currentTime, 84, heartbeat.gain);
-      playHeartbeatThump(state, state.context.currentTime + 0.16, 64, heartbeat.gain * 0.72);
-    }
-
-    scheduleHeartbeatPulse(state, heartbeat.intervalMs);
-  }, delayMs);
-}
-
-function playHeartbeatThump(state, startTime, frequency, gain) {
-  const oscillator = state.context.createOscillator();
-  const envelope = state.context.createGain();
-  oscillator.type = 'square';
-  oscillator.frequency.setValueAtTime(frequency, startTime);
-  envelope.gain.setValueAtTime(0, startTime);
-  envelope.gain.linearRampToValueAtTime(gain, startTime + 0.012);
-  envelope.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.11);
-  oscillator.connect(envelope);
-  envelope.connect(state.heartbeatGain);
-  oscillator.start(startTime);
-  oscillator.stop(startTime + 0.14);
-}
-
 function syncPlayerHeartbeatAudio(state) {
-  const heartbeat = getPlayerHeartbeatParams();
-  state.heartbeatGain.gain.setTargetAtTime(heartbeat.masterGain, state.context.currentTime, 0.18);
+  syncPlayerHeartbeatGain(state, getCurrentPlayerHeartbeatParams());
 }
 
-function getPlayerHeartbeatParams() {
-  if (titleActive || optionsDialog.open || deathState.active) {
-    return { intervalMs: PLAYER_HEARTBEAT_BASE_INTERVAL_MS, gain: 0, masterGain: 0 };
-  }
-
-  const nearestZombieDistance = getNearestZombieDistance();
-  const danger = nearestZombieDistance === null
-    ? 0
-    : Math.max(0, Math.min(1, 1 - nearestZombieDistance / PLAYER_HEARTBEAT_DANGER_DISTANCE));
-
-  return {
-    intervalMs: Math.round(
-      PLAYER_HEARTBEAT_BASE_INTERVAL_MS
-        + (PLAYER_HEARTBEAT_DANGER_INTERVAL_MS - PLAYER_HEARTBEAT_BASE_INTERVAL_MS) * danger,
-    ),
-    gain: PLAYER_HEARTBEAT_BASE_GAIN
-      + (PLAYER_HEARTBEAT_DANGER_GAIN - PLAYER_HEARTBEAT_BASE_GAIN) * danger,
-    masterGain: 1,
-  };
+function getCurrentPlayerHeartbeatParams() {
+  return getPlayerHeartbeatParams({
+    titleActive,
+    optionsOpen: optionsDialog.open,
+    deathActive: deathState.active,
+    nearestEnemyDistance: getNearestZombieDistance(),
+  });
 }
 
 function getNearestZombieDistance() {
@@ -1198,7 +828,7 @@ function syncTorchCrackleAudio(state) {
       const torchLight = world.torchLights[index];
       const id = `${world.id}:torch-crackle:${index}`;
       activeIds.add(id);
-      const voice = getTorchCrackleVoice(state, id, torchLight, index);
+      const voice = getTorchCrackleVoice(state, id, torchLight, index, { isCurrent: isCurrentAudioState });
       voice.gain.gain.setTargetAtTime(TORCH_CRACKLE_GAIN, state.context.currentTime, 0.24);
       voice.panner.positionX.setTargetAtTime(torchLight.x, state.context.currentTime, 0.08);
       voice.panner.positionY.setTargetAtTime(torchLight.y, state.context.currentTime, 0.08);
@@ -1213,80 +843,6 @@ function syncTorchCrackleAudio(state) {
   }
 }
 
-function getTorchCrackleVoice(state, id, torchLight, index) {
-  if (state.torchCrackleVoices.has(id)) return state.torchCrackleVoices.get(id);
-
-  const gain = state.context.createGain();
-  const filter = state.context.createBiquadFilter();
-  const panner = state.context.createPanner();
-  gain.gain.value = 0;
-  filter.type = 'bandpass';
-  filter.frequency.value = 1300;
-  filter.Q.value = 2.8;
-  panner.panningModel = 'HRTF';
-  panner.distanceModel = 'inverse';
-  panner.refDistance = TORCH_CRACKLE_REF_DISTANCE;
-  panner.maxDistance = TORCH_CRACKLE_MAX_DISTANCE;
-  panner.rolloffFactor = 2.2;
-  setAudioParam(panner.positionX, torchLight.x, state.context.currentTime, 0);
-  setAudioParam(panner.positionY, torchLight.y, state.context.currentTime, 0);
-  setAudioParam(panner.positionZ, torchLight.z, state.context.currentTime, 0);
-  gain.connect(filter);
-  filter.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
-
-  const voice = { id, gain, filter, panner, timerId: null, seed: index * 19.13 };
-  state.torchCrackleVoices.set(id, voice);
-  scheduleTorchCracklePulse(state, voice);
-  return voice;
-}
-
-function scheduleTorchCracklePulse(state, voice) {
-  const delay = 55 + Math.floor(Math.random() * 145 + voice.seed % 37);
-  voice.timerId = window.setTimeout(() => {
-    voice.timerId = null;
-    if (audioState !== state || !state.torchCrackleVoices.has(voice.id)) return;
-
-    playTorchCracklePulse(state, voice);
-    scheduleTorchCracklePulse(state, voice);
-  }, delay);
-}
-
-function playTorchCracklePulse(state, voice) {
-  const now = state.context.currentTime;
-  const oscillator = state.context.createOscillator();
-  const envelope = state.context.createGain();
-  oscillator.type = 'sawtooth';
-  oscillator.frequency.setValueAtTime(620 + Math.random() * 2100, now);
-  envelope.gain.setValueAtTime(0.0001, now);
-  envelope.gain.exponentialRampToValueAtTime(0.16 + Math.random() * 0.22, now + 0.008);
-  envelope.gain.exponentialRampToValueAtTime(0.0001, now + 0.045 + Math.random() * 0.07);
-  oscillator.connect(envelope);
-  envelope.connect(voice.gain);
-  oscillator.start(now);
-  oscillator.stop(now + 0.14);
-}
-
-function stopTorchCrackleVoice(state, voice) {
-  if (voice.timerId) {
-    window.clearTimeout(voice.timerId);
-    voice.timerId = null;
-  }
-  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
-}
-
-function createWaterNoiseBuffer(context) {
-  const sampleRate = context.sampleRate;
-  const buffer = context.createBuffer(1, sampleRate * 2, sampleRate);
-  const channel = buffer.getChannelData(0);
-  let previous = 0;
-  for (let index = 0; index < channel.length; index += 1) {
-    previous = previous * 0.82 + (Math.random() * 2 - 1) * 0.18;
-    channel[index] = previous * 0.7;
-  }
-  return buffer;
-}
-
 function syncRainWaterAudio(state) {
   const activeIds = new Set();
   const rainSources = getRainWaterSources();
@@ -1294,7 +850,7 @@ function syncRainWaterAudio(state) {
     for (const source of rainSources) {
       const id = `${world.id}:waterfall:${source.index}`;
       activeIds.add(id);
-      const voice = getRainWaterVoice(state, id, source);
+      const voice = getRainWaterVoice(state, id, source, { isCurrent: isCurrentAudioState });
       const gain = RAIN_WATER_BED_GAIN * Math.min(1.35, source.height / 22);
       voice.gain.gain.setTargetAtTime(gain, state.context.currentTime, 0.36);
       voice.panner.positionX.setTargetAtTime(source.x, state.context.currentTime, 0.12);
@@ -1316,104 +872,6 @@ function getRainWaterSources() {
     .map((drop, index) => ({ ...drop, index }))
     .sort((a, b) => (b.height * b.width) - (a.height * a.width))
     .slice(0, 4);
-}
-
-function getRainWaterVoice(state, id, source) {
-  if (state.waterfallVoices.has(id)) return state.waterfallVoices.get(id);
-
-  const sourceNode = state.context.createBufferSource();
-  const filter = state.context.createBiquadFilter();
-  const gain = state.context.createGain();
-  const panner = state.context.createPanner();
-  sourceNode.buffer = state.waterNoiseBuffer;
-  sourceNode.loop = true;
-  filter.type = 'bandpass';
-  filter.frequency.value = 1450 + (source.index % 5) * 180;
-  filter.Q.value = 0.75;
-  gain.gain.value = 0;
-  panner.panningModel = 'HRTF';
-  panner.distanceModel = 'inverse';
-  panner.refDistance = RAIN_WATER_REF_DISTANCE;
-  panner.maxDistance = RAIN_WATER_MAX_DISTANCE;
-  panner.rolloffFactor = 1.4;
-  setAudioParam(panner.positionX, source.x, state.context.currentTime, 0);
-  setAudioParam(panner.positionY, source.y - source.height * 0.42, state.context.currentTime, 0);
-  setAudioParam(panner.positionZ, source.z, state.context.currentTime, 0);
-  sourceNode.connect(filter);
-  filter.connect(gain);
-  gain.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
-  sourceNode.start();
-
-  const voice = { id, source: sourceNode, gain, panner, timerId: null, seed: source.index * 23.41 };
-  state.waterfallVoices.set(id, voice);
-  scheduleRainDripPulse(state, voice);
-  return voice;
-}
-
-function scheduleRainDripPulse(state, voice) {
-  const delay = 220 + Math.floor(Math.random() * 980 + voice.seed % 160);
-  voice.timerId = window.setTimeout(() => {
-    voice.timerId = null;
-    if (audioState !== state || !state.waterfallVoices.has(voice.id)) return;
-
-    playRainDripPulse(state, voice);
-    scheduleRainDripPulse(state, voice);
-  }, delay);
-}
-
-function playRainDripPulse(state, voice) {
-  if (state.audioBuffers.has(RAIN_SPOT_DRIP_SOUND_URL)) {
-    playOneShotToNode(
-      state,
-      RAIN_SPOT_DRIP_SOUND_URL,
-      voice.panner,
-      RAIN_DRIP_GAIN * (0.55 + Math.random() * 0.7),
-    );
-    return;
-  }
-
-  const now = state.context.currentTime;
-  const oscillator = state.context.createOscillator();
-  const envelope = state.context.createGain();
-  oscillator.type = 'triangle';
-  oscillator.frequency.setValueAtTime(880 + Math.random() * 1700, now);
-  envelope.gain.setValueAtTime(0.0001, now);
-  envelope.gain.exponentialRampToValueAtTime(RAIN_DRIP_GAIN * (0.45 + Math.random() * 0.55), now + 0.006);
-  envelope.gain.exponentialRampToValueAtTime(0.0001, now + 0.055 + Math.random() * 0.08);
-  oscillator.connect(envelope);
-  envelope.connect(voice.panner);
-  oscillator.start(now);
-  oscillator.stop(now + 0.18);
-}
-
-function stopRainWaterVoice(state, voice) {
-  if (voice.timerId) {
-    window.clearTimeout(voice.timerId);
-    voice.timerId = null;
-  }
-  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.12);
-  window.setTimeout(() => {
-    try {
-      voice.source.stop();
-    } catch {
-      // Already stopped by the browser audio engine.
-    }
-  }, 220);
-}
-
-function ensureZombieGruntLoop(state) {
-  if (state.audioBuffers.has(ZOMBIE_GRUNT_LOOP_URL) || state.zombieLoopLoading || state.zombieLoopFailed) return;
-
-  state.zombieLoopLoading = true;
-  loadAudioBuffer(state, ZOMBIE_GRUNT_LOOP_URL)
-    .catch((error) => {
-      state.zombieLoopFailed = true;
-      console.warn(error);
-    })
-    .finally(() => {
-      state.zombieLoopLoading = false;
-    });
 }
 
 function syncZombieSpatialAudio(state) {
@@ -1453,56 +911,6 @@ function syncZombieSpatialAudio(state) {
   }
 }
 
-function getZombieVoice(state, zombie, buffer) {
-  if (state.zombieVoices.has(zombie.id)) return state.zombieVoices.get(zombie.id);
-
-  const source = state.context.createBufferSource();
-  const gain = state.context.createGain();
-  const filter = state.context.createBiquadFilter();
-  const panner = state.context.createPanner();
-  source.buffer = buffer;
-  source.loop = true;
-  gain.gain.value = 0;
-  filter.type = 'lowpass';
-  filter.frequency.value = ZOMBIE_GRUNT_OPEN_FILTER_HZ;
-  filter.Q.value = 0.6;
-  panner.panningModel = 'HRTF';
-  panner.distanceModel = 'inverse';
-  panner.refDistance = ZOMBIE_GRUNT_FULL_VOLUME_DISTANCE;
-  panner.maxDistance = ZOMBIE_GRUNT_MAX_DISTANCE;
-  panner.rolloffFactor = 2.9;
-  setAudioParam(panner.positionX, zombie.x, state.context.currentTime, 0);
-  setAudioParam(panner.positionY, zombie.y, state.context.currentTime, 0);
-  setAudioParam(panner.positionZ, zombie.z, state.context.currentTime, 0);
-  source.connect(gain);
-  gain.connect(filter);
-  filter.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
-  source.start();
-
-  const voice = { source, gain, filter, panner };
-  state.zombieVoices.set(zombie.id, voice);
-  return voice;
-}
-
-function stopZombieVoices(state) {
-  for (const voice of state.zombieVoices.values()) {
-    stopZombieVoice(state, voice);
-  }
-  state.zombieVoices.clear();
-}
-
-function stopZombieVoice(state, voice) {
-  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
-  setTimeout(() => {
-    try {
-      voice.source.stop();
-    } catch {
-      // Already stopped by the browser audio engine.
-    }
-  }, 160);
-}
-
 function syncSpecialEnemyAudio(state) {
   const activeIds = new Set();
   if (!titleActive && !optionsDialog.open && !deathState.active && effects.zombies) {
@@ -1530,7 +938,11 @@ function syncSpecialEnemyAudio(state) {
       voice.panner.positionY.setTargetAtTime(enemy.y, state.context.currentTime, 0.08);
       voice.panner.positionZ.setTargetAtTime(enemy.z, state.context.currentTime, 0.08);
       if (Math.hypot(player.x - enemy.x, player.z - enemy.z) < 1.7) {
-        playEnemyAttackSound(state, enemy, 0.72);
+        playEnemyAttackSound(state, enemy, profile, {
+          playerY: player.y,
+          volumeScale: 0.72,
+          isCurrent: isCurrentAudioState,
+        });
       }
     }
   }
@@ -1551,55 +963,6 @@ function getEnemyAudioProfile(enemy) {
   return ENEMY_AUDIO_PROFILES[enemy?.enemyType ?? 'zombie'] ?? ENEMY_AUDIO_PROFILES.zombie;
 }
 
-function getSpecialEnemyVoice(state, enemy, buffer, profile) {
-  if (state.specialEnemyVoices.has(enemy.id)) return state.specialEnemyVoices.get(enemy.id);
-
-  const source = state.context.createBufferSource();
-  const gain = state.context.createGain();
-  const filter = state.context.createBiquadFilter();
-  const panner = state.context.createPanner();
-
-  source.buffer = buffer;
-  source.loop = true;
-  gain.gain.value = 0;
-  filter.type = enemy.enemyType === 'one-eye-alien' ? 'bandpass' : 'lowpass';
-  filter.frequency.value = profile.openFilterHz;
-  filter.Q.value = enemy.enemyType === 'one-eye-alien' ? 5.5 : 1.4;
-  panner.panningModel = 'HRTF';
-  panner.distanceModel = 'inverse';
-  panner.refDistance = SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE;
-  panner.maxDistance = SPECIAL_ENEMY_LOOP_MAX_DISTANCE;
-  panner.rolloffFactor = enemy.enemyType === 'one-eye-alien' ? 2.4 : 2.0;
-  setAudioParam(panner.positionX, enemy.x, state.context.currentTime, 0);
-  setAudioParam(panner.positionY, enemy.y, state.context.currentTime, 0);
-  setAudioParam(panner.positionZ, enemy.z, state.context.currentTime, 0);
-  source.connect(filter);
-  filter.connect(gain);
-  gain.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
-  source.start();
-
-  const voice = {
-    source,
-    gain,
-    filter,
-    panner,
-  };
-  state.specialEnemyVoices.set(enemy.id, voice);
-  return voice;
-}
-
-function stopSpecialEnemyVoice(state, voice) {
-  voice.gain.gain.setTargetAtTime(0, state.context.currentTime, 0.08);
-  setTimeout(() => {
-    try {
-      voice.source.stop();
-    } catch {
-      // Already stopped by the browser audio engine.
-    }
-  }, 160);
-}
-
 function getSpecialEnemyLoopGain(enemy) {
   const distance = Math.hypot(player.x - enemy.x, player.z - enemy.z);
   if (distance >= SPECIAL_ENEMY_LOOP_MAX_DISTANCE) return 0;
@@ -1609,20 +972,6 @@ function getSpecialEnemyLoopGain(enemy) {
   const fadeRange = SPECIAL_ENEMY_LOOP_MAX_DISTANCE - SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE;
   const fade = 1 - (distance - SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE) / fadeRange;
   return Math.max(0, Math.min(maxGain, fade * fade * maxGain * occlusion));
-}
-
-function playEnemyAttackSound(state, enemy, volumeScale = 1) {
-  const now = performance.now();
-  const lastAttackAt = state.enemyAttackTimes.get(enemy.id) ?? -Infinity;
-  if (now - lastAttackAt < SPECIAL_ENEMY_ATTACK_COOLDOWN_MS) return;
-
-  state.enemyAttackTimes.set(enemy.id, now);
-  const profile = getEnemyAudioProfile(enemy);
-  playSpatialOneShot(state, profile.attackUrl, enemy, profile.attackGain * volumeScale, {
-    refDistance: 1,
-    maxDistance: 20,
-    rolloffFactor: enemy.enemyType === 'molten-sentinel' ? 1.6 : 2.2,
-  });
 }
 
 function getZombieGruntGain(zombie) {
@@ -1640,115 +989,11 @@ function getZombieGruntGain(zombie) {
 }
 
 function isZombieAudioOccluded(zombie) {
-  return colliders.some((collider) => {
-    if (!collider) return false;
-    if (Math.max(player.y, zombie.y) < collider.minY || Math.min(player.y, zombie.y) > collider.maxY) return false;
-    return lineIntersectsCollider2D(
-      { x: player.x, z: player.z },
-      { x: zombie.x, z: zombie.z },
-      collider,
-    );
-  });
-}
-
-function lineIntersectsCollider2D(start, end, collider) {
-  if (pointInsideCollider2D(start, collider) || pointInsideCollider2D(end, collider)) return false;
-
-  const dx = end.x - start.x;
-  const dz = end.z - start.z;
-  let tMin = 0;
-  let tMax = 1;
-
-  const xHit = clipSegmentAxis(start.x, dx, collider.minX, collider.maxX, tMin, tMax);
-  if (!xHit.hit) return false;
-  tMin = xHit.tMin;
-  tMax = xHit.tMax;
-
-  const zHit = clipSegmentAxis(start.z, dz, collider.minZ, collider.maxZ, tMin, tMax);
-  return zHit.hit;
-}
-
-function clipSegmentAxis(start, delta, min, max, tMin, tMax) {
-  if (Math.abs(delta) < 0.0001) {
-    return { hit: start >= min && start <= max, tMin, tMax };
-  }
-
-  const inverse = 1 / delta;
-  let near = (min - start) * inverse;
-  let far = (max - start) * inverse;
-  if (near > far) {
-    const swap = near;
-    near = far;
-    far = swap;
-  }
-
-  const nextMin = Math.max(tMin, near);
-  const nextMax = Math.min(tMax, far);
-  return { hit: nextMin <= nextMax, tMin: nextMin, tMax: nextMax };
-}
-
-function pointInsideCollider2D(point, collider) {
-  return point.x >= collider.minX
-    && point.x <= collider.maxX
-    && point.z >= collider.minZ
-    && point.z <= collider.maxZ;
-}
-
-function updateAudioListener(state) {
-  const listener = state.context.listener;
-  const time = state.context.currentTime;
-  const forwardX = Math.sin(player.yaw) * Math.cos(player.pitch);
-  const forwardY = Math.sin(player.pitch);
-  const forwardZ = -Math.cos(player.yaw) * Math.cos(player.pitch);
-
-  if (listener.positionX) {
-    listener.positionX.setTargetAtTime(player.x, time, 0.05);
-    listener.positionY.setTargetAtTime(player.y, time, 0.05);
-    listener.positionZ.setTargetAtTime(player.z, time, 0.05);
-    listener.forwardX.setTargetAtTime(forwardX, time, 0.05);
-    listener.forwardY.setTargetAtTime(forwardY, time, 0.05);
-    listener.forwardZ.setTargetAtTime(forwardZ, time, 0.05);
-    listener.upX.setTargetAtTime(0, time, 0.05);
-    listener.upY.setTargetAtTime(1, time, 0.05);
-    listener.upZ.setTargetAtTime(0, time, 0.05);
-  } else {
-    listener.setPosition(player.x, player.y, player.z);
-    listener.setOrientation(forwardX, forwardY, forwardZ, 0, 1, 0);
-  }
-}
-
-function applySceneReverb(state) {
-  const reverbId = world.audio.reverb;
-  const preset = SCENE_REVERB_PRESETS[reverbId] ?? SCENE_REVERB_PRESETS['tight-room'];
-  if (state.activeReverbId !== reverbId) {
-    state.convolver.buffer = createReverbImpulse(state.context, preset);
-    state.activeReverbId = reverbId;
-  }
-  state.reverbWetGain.gain.setTargetAtTime(preset.wet, state.context.currentTime, 0.8);
-}
-
-function createReverbImpulse(context, preset) {
-  const length = Math.max(1, Math.floor(context.sampleRate * preset.duration));
-  const impulse = context.createBuffer(2, length, context.sampleRate);
-
-  for (let channel = 0; channel < 2; channel += 1) {
-    const data = impulse.getChannelData(channel);
-    for (let i = 0; i < length; i += 1) {
-      const phase = i / length;
-      const bitCrush = ((i * 1103515245 + channel * 12345) & 255) / 128 - 1;
-      data[i] = bitCrush * ((1 - phase) ** preset.decay) * 0.42;
-    }
-  }
-
-  return impulse;
-}
-
-function setAudioParam(param, value, time, smoothing) {
-  if (smoothing > 0) {
-    param.setTargetAtTime(value, time, smoothing);
-  } else {
-    param.setValueAtTime(value, time);
-  }
+  return isAudioPathOccluded(
+    { x: player.x, y: player.y, z: player.z },
+    { x: zombie.x, y: zombie.y, z: zombie.z },
+    colliders,
+  );
 }
 
 function createViewProjection(now = performance.now()) {
@@ -1758,7 +1003,23 @@ function createViewProjection(now = performance.now()) {
 }
 
 function getActiveCamera(now) {
-  return deathState.active ? getDeathSceneCamera(now) : player;
+  if (deathState.active) return getDeathSceneCamera(deathState, player, now);
+  return getBossImpactCamera(now);
+}
+
+function getBossImpactCamera(now) {
+  const progress = (now - bossImpactShakeStartedAt) / BOSS_IMPACT_SHAKE_DURATION_MS;
+  if (progress < 0 || progress > 1 || bossImpactShakeStrength <= 0) return player;
+
+  const fade = 1 - progress;
+  const shake = Math.sin(now * 0.11) * bossImpactShakeStrength * fade;
+  const sideShake = Math.cos(now * 0.083) * bossImpactShakeStrength * fade * 0.62;
+  return {
+    ...player,
+    x: player.x + sideShake,
+    y: player.y + Math.abs(shake) * 0.55,
+    z: player.z + shake,
+  };
 }
 
 function resize() {
@@ -1913,17 +1174,16 @@ function setupTouchControls() {
 }
 
 function updateTouchMovement(event) {
-  const maxDistance = 48;
-  const dx = event.clientX - touchMovement.originX;
-  const dy = event.clientY - touchMovement.originY;
-  const distance = Math.min(maxDistance, Math.hypot(dx, dy));
-  const angle = Math.atan2(dy, dx);
-  const stickX = Math.cos(angle) * distance;
-  const stickY = Math.sin(angle) * distance;
+  const joystick = createTouchJoystickState({
+    originX: touchMovement.originX,
+    originY: touchMovement.originY,
+    clientX: event.clientX,
+    clientY: event.clientY,
+  });
 
-  touchMovement.x = stickX / maxDistance;
-  touchMovement.z = -stickY / maxDistance;
-  touchMoveStick.style.transform = `translate(${stickX}px, ${stickY}px)`;
+  touchMovement.x = joystick.x;
+  touchMovement.z = joystick.z;
+  touchMoveStick.style.transform = `translate(${joystick.stickX}px, ${joystick.stickY}px)`;
 }
 
 function updateTouchLook(event) {
@@ -1966,37 +1226,27 @@ function updateGamepadInput() {
     return;
   }
 
-  const pressedButtons = new Set();
-  for (let index = 0; index < gamepad.buttons.length; index += 1) {
-    if (buttonPressed(gamepad, index)) pressedButtons.add(index);
-  }
-
-  const jumpPressed = buttonPressed(gamepad, 0);
-  const menuButtonPressed = buttonPressed(gamepad, 9);
-  const menuPressed = menuButtonPressed && !gamepadInput.previousButtons.has(9);
-  const startPressed = (jumpPressed || menuButtonPressed)
-    && !gamepadInput.previousButtons.has(0)
-    && !gamepadInput.previousButtons.has(9);
+  const snapshot = createGamepadSnapshot(gamepad, gamepadInput.previousButtons);
 
   if (titleActive) {
-    if (startPressed) startRandomScene();
-    gamepadInput.previousButtons = pressedButtons;
+    if (snapshot.startPressed) startRandomScene();
+    gamepadInput.previousButtons = snapshot.pressedButtons;
     return;
   }
 
-  gamepadInput.x = normalizeGamepadAxis(gamepad.axes[0] ?? 0);
-  gamepadInput.z = -normalizeGamepadAxis(gamepad.axes[1] ?? 0);
-  gamepadInput.lookX = normalizeGamepadAxis(gamepad.axes[2] ?? 0);
-  gamepadInput.lookY = normalizeGamepadAxis(gamepad.axes[3] ?? 0);
-  gamepadInput.jump = jumpPressed;
-  gamepadInput.sprint = pressedButtons.has(4) || pressedButtons.has(5) || pressedButtons.has(6) || pressedButtons.has(7);
+  gamepadInput.x = snapshot.x;
+  gamepadInput.z = snapshot.z;
+  gamepadInput.lookX = snapshot.lookX;
+  gamepadInput.lookY = snapshot.lookY;
+  gamepadInput.jump = snapshot.jump;
+  gamepadInput.sprint = snapshot.sprint;
 
-  if (menuPressed) {
+  if (snapshot.menuPressed) {
     ensureSceneAudio();
     toggleOptions();
   }
 
-  gamepadInput.previousButtons = pressedButtons;
+  gamepadInput.previousButtons = snapshot.pressedButtons;
 }
 
 function applyGamepadLook(dt) {
@@ -2015,18 +1265,6 @@ function applyGamepadLook(dt) {
 function getPrimaryGamepad() {
   const pads = navigator.getGamepads?.() ?? [];
   return [...pads].find((pad) => pad?.connected) ?? null;
-}
-
-function normalizeGamepadAxis(value) {
-  if (Math.abs(value) < GAMEPAD_DEADZONE) return 0;
-
-  const sign = Math.sign(value);
-  return sign * Math.min(1, (Math.abs(value) - GAMEPAD_DEADZONE) / (1 - GAMEPAD_DEADZONE));
-}
-
-function buttonPressed(gamepad, index) {
-  const button = gamepad.buttons[index];
-  return Boolean(button?.pressed || button?.value > 0.5);
 }
 
 function resetGamepadInput() {
@@ -2088,19 +1326,12 @@ function updateSoftMouseEdgeTurn(event) {
     return;
   }
 
-  const edgeX = Math.max(80, window.innerWidth * 0.12);
-  const edgeY = Math.max(60, window.innerHeight * 0.12);
-  const rightStart = window.innerWidth - edgeX;
-  const bottomStart = window.innerHeight - edgeY;
-  let yaw = 0;
-  let pitch = 0;
-
-  if (event.clientX < edgeX) yaw = -((edgeX - event.clientX) / edgeX) * 3.2;
-  if (event.clientX > rightStart) yaw = ((event.clientX - rightStart) / edgeX) * 3.2;
-  if (event.clientY < edgeY) pitch = (edgeY - event.clientY) / edgeY * 1.4;
-  if (event.clientY > bottomStart) pitch = -((event.clientY - bottomStart) / edgeY) * 1.4;
-
-  softMouseEdgeTurn = { yaw, pitch };
+  softMouseEdgeTurn = createSoftMouseEdgeTurn({
+    clientX: event.clientX,
+    clientY: event.clientY,
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 }
 
 function updateContinuousMouseLook(dt) {
@@ -2360,6 +1591,8 @@ function startCutUpMode() {
   setScene(SCENE_DEFINITIONS[0].id);
   healthPotions = createSceneHealthPotions(world);
   damageZones = createSceneDamageZones(world);
+  hordeState = createHordeState(world);
+  bloodBursts = [];
   resetPlayerToSpawn();
   rebuildWarehouseMesh();
   syncSceneSelect();
@@ -2469,161 +1702,14 @@ function completeRogueRun() {
   playUiOneShot(ROGUE_WIN_SOUND_URL, UI_SFX_GAIN);
 }
 
-const TITLE_WIDTH = 512;
-const TITLE_HEIGHT = 480;
-const TITLE_LAST_COMMIT_MESSAGE = 'last commit polish scenes and gameplay feedback';
-const TITLE_FONT = Object.freeze({
-  ' ': ['0', '0', '0', '0', '0', '0', '0'],
-  '-': ['00000', '00000', '00000', '11110', '00000', '00000', '00000'],
-  '+': ['00000', '00100', '00100', '11111', '00100', '00100', '00000'],
-  '[': ['111', '100', '100', '100', '100', '100', '111'],
-  ']': ['111', '001', '001', '001', '001', '001', '111'],
-  '1': ['01100', '11100', '01100', '01100', '01100', '01100', '11110'],
-  '2': ['11110', '00010', '00010', '11110', '10000', '10000', '11110'],
-  '5': ['11110', '10000', '10000', '11110', '00010', '00010', '11110'],
-  a: ['01100', '10010', '10010', '11110', '10010', '10010', '10010'],
-  b: ['11100', '10010', '10010', '11100', '10010', '10010', '11100'],
-  c: ['01110', '10000', '10000', '10000', '10000', '10000', '01110'],
-  d: ['11100', '10010', '10010', '10010', '10010', '10010', '11100'],
-  e: ['11110', '10000', '10000', '11100', '10000', '10000', '11110'],
-  f: ['11110', '10000', '10000', '11100', '10000', '10000', '10000'],
-  g: ['01110', '10000', '10000', '10110', '10010', '10010', '01110'],
-  h: ['10010', '10010', '10010', '11110', '10010', '10010', '10010'],
-  i: ['11100', '01000', '01000', '01000', '01000', '01000', '11100'],
-  k: ['10010', '10100', '11000', '10100', '10010', '10010', '10010'],
-  l: ['10000', '10000', '10000', '10000', '10000', '10000', '11110'],
-  m: ['10001', '11011', '10101', '10101', '10001', '10001', '10001'],
-  n: ['10010', '11010', '10110', '10010', '10010', '10010', '10010'],
-  o: ['01100', '10010', '10010', '10010', '10010', '10010', '01100'],
-  p: ['11100', '10010', '10010', '11100', '10000', '10000', '10000'],
-  r: ['11100', '10010', '10010', '11100', '10100', '10010', '10010'],
-  s: ['01110', '10000', '10000', '01100', '00010', '00010', '11100'],
-  t: ['11110', '00100', '00100', '00100', '00100', '00100', '00100'],
-  u: ['10010', '10010', '10010', '10010', '10010', '10010', '01100'],
-  w: ['10001', '10001', '10001', '10101', '10101', '11011', '10001'],
-  y: ['10010', '10010', '10010', '01110', '00100', '00100', '00100'],
-  z: ['11110', '00010', '00100', '01000', '10000', '10000', '11110'],
-});
-
 function renderTitleScreen(time) {
-  titleContext.imageSmoothingEnabled = false;
-  titleContext.clearRect(0, 0, TITLE_WIDTH, TITLE_HEIGHT);
-  drawTitleBackdrop(time);
-  drawCenteredBitmapText('ps1-world', 146, 7, '#17100b', time, { x: 6, y: 6 });
-  drawCenteredBitmapText('ps1-world', 146, 7, '#1ca6a5', time, { x: -2, y: 1 });
-  drawCenteredBitmapText('ps1-world', 146, 7, '#b42638', time, { x: 2, y: 0 });
-  drawCenteredBitmapText('ps1-world', 146, 7, '#f3dc92', time);
-  drawBloodWarningText(time);
-  const titleButtonBlink = getTitleButtonBlink(time);
-  drawBitmapButton(time, { y: 264, label: 'free roam', active: titleButtonState.active, blink: titleButtonBlink });
-  drawBitmapButton(time, { y: 310, label: 'cut-up mode', active: cutUpButtonState.active, blink: titleButtonBlink });
-  drawBitmapButton(time, { y: 356, label: 'rogue', active: rogueButtonState.active, blink: titleButtonBlink });
-  drawCenteredBitmapText('wasd+mouse or gamepad', 416, 1.25, '#cfc7aa', time);
-  drawCenteredBitmapText(TITLE_LAST_COMMIT_MESSAGE, 462, 1, '#8f8a77', time);
-}
-
-function drawBloodWarningText(time) {
-  const text = 'watch out for the zombies';
-  const y = 234;
-  const scale = 1.5;
-  drawCenteredBitmapText(text, y + 2, scale, '#280205', time, { x: 1, y: 1 });
-  drawCenteredBitmapText(text, y + 1, scale, '#5e0b16', time, { x: Math.sin(time * 9) > 0.72 ? 1 : 0, y: 0 });
-  drawCenteredBitmapText(text, y, scale, '#b42638', time);
-  drawBloodDrips(text, y, scale, time);
-}
-
-function drawBloodDrips(text, y, scale, time) {
-  const width = measureBitmapText(text, scale);
-  const x = Math.floor((TITLE_WIDTH - width) / 2);
-  const dripColumns = [20, 82, 142, 198];
-  titleContext.fillStyle = '#5e0b16';
-  for (const column of dripColumns) {
-    const length = 4 + Math.floor(Math.abs(Math.sin(time * 3.2 + column)) * 6);
-    titleContext.fillRect(x + column * 0.75, y + 12, scale, length);
-  }
-}
-
-function drawTitleBackdrop(time) {
-  const pulse = Math.sin(time * 1.7) * 10;
-  const gradient = titleContext.createRadialGradient(256, 218, 12, 256, 218, 260);
-  gradient.addColorStop(0, '#321316');
-  gradient.addColorStop(0.34, '#180b0c');
-  gradient.addColorStop(1, '#050505');
-  titleContext.fillStyle = gradient;
-  titleContext.fillRect(0, 0, TITLE_WIDTH, TITLE_HEIGHT);
-
-  titleContext.fillStyle = 'rgba(242, 213, 138, 0.035)';
-  for (let y = 0; y < TITLE_HEIGHT; y += 4) {
-    titleContext.fillRect(0, y, TITLE_WIDTH, 1);
-  }
-
-  titleContext.fillStyle = 'rgba(42, 176, 181, 0.07)';
-  for (let x = 0; x < TITLE_WIDTH; x += 32) {
-    const jitter = Math.floor(Math.sin(time * 2 + x) * 2);
-    titleContext.fillRect(x + jitter, 0, 1, TITLE_HEIGHT);
-  }
-
-  titleContext.fillStyle = 'rgba(190, 38, 54, 0.12)';
-  titleContext.fillRect(132, 174 + Math.floor(pulse / 8), 248, 86);
-}
-
-function drawBitmapButton(time, options) {
-  const width = 150;
-  const height = 32;
-  const textScale = 1.5;
-  const x = Math.floor((TITLE_WIDTH - width) / 2);
-  const y = options.y;
-  const active = options.active || options.blink;
-  titleContext.fillStyle = active ? '#f0d38a' : '#17110d';
-  titleContext.fillRect(x, y, width, height);
-  titleContext.fillStyle = active ? '#17110d' : '#f0d38a';
-  titleContext.fillRect(x, y, width, 3);
-  titleContext.fillRect(x, y + height - 3, width, 3);
-  titleContext.fillRect(x, y, 3, height);
-  titleContext.fillRect(x + width - 3, y, 3, height);
-  drawCenteredBitmapText(options.label, y + 10, textScale, active ? '#17110d' : '#f7e9b7', time);
-}
-
-function getTitleButtonBlink(time) {
-  return Math.sin(time * 5) > 0.74;
-}
-
-function drawCenteredBitmapText(text, y, scale, color, time, offset = { x: 0, y: 0 }) {
-  const width = measureBitmapText(text, scale);
-  const snap = Math.sin(time * 24 + y) > 0.92 ? 1 : 0;
-  drawBitmapText(text, Math.floor((TITLE_WIDTH - width) / 2 + offset.x + snap), y + offset.y, scale, color);
-}
-
-function drawRightAlignedBitmapText(text, right, y, scale, color) {
-  drawBitmapText(text, right - measureBitmapText(text, scale), y, scale, color);
-}
-
-function drawBitmapText(text, x, y, scale, color) {
-  let cursor = x;
-  titleContext.fillStyle = color;
-
-  for (const character of text) {
-    const glyph = TITLE_FONT[character] ?? TITLE_FONT[' '];
-    drawBitmapGlyph(glyph, cursor, y, scale);
-    cursor += (glyph[0].length + 1) * scale;
-  }
-}
-
-function drawBitmapGlyph(glyph, x, y, scale) {
-  for (let row = 0; row < glyph.length; row += 1) {
-    for (let column = 0; column < glyph[row].length; column += 1) {
-      if (glyph[row][column] === '1') {
-        titleContext.fillRect(x + column * scale, y + row * scale, scale, scale);
-      }
-    }
-  }
-}
-
-function measureBitmapText(text, scale) {
-  return [...text].reduce((width, character, index) => {
-    const glyph = TITLE_FONT[character] ?? TITLE_FONT[' '];
-    return width + glyph[0].length * scale + (index === text.length - 1 ? 0 : scale);
-  }, 0);
+  drawTitleScreen(titleContext, time, {
+    buttons: {
+      freeRoam: titleButtonState.active,
+      cutUp: cutUpButtonState.active,
+      rogue: rogueButtonState.active,
+    },
+  });
 }
 
 function toggleOptions() {
@@ -2674,20 +1760,23 @@ function syncReticule() {
 }
 
 function updateDebugHud(dt) {
-  const instantFps = dt > 0 ? 1 / dt : 0;
-  debugHud.fps = debugHud.fps ? debugHud.fps * 0.9 + instantFps * 0.1 : instantFps;
-
-  if (!debugHudPanel) return;
-
-  debugHudPanel.hidden = !effects.debugHud;
-  if (!effects.debugHud) return;
-
   const zombieCount = zombies.length;
-  const enemyCount = effects.zombies ? zombieCount : 0;
-  if (debugFps) debugFps.textContent = String(Math.round(debugHud.fps));
-  if (debugScene) debugScene.textContent = world.label;
-  if (debugZombies) debugZombies.textContent = String(zombieCount);
-  if (debugEnemies) debugEnemies.textContent = String(enemyCount);
+  const snapshot = createDebugHudSnapshot({
+    previousFps: debugHud.fps,
+    dt,
+    debugEnabled: effects.debugHud,
+    sceneLabel: world.label,
+    zombieCount,
+    zombiesEnabled: effects.zombies,
+  });
+  debugHud.fps = snapshot.fps;
+  applyDebugHudSnapshot({
+    panel: debugHudPanel,
+    fps: debugFps,
+    scene: debugScene,
+    zombies: debugZombies,
+    enemies: debugEnemies,
+  }, snapshot);
 }
 
 function damagePlayer(now, enemy = null) {
@@ -2701,7 +1790,12 @@ function damagePlayer(now, enemy = null) {
     lowHealthNoticeStartedAt = now;
   }
   const state = ensureAudioState();
-  if (state && enemy) playEnemyAttackSound(state, enemy, 1);
+  if (state && enemy) {
+    playEnemyAttackSound(state, enemy, getEnemyAudioProfile(enemy), {
+      playerY: player.y,
+      isCurrent: isCurrentAudioState,
+    });
+  }
   playPlayerOneShot(PLAYER_DAMAGE_SOUND_URL, PLAYER_DAMAGE_SOUND_GAIN);
   if (playerHealth.dead) {
     startDeathSequence(now, { damage: false });
@@ -2710,6 +1804,48 @@ function damagePlayer(now, enemy = null) {
 
 function getEnemyDamage(enemy) {
   return enemy?.damage ?? getEnemyDefinition(enemy?.enemyType).base.attackDamage ?? ZOMBIE_BITE_DAMAGE;
+}
+
+function createEnemyBloodBursts(previousEnemies, currentEnemies, now) {
+  const previousById = new Map(previousEnemies.map((enemy) => [enemy.id, enemy]));
+  return currentEnemies
+    .filter((enemy) => (
+      enemy.state === 'dying' && previousById.get(enemy.id)?.state !== 'dying'
+    ) || (
+      enemy.hitByEnemyType === 'molten-sentinel'
+      && enemy.lastHitAt === now
+      && previousById.get(enemy.id)?.lastHitAt !== enemy.lastHitAt
+    ))
+    .map((enemy) => createBloodBurst(enemy, now));
+}
+
+function triggerBossImpactFeedback(previousEnemies, currentEnemies, now) {
+  const previousById = new Map(previousEnemies.map((enemy) => [enemy.id, enemy]));
+  const victim = currentEnemies.find((enemy) => (
+    enemy.hitByEnemyType === 'molten-sentinel'
+    && enemy.lastHitAt === now
+    && previousById.get(enemy.id)?.lastHitAt !== enemy.lastHitAt
+  ));
+  if (!victim) return;
+
+  const boss = currentEnemies.find((enemy) => enemy.id === victim.hitById);
+  if (boss) {
+    const state = ensureAudioState();
+    if (state) {
+      playEnemyAttackSound(state, boss, getEnemyAudioProfile(boss), {
+        playerY: player.y,
+        volumeScale: 1.18,
+        isCurrent: isCurrentAudioState,
+      });
+    }
+  }
+
+  const distance = Math.hypot(player.x - victim.x, player.z - victim.z);
+  if (distance <= BOSS_IMPACT_SHAKE_DISTANCE) {
+    const distanceFade = 1 - distance / BOSS_IMPACT_SHAKE_DISTANCE;
+    bossImpactShakeStartedAt = now;
+    bossImpactShakeStrength = BOSS_IMPACT_SHAKE_STRENGTH * (0.35 + distanceFade * 0.65);
+  }
 }
 
 function randomizeDamageScratch() {
@@ -2769,34 +1905,30 @@ function updateHealthPotions(now) {
 }
 
 function getHealthEffectStrength(now) {
-  if (titleActive || optionsDialog.open || deathState.active) return { danger: 0, pulse: 0 };
-
-  const danger = getHealthDanger(playerHealth);
-  if (danger <= 0) return { danger: 0, pulse: 0 };
-
-  const pulse = (Math.sin(now * 0.012) * 0.5 + 0.5) * danger;
-  return {
-    danger,
-    pulse: danger >= 1 ? pulse : pulse * 0.48,
-  };
+  return getHealthEffectStrengthAmount({
+    playerHealth,
+    now,
+    titleActive,
+    optionsOpen: optionsDialog.open,
+    deathActive: deathState.active,
+  });
 }
 
 function getHealthPickupFlash(now) {
-  const elapsed = now - healthPickupFlashStartedAt;
-  if (elapsed < 0 || elapsed > HEALTH_PICKUP_FLASH_DURATION_MS) return 0;
-
-  const progress = elapsed / HEALTH_PICKUP_FLASH_DURATION_MS;
-  return (1 - progress) * (1 - progress);
+  return getHealthPickupFlashAmount({
+    now,
+    startedAt: healthPickupFlashStartedAt,
+  });
 }
 
 function getDamageFlash(now) {
-  if (titleActive || optionsDialog.open || deathState.active) return 0;
-
-  const elapsed = now - lastDamageFlashStartedAt;
-  if (elapsed < 0 || elapsed > DAMAGE_FLASH_DURATION_MS) return 0;
-
-  const progress = elapsed / DAMAGE_FLASH_DURATION_MS;
-  return Math.max(0, (1 - progress) * (1 - progress));
+  return getDamageFlashAmount({
+    now,
+    startedAt: lastDamageFlashStartedAt,
+    titleActive,
+    optionsOpen: optionsDialog.open,
+    deathActive: deathState.active,
+  });
 }
 
 function updateLowHealthNotice(now) {
@@ -2814,7 +1946,12 @@ function updateLowHealthNotice(now) {
 function startDeathSequence(now, options = {}) {
   if (deathState.active) return;
 
-  const scene = createDeathScene(now, options);
+  const scene = createDeathScene({
+    now,
+    player,
+    world,
+    profileId: options.profile,
+  });
   deathState.active = true;
   deathState.startedAt = now;
   deathState.profile = scene.profile;
@@ -2846,60 +1983,12 @@ function updateDeathSequence(now) {
   resetPlayerToSpawn();
 }
 
-function createDeathScene(now, options = {}) {
-  const profile = DEATH_SCENE_PROFILES[options.profile ?? 'collapseSplat'];
-  const startY = player.y;
-  const floorY = (player.groundY ?? world.playerSpawn.y) + 0.22;
-  const cameraImpactY = Math.min(floorY, startY - profile.dropDistance);
-  return {
-    startedAt: now,
-    profile,
-    cameraStart: {
-      x: player.x,
-      y: startY,
-      z: player.z,
-      yaw: player.yaw,
-      pitch: player.pitch,
-    },
-    cameraImpactY,
-  };
-}
-
-function getDeathSceneCamera(now) {
-  if (!deathState.cameraStart || !deathState.profile) return player;
-
-  const progress = getDeathSceneProgress(now);
-  const profile = deathState.profile;
-  const impactProgress = Math.min(1, progress / profile.impactAt);
-  const fall = easeInCubic(impactProgress);
-  const afterImpact = Math.max(0, (progress - profile.impactAt) / (1 - profile.impactAt));
-  const impactBounce = Math.sin(afterImpact * Math.PI * profile.bounceCount)
-    * (1 - afterImpact)
-    * profile.bounceHeight;
-  const finalJiggle = getDeathSceneFinalProgress(now);
-  const finalJiggleStrength = finalJiggle * profile.finalJiggleStrength;
-  const cameraJiggleYaw = Math.sin(progress * 122.0) * finalJiggleStrength;
-  const cameraJigglePitch = Math.cos(progress * 147.0) * finalJiggleStrength * 0.7;
-
-  return {
-    ...deathState.cameraStart,
-    y: deathState.cameraStart.y + (deathState.cameraImpactY - deathState.cameraStart.y) * fall + impactBounce,
-    yaw: deathState.cameraStart.yaw + cameraJiggleYaw,
-    pitch: Math.min(1.28, deathState.cameraStart.pitch + profile.pitchDrop * smoothStep(progress) + cameraJigglePitch),
-  };
-}
-
 function getDeathSceneProgress(now) {
-  if (!deathState.active) return 0;
-  return Math.max(0, Math.min(1, (now - deathState.startedAt) / DEATH_RESPAWN_DELAY_MS));
+  return getDeathSceneProgressAmount(deathState, now);
 }
 
 function getDeathSceneFinalProgress(now) {
-  if (!deathState.active || !deathState.profile) return 0;
-
-  const progress = getDeathSceneProgress(now);
-  const start = deathState.profile.finalJiggleStart;
-  return smoothStep(Math.max(0, Math.min(1, (progress - start) / (1 - start))));
+  return getDeathSceneFinalProgressAmount(deathState, now);
 }
 
 function playFinalDeathRattle() {
@@ -2912,21 +2001,7 @@ function playFinalDeathRattle() {
 }
 
 function getDeathTint(now) {
-  if (!deathState.active) return 0;
-
-  const elapsed = now - deathState.startedAt;
-  const progress = getDeathSceneProgress(now);
-  const finalProgress = getDeathSceneFinalProgress(now);
-  const pulse = Math.sin(elapsed * 0.018) * 0.08;
-  return Math.max(0, Math.min(0.93, 0.32 + smoothStep(progress) * 0.42 + finalProgress * 0.16 + pulse));
-}
-
-function easeInCubic(value) {
-  return value * value * value;
-}
-
-function smoothStep(value) {
-  return value * value * (3 - 2 * value);
+  return getDeathTintAmount(deathState, now);
 }
 
 function syncSceneSelect() {
@@ -3057,83 +2132,6 @@ async function setScene(id) {
   return true;
 }
 
-async function createSceneRuntimeWorld(id) {
-  const fallback = createSceneWorld(id);
-  if (!LEVEL_GLB_URLS[fallback.id]) return fallback;
-
-  try {
-    const levelAsset = await getLoadedLevel(fallback.id);
-    return createWorldFromLevelAsset(fallback, levelAsset);
-  } catch (error) {
-    console.warn(`Falling back to procedural scene ${fallback.id}:`, error);
-    return fallback;
-  }
-}
-
-async function getLoadedLevel(id) {
-  if (!loadedLevels.has(id)) {
-    loadedLevels.set(id, loadLevelGlb(id));
-  }
-  return loadedLevels.get(id);
-}
-
-function createWorldFromLevelAsset(fallback, levelAsset) {
-  const levelColliders = getLevelRuntimeColliders(levelAsset);
-  const levelWalkableSurfaces = getLevelRuntimeWalkableSurfaces(levelAsset);
-  const zombieSpawns = normalizeEnemySpawns(
-    levelAsset.zombieSpawns.length ? levelAsset.zombieSpawns : fallback.zombieSpawns,
-    { colliders: levelColliders, walkableSurfaces: levelWalkableSurfaces, defaultRadius: 0.38 },
-  );
-  const enemySpawns = normalizeEnemySpawns(
-    getRuntimeEnemySpawns(fallback, levelAsset.enemySpawns),
-    { colliders: levelColliders, walkableSurfaces: levelWalkableSurfaces, defaultRadius: 0.38 },
-  );
-
-  return {
-    ...fallback,
-    levelAsset,
-    playerSpawn: levelAsset.playerSpawn ?? fallback.playerSpawn,
-    zombieSpawns,
-    enemySpawns,
-    healthPotions: levelAsset.healthPotions.length ? mergeLevelHealthPotions(levelAsset.healthPotions, fallback.healthPotions) : fallback.healthPotions,
-    damageZones: levelAsset.damageZones.length ? levelAsset.damageZones : fallback.damageZones ?? [],
-    lights: levelAsset.lights.length ? levelAsset.lights : fallback.lights,
-    torchLights: levelAsset.torchLights.length ? levelAsset.torchLights : fallback.torchLights,
-    killY: levelAsset.killY ?? fallback.killY,
-    textures: createLevelTextureDescriptors(levelAsset, fallback),
-  };
-}
-
-function getLevelRuntimeColliders(levelAsset) {
-  return levelAsset.collision.map((collider) => ({
-    minX: collider.minX,
-    maxX: collider.maxX,
-    minY: collider.minY,
-    maxY: collider.maxY,
-    minZ: collider.minZ,
-    maxZ: collider.maxZ,
-  }));
-}
-
-function getLevelRuntimeWalkableSurfaces(levelAsset) {
-  return levelAsset.walkableSurfaces.map((surface) => ({
-    minX: surface.minX,
-    maxX: surface.maxX,
-    minZ: surface.minZ,
-    maxZ: surface.maxZ,
-    topY: surface.topY,
-  }));
-}
-
-function getRuntimeEnemySpawns(fallback, levelEnemySpawns) {
-  const enemySpawns = levelEnemySpawns.length ? levelEnemySpawns : fallback.enemySpawns;
-  return enemySpawns.filter((spawn) => (
-    spawn.enemyType !== 'molten-sentinel'
-    || !fallback.ceiling
-    || (spawn.minimumHeadClearance ?? 0) >= 4.8
-  ));
-}
-
 function resetPlayerToSpawn() {
   deathState.active = false;
   deathState.startedAt = 0;
@@ -3161,931 +2159,20 @@ function resetPlayerToSpawn() {
   zombies = createZombieEnemies(world);
 }
 
-function mergeLevelHealthPotions(levelPotions, fallbackPotions) {
-  return levelPotions.map((potion, index) => ({
-    ...(fallbackPotions[index] ?? {}),
-    ...potion,
-  }));
-}
-
-function createSceneHealthPotions(scene) {
-  return (scene.healthPotions ?? []).map((potion) => ({ ...potion }));
-}
-
-function createSceneDamageZones(scene) {
-  return (scene.damageZones ?? []).map((zone) => ({ ...zone }));
-}
-
 function rebuildWarehouseMesh() {
   deleteMeshBuffers(gl, warehouseMesh);
   warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
 }
 
-function getSceneColliders(scene) {
-  if (scene.levelAsset) {
-    return getLevelRuntimeColliders(scene.levelAsset);
-  }
-
-  return [...scene.walls, ...scene.crates, ...(scene.platforms ?? [])]
-    .map((item) => item.collider)
-    .filter(Boolean);
-}
-
-function getSceneWalkableSurfaces(scene) {
-  if (scene.levelAsset) {
-    return getLevelRuntimeWalkableSurfaces(scene.levelAsset);
-  }
-
-  const floorPieces = scene.floorPieces ?? [scene.floor];
-  return [...floorPieces, ...(scene.platforms ?? []), ...scene.walls, ...scene.crates]
-    .filter(Boolean)
-    .map((item) => ({
-      minX: item.x - item.width / 2,
-      maxX: item.x + item.width / 2,
-      minZ: item.z - item.depth / 2,
-      maxZ: item.z + item.depth / 2,
-      topY: item.y + item.height,
-    }));
-}
-
-function createSceneMesh(glContext, scene, indices) {
-  if (scene.levelAsset) {
-    return createLevelMesh(glContext, scene, indices);
-  }
-  return createWarehouseMesh(glContext, scene, indices);
-}
-
-function createLevelMesh(glContext, scene, indices) {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
-
-  for (const mesh of scene.levelAsset.artMeshes) {
-    const textureId = indices.get(mesh.textureId) ?? 0;
-    const motion = motionCode(mesh.motion);
-    for (let index = 0; index < mesh.vertices.length; index += 3) {
-      const shade = levelTriangleShade(mesh, index);
-      for (const vertex of mesh.vertices.slice(index, index + 3)) {
-        geometry.positions.push(vertex.x, vertex.y, vertex.z);
-        geometry.uvs.push(vertex.u, vertex.v);
-        geometry.textureIds.push(textureId);
-        geometry.shades.push(shade);
-        geometry.motions.push(motion);
-      }
-    }
-  }
-
-  if (scene.healthPotions) {
-    for (const item of scene.healthPotions) {
-      addHealthPotionFlask(geometry, item, indices);
-    }
-  }
-
-  if (scene.warpGate) {
-    addWarpGate(geometry, scene.warpGate, indices);
-  }
-
-  return {
-    count: geometry.positions.length / 3,
-    position: createBuffer(glContext, new Float32Array(geometry.positions)),
-    uv: createBuffer(glContext, new Float32Array(geometry.uvs)),
-    textureId: createBuffer(glContext, new Float32Array(geometry.textureIds)),
-    shade: createBuffer(glContext, new Float32Array(geometry.shades)),
-    motion: createBuffer(glContext, new Float32Array(geometry.motions)),
-  };
-}
-
-function levelTriangleShade(mesh, vertexIndex) {
-  if (isBrightLevelTexture(mesh.textureId)) {
-    return mesh.textureId === 'lightning' ? 1.3 : 1.18;
-  }
-
-  const a = mesh.vertices[vertexIndex];
-  const b = mesh.vertices[vertexIndex + 1];
-  const c = mesh.vertices[vertexIndex + 2];
-  if (!a || !b || !c) return 0.86;
-
-  const normal = triangleNormal(a, b, c);
-  if (normal.y > 0.68) return 0.82;
-  if (normal.y < -0.68) return 0.42;
-  if (Math.abs(normal.x) > Math.abs(normal.z)) return normal.x > 0 ? 0.9 : 0.72;
-  return normal.z > 0 ? 0.84 : 0.64;
-}
-
-function isBrightLevelTexture(textureId) {
-  return textureId === 'star'
-    || textureId === 'sun'
-    || textureId === 'paleMoon'
-    || textureId === 'shootingStar'
-    || textureId === 'flickerComet'
-    || textureId === 'comet'
-    || textureId === 'firefly'
-    || textureId === 'moonbeam'
-    || textureId === 'torchFlame'
-    || textureId === 'lightning'
-    || textureId === 'rain';
-}
-
-function triangleNormal(a, b, c) {
-  const ab = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
-  const ac = { x: c.x - a.x, y: c.y - a.y, z: c.z - a.z };
-  const normal = {
-    x: ab.y * ac.z - ab.z * ac.y,
-    y: ab.z * ac.x - ab.x * ac.z,
-    z: ab.x * ac.y - ab.y * ac.x,
-  };
-  const length = Math.hypot(normal.x, normal.y, normal.z) || 1;
-  return {
-    x: normal.x / length,
-    y: normal.y / length,
-    z: normal.z / length,
-  };
-}
-
-function createWarehouseMesh(glContext, scene, indices) {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
-  const floorPieces = scene.floorPieces ?? [scene.floor];
-  for (const floorPiece of floorPieces) {
-    addBox(geometry, floorPiece, indices, { floor: true, shade: 0.72, uvScale: 2.5, motion: motionCode(floorPiece.motion) });
-  }
-  if (scene.ceiling) {
-    addBox(geometry, scene.ceiling, indices, { ceiling: true, shade: 0.42, uvScale: 2.0 });
-  }
-
-  for (const wall of scene.walls) {
-    addBox(geometry, wall, indices, { shade: wall.height < 2 ? 0.72 : 0.88, uvScale: 1.0, motion: motionCode(wall.motion) });
-  }
-
-  for (const platform of scene.platforms ?? []) {
-    addBox(geometry, platform, indices, { shade: 0.76, uvScale: 1.0, motion: motionCode(platform.motion) });
-  }
-
-  for (const crateItem of scene.crates) {
-    addBox(geometry, crateItem, indices, { shade: 0.8, uvScale: 1.0, motion: motionCode(crateItem.motion) });
-  }
-
-  for (const prop of scene.props ?? []) {
-    addBox(geometry, prop, indices, { shade: 0.82, uvScale: 1.0, motion: motionCode(prop.motion) });
-  }
-
-  for (const mountainItem of scene.mountains) {
-    addMountain(geometry, mountainItem, indices);
-  }
-
-  if (scene.cards) {
-    for (const item of scene.cards) {
-      addCard(geometry, item, indices);
-    }
-  }
-
-  if (scene.healthPotions) {
-    for (const item of scene.healthPotions) {
-      addHealthPotionFlask(geometry, item, indices);
-    }
-  }
-
-  if (scene.warpGate) {
-    addWarpGate(geometry, scene.warpGate, indices);
-  }
-
-  if (scene.movingBillboards) {
-    for (const item of scene.movingBillboards) {
-      addCard(geometry, item, indices);
-    }
-  }
-
-  if (scene.skyDome) {
-    // Sky domes replace flat star cards for distant sky.
-  } else if (scene.stars) {
-    addStars(geometry, scene.stars, indices);
-  }
-
-  if (scene.shootingStar) {
-    addShootingStar(geometry, scene.shootingStar, indices);
-  }
-
-  if (scene.lightning) {
-    addLightningBolts(geometry, scene.lightning, indices);
-  }
-
-  if (scene.rain) {
-    addRain(geometry, scene.rain, indices);
-  }
-
-  if (scene.sun) {
-    addSun(geometry, scene.sun, indices);
-  }
-
-  return {
-    count: geometry.positions.length / 3,
-    position: createBuffer(glContext, new Float32Array(geometry.positions)),
-    uv: createBuffer(glContext, new Float32Array(geometry.uvs)),
-    textureId: createBuffer(glContext, new Float32Array(geometry.textureIds)),
-    shade: createBuffer(glContext, new Float32Array(geometry.shades)),
-    motion: createBuffer(glContext, new Float32Array(geometry.motions)),
-  };
-}
-
-function createZombieMesh(glContext) {
-  return {
-    count: 0,
-    position: createDynamicBuffer(glContext),
-    uv: createDynamicBuffer(glContext),
-    textureId: createDynamicBuffer(glContext),
-    shade: createDynamicBuffer(glContext),
-    motion: createDynamicBuffer(glContext),
-  };
-}
-
-function updateZombieMesh(glContext, mesh, zombieList, indices, models = new Map(), time = 0) {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
-  for (const zombie of zombieList) {
-    const model = models.get(zombie.enemyType ?? 'zombie') ?? zombieModel;
-    const animationName = selectEnemyAnimation(zombie, model, time);
-    const animatedVertices = model
-      ? animateZombieModel(model, time + (zombie.animationSeed ?? 0) * 4, animationName)
-      : null;
-    if (animatedVertices) {
-      addZombieModel(geometry, zombie, animatedVertices, indices);
-    } else {
-      addZombieCard(geometry, zombie, indices);
-    }
-  }
-
-  mesh.count = geometry.positions.length / 3;
-  updateBuffer(glContext, mesh.position, new Float32Array(geometry.positions));
-  updateBuffer(glContext, mesh.uv, new Float32Array(geometry.uvs));
-  updateBuffer(glContext, mesh.textureId, new Float32Array(geometry.textureIds));
-  updateBuffer(glContext, mesh.shade, new Float32Array(geometry.shades));
-  updateBuffer(glContext, mesh.motion, new Float32Array(geometry.motions));
-}
-
-function selectEnemyAnimation(enemy, model, time) {
-  if (!model?.animations?.length) return null;
-  const enemyDefinition = getEnemyDefinition(enemy.enemyType);
-  if ((enemy.enemyType ?? 'zombie') === 'molten-sentinel') {
-    const closeToPlayer = Math.hypot(player.x - enemy.x, player.z - enemy.z) < (enemy.attackRange ?? enemyDefinition.base.attackRange);
-    if (closeToPlayer) {
-      return findPreferredAnimationName(model, enemyDefinition.animation.attackNames)
-        ?? findNonPreferredAnimationName(model, enemyDefinition.animation.locomotionNames)
-        ?? model.animations[0].name;
-    }
-    return findPreferredAnimationName(model, enemyDefinition.animation.locomotionNames) ?? model.animations[0].name;
-  }
-  if (enemy.enemyType === 'one-eye-alien') {
-    const closeToPlayer = Math.hypot(player.x - enemy.x, player.z - enemy.z) < 1.8;
-    const attackName = findPreferredAnimationName(model, enemyDefinition.animation.attackNames);
-    if (closeToPlayer && attackName) return attackName;
-    const normalizedAttackNames = enemyDefinition.animation.attackNames.map(normalizeAnimationName);
-    const ambientClips = model.animations.filter((animation) => !normalizedAttackNames.includes(normalizeAnimationName(animation.name)));
-    if (!ambientClips.length) return model.animations[0].name;
-    const index = Math.floor((time + (enemy.animationSeed ?? 0) * 9) / 5) % ambientClips.length;
-    return ambientClips[index].name;
-  }
-  return model.animations[0].name;
-}
-
-function findPreferredAnimationName(model, preferredNames) {
-  const normalizedPreferred = preferredNames.map(normalizeAnimationName);
-  const animation = model.animations.find((clip) => normalizedPreferred.includes(normalizeAnimationName(clip.name)));
-  return animation?.name ?? null;
-}
-
-function findNonPreferredAnimationName(model, excludedNames) {
-  const normalizedExcluded = excludedNames.map(normalizeAnimationName);
-  const animation = model.animations.find((clip) => !normalizedExcluded.includes(normalizeAnimationName(clip.name)));
-  return animation?.name ?? null;
-}
-
-function normalizeAnimationName(name) {
-  return String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
-}
-
-function addZombieModel(geometry, zombie, vertices, indices) {
-  const enemyType = zombie.enemyType ?? 'zombie';
-  const textureId = indices.get(enemyType) ?? indices.get('zombie') ?? 0;
-  const motion = motionCode('zombie-walk');
-  const zombieMasterYaw = zombie.yaw;
-  const enemyRender = getEnemyDefinition(enemyType).render;
-  const zombieModelYaw = enemyRender.frontRotation;
-  const feetY = zombie.y - PLAYER_EYE_HEIGHT;
-  const scale = enemyRender.modelScale;
-
-  for (const vertex of vertices) {
-    const localX = vertex.x * scale;
-    const localY = vertex.y * scale;
-    const localZ = vertex.z * scale;
-    const modelSpace = rotateZombieLocalVertex(localX, localY, localZ, zombieModelYaw);
-    const worldSpace = rotateZombieMasterVertex(modelSpace.x, modelSpace.y, modelSpace.z, zombieMasterYaw);
-    geometry.positions.push(
-      zombie.x + worldSpace.x,
-      feetY + worldSpace.y,
-      zombie.z + worldSpace.z,
-    );
-    geometry.uvs.push(vertex.u, vertex.v);
-    geometry.textureIds.push(textureId);
-    geometry.shades.push(0.98);
-    geometry.motions.push(motion);
-  }
-}
-
-function rotateZombieLocalVertex(x, y, z, yaw) {
-  return rotateZombieY(x, y, z, yaw);
-}
-
-function rotateZombieMasterVertex(x, y, z, yaw) {
-  return rotateZombieY(x, y, z, yaw);
-}
-
-function rotateZombieY(x, y, z, yaw) {
-  const sin = Math.sin(yaw);
-  const cos = Math.cos(yaw);
-  return {
-    x: x * cos + z * sin,
-    y,
-    z: z * cos - x * sin,
-  };
-}
-
-function addZombieCard(geometry, zombie, indices) {
-  const textureId = indices.get(zombie.enemyType ?? 'zombie') ?? indices.get('zombie') ?? 0;
-  const motion = motionCode('zombie-walk');
-  const width = 0.95;
-  const height = 1.75;
-  const halfWidth = width / 2;
-  const feetY = zombie.y - PLAYER_EYE_HEIGHT;
-  const minY = feetY;
-  const maxY = feetY + height;
-
-  face(geometry, textureId, 1.05, [
-    [zombie.x - halfWidth, minY, zombie.z],
-    [zombie.x + halfWidth, minY, zombie.z],
-    [zombie.x + halfWidth, maxY, zombie.z],
-    [zombie.x - halfWidth, maxY, zombie.z],
-  ], 1, 1, motion);
-  face(geometry, textureId, 0.92, [
-    [zombie.x, minY, zombie.z - halfWidth],
-    [zombie.x, minY, zombie.z + halfWidth],
-    [zombie.x, maxY, zombie.z + halfWidth],
-    [zombie.x, maxY, zombie.z - halfWidth],
-  ], 1, 1, motion);
-}
-
-function addBox(geometry, item, indices, options = {}) {
-  const minX = item.x - item.width / 2;
-  const maxX = item.x + item.width / 2;
-  const minZ = item.z - item.depth / 2;
-  const maxZ = item.z + item.depth / 2;
-  const minY = item.y;
-  const maxY = item.y + item.height;
-  const textureId = indices.get(item.texture) ?? 0;
-  const shade = options.shade ?? 0.85;
-  const uvScale = options.uvScale ?? 1;
-  const motion = options.motion ?? 0;
-
-  face(geometry, textureId, shade * 0.92, [
-    [minX, minY, maxZ], [maxX, minY, maxZ], [maxX, maxY, maxZ], [minX, maxY, maxZ],
-  ], item.width / uvScale, item.height / uvScale, motion);
-  face(geometry, textureId, shade * 0.72, [
-    [maxX, minY, minZ], [minX, minY, minZ], [minX, maxY, minZ], [maxX, maxY, minZ],
-  ], item.width / uvScale, item.height / uvScale, motion);
-  face(geometry, textureId, shade * 0.82, [
-    [minX, minY, minZ], [minX, minY, maxZ], [minX, maxY, maxZ], [minX, maxY, minZ],
-  ], item.depth / uvScale, item.height / uvScale, motion);
-  face(geometry, textureId, shade, [
-    [maxX, minY, maxZ], [maxX, minY, minZ], [maxX, maxY, minZ], [maxX, maxY, maxZ],
-  ], item.depth / uvScale, item.height / uvScale, motion);
-  face(geometry, textureId, shade * 1.08, [
-    [minX, maxY, maxZ], [maxX, maxY, maxZ], [maxX, maxY, minZ], [minX, maxY, minZ],
-  ], item.width / uvScale, item.depth / uvScale, motion);
-}
-
-function addMountain(geometry, item, indices) {
-  const minX = item.x - item.width / 2;
-  const maxX = item.x + item.width / 2;
-  const minZ = item.z - item.depth / 2;
-  const maxZ = item.z + item.depth / 2;
-  const baseY = item.y;
-  const apex = [item.x, item.y + item.height, item.z - item.depth * 0.08];
-  const textureId = indices.get(item.texture) ?? 0;
-
-  triangle(geometry, textureId, 0.82, [minX, baseY, maxZ], [maxX, baseY, maxZ], apex, item.width / 4, item.height / 4);
-  triangle(geometry, textureId, 0.62, [maxX, baseY, maxZ], [maxX, baseY, minZ], apex, item.depth / 4, item.height / 4);
-  triangle(geometry, textureId, 0.48, [maxX, baseY, minZ], [minX, baseY, minZ], apex, item.width / 4, item.height / 4);
-  triangle(geometry, textureId, 0.7, [minX, baseY, minZ], [minX, baseY, maxZ], apex, item.depth / 4, item.height / 4);
-}
-
-function addSun(geometry, item, indices) {
-  const halfWidth = item.width / 2;
-  const halfHeight = item.height / 2;
-  const textureId = indices.get(item.texture) ?? 0;
-
-  face(geometry, textureId, 1.35, [
-    [item.x - halfWidth, item.y - halfHeight, item.z],
-    [item.x + halfWidth, item.y - halfHeight, item.z],
-    [item.x + halfWidth, item.y + halfHeight, item.z],
-    [item.x - halfWidth, item.y + halfHeight, item.z],
-  ], 1, 1);
-}
-
-function addCard(geometry, item, indices) {
-  const halfWidth = item.width / 2;
-  const halfHeight = item.height / 2;
-  const textureId = indices.get(item.texture) ?? 0;
-  face(geometry, textureId, 1.18, [
-    [item.x - halfWidth, item.y - halfHeight, item.z],
-    [item.x + halfWidth, item.y - halfHeight, item.z],
-    [item.x + halfWidth, item.y + halfHeight, item.z],
-    [item.x - halfWidth, item.y + halfHeight, item.z],
-  ], 1, 1, motionCode(item.motion));
-}
-
-function addWarpGate(geometry, item, indices) {
-  const textureId = indices.get(item.texture) ?? 0;
-  const motion = motionCode(item.motion);
-  const halfWidth = item.width / 2;
-  const halfHeight = item.height / 2;
-  const y0 = item.y - halfHeight;
-  const y1 = item.y + halfHeight;
-
-  face(geometry, textureId, 1.42, [
-    [item.x - halfWidth, y0, item.z],
-    [item.x + halfWidth, y0, item.z],
-    [item.x + halfWidth, y1, item.z],
-    [item.x - halfWidth, y1, item.z],
-  ], 1, 1, motion);
-  face(geometry, textureId, 1.25, [
-    [item.x, y0, item.z - halfWidth],
-    [item.x, y0, item.z + halfWidth],
-    [item.x, y1, item.z + halfWidth],
-    [item.x, y1, item.z - halfWidth],
-  ], 1, 1, motion);
-}
-
-function addHealthPotionFlask(geometry, item, indices) {
-  const motion = motionCode(item.motion);
-  const baseY = item.y - item.height / 2;
-  const depth = item.depth ?? item.width * 0.62;
-  const bodyHeight = item.height * 0.62;
-  const neckHeight = item.height * 0.22;
-  const capHeight = item.height * 0.1;
-  const frontZ = item.z - depth / 2 - 0.018;
-
-  addBox(geometry, {
-    name: `${item.name} body`,
-    x: item.x,
-    y: baseY,
-    z: item.z,
-    width: item.width,
-    depth,
-    height: bodyHeight,
-    texture: item.texture,
-  }, indices, { shade: 1.08, uvScale: 1, motion });
-  addBox(geometry, {
-    name: `${item.name} neck`,
-    x: item.x,
-    y: baseY + bodyHeight,
-    z: item.z,
-    width: item.width * 0.42,
-    depth: depth * 0.62,
-    height: neckHeight,
-    texture: item.texture,
-  }, indices, { shade: 1.18, uvScale: 1, motion });
-  addBox(geometry, {
-    name: `${item.name} cap`,
-    x: item.x,
-    y: baseY + bodyHeight + neckHeight,
-    z: item.z,
-    width: item.width * 0.56,
-    depth: depth * 0.72,
-    height: capHeight,
-    texture: item.texture,
-  }, indices, { shade: 0.72, uvScale: 1, motion });
-  addBox(geometry, {
-    name: `${item.name} front cross vertical`,
-    x: item.x,
-    y: baseY + bodyHeight * 0.31,
-    z: frontZ,
-    width: item.width * 0.13,
-    depth: 0.035,
-    height: bodyHeight * 0.45,
-    texture: item.texture,
-  }, indices, { shade: 1.45, uvScale: 1, motion });
-  addBox(geometry, {
-    name: `${item.name} front cross horizontal`,
-    x: item.x,
-    y: baseY + bodyHeight * 0.45,
-    z: frontZ - 0.002,
-    width: item.width * 0.36,
-    depth: 0.038,
-    height: bodyHeight * 0.12,
-    texture: item.texture,
-  }, indices, { shade: 1.5, uvScale: 1, motion });
-}
-
-function addStars(geometry, stars, indices) {
-  const textureId = indices.get('star') ?? 0;
-
-  for (const star of stars) {
-    const halfWidth = star.width / 2;
-    const halfHeight = star.height / 2;
-    face(geometry, textureId, 1.4, [
-      [star.x - halfWidth, star.y - halfHeight, star.z],
-      [star.x + halfWidth, star.y - halfHeight, star.z],
-      [star.x + halfWidth, star.y + halfHeight, star.z],
-      [star.x - halfWidth, star.y + halfHeight, star.z],
-    ], 1, 1);
-  }
-}
-
-function addShootingStar(geometry, item, indices) {
-  const halfWidth = item.width / 2;
-  const halfHeight = item.height / 2;
-  const textureId = indices.get(item.texture) ?? 0;
-
-  face(geometry, textureId, 1.6, [
-    [item.x - halfWidth, item.y - halfHeight, item.z],
-    [item.x + halfWidth, item.y - halfHeight, item.z],
-    [item.x + halfWidth, item.y + halfHeight, item.z],
-    [item.x - halfWidth, item.y + halfHeight, item.z],
-  ], 1, 1);
-}
-
-function addLightningBolts(geometry, lightning, indices) {
-  const textureId = indices.get(lightning.texture) ?? 0;
-
-  for (const bolt of lightning.bolts) {
-    for (let i = 0; i < bolt.points.length - 1; i += 1) {
-      addLightningSegment(geometry, textureId, bolt.points[i], bolt.points[i + 1], bolt.width ?? 0.14);
-    }
-  }
-}
-
-function addLightningSegment(geometry, textureId, start, end, width) {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.hypot(dx, dy) || 1;
-  const ox = -dy / length * width;
-  const oy = dx / length * width;
-
-  face(geometry, textureId, 1.3, [
-    [start.x - ox, start.y - oy, start.z],
-    [start.x + ox, start.y + oy, start.z],
-    [end.x + ox, end.y + oy, end.z],
-    [end.x - ox, end.y - oy, end.z],
-  ], 1, length / 3);
-}
-
-function addRain(geometry, rain, indices) {
-  const textureId = indices.get(rain.texture) ?? 0;
-
-  for (const drop of rain.drops) {
-    const halfWidth = drop.width / 2;
-    const height = drop.height;
-    face(geometry, textureId, 1.25, [
-      [drop.x - halfWidth, drop.y - height, drop.z],
-      [drop.x + halfWidth, drop.y - height, drop.z],
-      [drop.x + halfWidth, drop.y, drop.z],
-      [drop.x - halfWidth, drop.y, drop.z],
-    ], 1, 4);
-  }
-}
-
-function face(geometry, textureId, shade, corners, uRepeat, vRepeat, motion = 0) {
-  const uv = [[0, vRepeat], [uRepeat, vRepeat], [uRepeat, 0], [0, 0]];
-  const order = [0, 1, 2, 0, 2, 3];
-
-  for (const index of order) {
-    geometry.positions.push(...corners[index]);
-    geometry.uvs.push(...uv[index]);
-    geometry.textureIds.push(textureId);
-    geometry.shades.push(shade);
-    geometry.motions.push(motion);
-  }
-}
-
-function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat, motion = 0) {
-  const corners = [a, b, c];
-  const uv = [[0, vRepeat], [uRepeat, vRepeat], [uRepeat * 0.5, 0]];
-
-  for (let index = 0; index < 3; index += 1) {
-    geometry.positions.push(...corners[index]);
-    geometry.uvs.push(...uv[index]);
-    geometry.textureIds.push(textureId);
-    geometry.shades.push(shade);
-    geometry.motions.push(motion);
-  }
-}
-
-function drawMesh(glContext, program, mesh) {
-  if (!mesh || mesh.count <= 0) return;
-
-  bindAttribute(glContext, program.attributes.aPosition, mesh.position, 3);
-  bindAttribute(glContext, program.attributes.aUv, mesh.uv, 2);
-  bindAttribute(glContext, program.attributes.aTextureId, mesh.textureId, 1);
-  bindAttribute(glContext, program.attributes.aShade, mesh.shade, 1);
-  bindAttribute(glContext, program.attributes.aMotion, mesh.motion, 1);
-  glContext.drawArrays(glContext.TRIANGLES, 0, mesh.count);
-}
-
 function drawSkyDome(time, now) {
-  if (!world.skyDome || !skyProgram || !skyDomeMesh) return;
-
-  const camera = getActiveCamera(now);
-  gl.depthMask(false);
-  gl.disable(gl.DEPTH_TEST);
-  gl.useProgram(skyProgram.program);
-  bindAttribute(gl, skyProgram.attributes.aPosition, skyDomeMesh.position, 3);
-  gl.uniformMatrix4fv(skyProgram.uniforms.uViewProjection, false, createViewProjection(now));
-  gl.uniform3f(skyProgram.uniforms.uCameraPosition, camera.x, camera.y, camera.z);
-  gl.uniform1f(skyProgram.uniforms.uTime, time);
-  gl.uniform1f(skyProgram.uniforms.uSkyMode, getSkyDomeMode(world.skyDome));
-  gl.uniform1f(skyProgram.uniforms.uSkyPalette, getSkyDomePalette(world.skyDome));
-  gl.drawArrays(gl.TRIANGLES, 0, skyDomeMesh.count);
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthMask(true);
-}
-
-function getSkyDomeMode(skyDome) {
-  return skyDome.mode === 'clouds' ? 1 : 0;
-}
-
-function getSkyDomePalette(skyDome) {
-  if (skyDome.palette === 'electric-blue') return 1;
-  if (skyDome.palette === 'one-bit-night') return 2;
-  if (skyDome.palette === 'psychedelic-purple') return 3;
-  if (skyDome.palette === 'liminal-blue') return 4;
-  return 0;
-}
-
-function createSkyDomeMesh(glContext) {
-  const positions = [];
-  const rings = 9;
-  const segments = 32;
-  const bottom = -0.18;
-
-  for (let ring = 0; ring < rings; ring += 1) {
-    const v0 = ring / rings;
-    const v1 = (ring + 1) / rings;
-    const y0 = bottom + (1 - bottom) * v0;
-    const y1 = bottom + (1 - bottom) * v1;
-    const r0 = Math.sqrt(Math.max(0, 1 - y0 * y0));
-    const r1 = Math.sqrt(Math.max(0, 1 - y1 * y1));
-
-    for (let segment = 0; segment < segments; segment += 1) {
-      const a0 = segment / segments * Math.PI * 2;
-      const a1 = (segment + 1) / segments * Math.PI * 2;
-      const p00 = [Math.cos(a0) * r0, y0, Math.sin(a0) * r0];
-      const p01 = [Math.cos(a1) * r0, y0, Math.sin(a1) * r0];
-      const p10 = [Math.cos(a0) * r1, y1, Math.sin(a0) * r1];
-      const p11 = [Math.cos(a1) * r1, y1, Math.sin(a1) * r1];
-      positions.push(...p00, ...p10, ...p01, ...p01, ...p10, ...p11);
-    }
-  }
-
-  return {
-    count: positions.length / 3,
-    position: createBuffer(glContext, new Float32Array(positions)),
-  };
-}
-
-function createPostQuad(glContext) {
-  return createBuffer(glContext, new Float32Array([
-    -1, -1,
-    1, -1,
-    -1, 1,
-    -1, 1,
-    1, -1,
-    1, 1,
-  ]));
-}
-
-function drawQuad(glContext, program, buffer) {
-  bindAttribute(glContext, program.attributes.aPosition, buffer, 2);
-  glContext.drawArrays(glContext.TRIANGLES, 0, 6);
-}
-
-function createLevelTextureDescriptors(levelAsset, fallback) {
-  const textureIds = new Set(fallback.textures.map((texture) => texture.id));
-  const missingLevelTextures = levelAsset.materials
-    .filter((material) => !textureIds.has(material.textureId))
-    .map((material) => ({
-      id: material.textureId,
-      size: 128,
-      material,
-    }));
-
-  return [...fallback.textures, ...missingLevelTextures];
-}
-
-async function createSceneTextureAtlas(glContext, scene, characterImages = characterTextureImages) {
-  if (!scene.levelAsset) return createTextureAtlas(glContext, scene.textures, characterImages);
-  return createLevelTextureAtlas(glContext, scene, characterImages);
-}
-
-async function createLevelTextureAtlas(glContext, scene, characterImages = characterTextureImages) {
-  const textures = await Promise.all(scene.textures.map(async (texture) => {
-    if (!texture.material?.texture?.bytes) return texture;
-    return {
-      ...texture,
-      image: await loadTextureBytesImage(texture.material.texture),
-    };
-  }));
-
-  return createTextureAtlas(glContext, textures, characterImages);
-}
-
-function createTextureAtlas(glContext, textures, characterImages = characterTextureImages) {
-  const tile = 128;
-  const atlasCanvas = document.createElement('canvas');
-  atlasCanvas.width = tile * textures.length;
-  atlasCanvas.height = tile;
-  const ctx = atlasCanvas.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
-
-  textures.forEach((texture, index) => {
-    const x = index * tile;
-    const characterImage = characterImages?.get?.(texture.id) ?? null;
-    if (characterImage) {
-      drawZombieModelTexture(ctx, characterImage, x, 0, tile);
-    } else if (texture.image) {
-      ctx.drawImage(texture.image, x, 0, tile, tile);
-    } else if (texture.material) {
-      drawMaterialColorTexture(ctx, texture.material.baseColor, x, 0, tile);
-    } else {
-      drawGeneratedTexture(ctx, texture.id, x, 0, tile, texture.size);
-    }
+  drawSkyDomeMesh(gl, {
+    skyDome: world.skyDome,
+    program: skyProgram,
+    mesh: skyDomeMesh,
+    time,
+    camera: getActiveCamera(now),
+    viewProjection: createViewProjection(now),
   });
-
-  const texture = glContext.createTexture();
-  glContext.bindTexture(glContext.TEXTURE_2D, texture);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_MIN_FILTER, glContext.NEAREST);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_MAG_FILTER, glContext.NEAREST);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_WRAP_S, glContext.CLAMP_TO_EDGE);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_WRAP_T, glContext.CLAMP_TO_EDGE);
-  glContext.texImage2D(glContext.TEXTURE_2D, 0, glContext.RGBA, glContext.RGBA, glContext.UNSIGNED_BYTE, atlasCanvas);
-  return texture;
-}
-
-async function loadTextureBytesImage(texture) {
-  const blob = new Blob([texture.bytes], { type: texture.mimeType });
-  const image = new Image();
-  const url = URL.createObjectURL(blob);
-  try {
-    image.src = url;
-    await image.decode();
-    return image;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-function drawMaterialColorTexture(ctx, baseColor, x, y, tile) {
-  const [r, g, b, a = 1] = baseColor ?? [1, 1, 1, 1];
-  ctx.fillStyle = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${a})`;
-  ctx.fillRect(x, y, tile, tile);
-}
-
-function drawZombieModelTexture(ctx, image, x, y, tile) {
-  ctx.drawImage(image, x, y, tile, tile);
-}
-
-function deleteMeshBuffers(glContext, mesh) {
-  if (!mesh) return;
-  glContext.deleteBuffer(mesh.position);
-  glContext.deleteBuffer(mesh.uv);
-  glContext.deleteBuffer(mesh.textureId);
-  glContext.deleteBuffer(mesh.shade);
-  glContext.deleteBuffer(mesh.motion);
-}
-
-function createRenderTarget(glContext, width, height) {
-  const texture = glContext.createTexture();
-  glContext.bindTexture(glContext.TEXTURE_2D, texture);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_MIN_FILTER, glContext.NEAREST);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_MAG_FILTER, glContext.NEAREST);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_WRAP_S, glContext.CLAMP_TO_EDGE);
-  glContext.texParameteri(glContext.TEXTURE_2D, glContext.TEXTURE_WRAP_T, glContext.CLAMP_TO_EDGE);
-  glContext.texImage2D(glContext.TEXTURE_2D, 0, glContext.RGBA, width, height, 0, glContext.RGBA, glContext.UNSIGNED_BYTE, null);
-
-  const depth = glContext.createRenderbuffer();
-  glContext.bindRenderbuffer(glContext.RENDERBUFFER, depth);
-  glContext.renderbufferStorage(glContext.RENDERBUFFER, glContext.DEPTH_COMPONENT16, width, height);
-
-  const framebuffer = glContext.createFramebuffer();
-  glContext.bindFramebuffer(glContext.FRAMEBUFFER, framebuffer);
-  glContext.framebufferTexture2D(glContext.FRAMEBUFFER, glContext.COLOR_ATTACHMENT0, glContext.TEXTURE_2D, texture, 0);
-  glContext.framebufferRenderbuffer(glContext.FRAMEBUFFER, glContext.DEPTH_ATTACHMENT, glContext.RENDERBUFFER, depth);
-
-  if (glContext.checkFramebufferStatus(glContext.FRAMEBUFFER) !== glContext.FRAMEBUFFER_COMPLETE) {
-    throw new Error('Could not create the low-resolution render target.');
-  }
-
-  glContext.bindFramebuffer(glContext.FRAMEBUFFER, null);
-  return { framebuffer, texture, depth };
-}
-
-function deleteRenderTarget(glContext, target) {
-  if (!target) return;
-  glContext.deleteTexture(target.texture);
-  glContext.deleteRenderbuffer(target.depth);
-  glContext.deleteFramebuffer(target.framebuffer);
-}
-
-function createProgram(glContext, vertexSource, fragmentSource) {
-  const vertex = compileShader(glContext, glContext.VERTEX_SHADER, vertexSource);
-  const fragment = compileShader(glContext, glContext.FRAGMENT_SHADER, fragmentSource);
-  const program = glContext.createProgram();
-  glContext.attachShader(program, vertex);
-  glContext.attachShader(program, fragment);
-  glContext.linkProgram(program);
-
-  if (!glContext.getProgramParameter(program, glContext.LINK_STATUS)) {
-    throw new Error(glContext.getProgramInfoLog(program));
-  }
-
-  return {
-    program,
-    attributes: collectLocations(glContext, program, glContext.ACTIVE_ATTRIBUTES, glContext.getActiveAttrib, glContext.getAttribLocation),
-    uniforms: collectLocations(glContext, program, glContext.ACTIVE_UNIFORMS, glContext.getActiveUniform, glContext.getUniformLocation),
-  };
-}
-
-function compileShader(glContext, type, source) {
-  const shader = glContext.createShader(type);
-  glContext.shaderSource(shader, source);
-  glContext.compileShader(shader);
-
-  if (!glContext.getShaderParameter(shader, glContext.COMPILE_STATUS)) {
-    throw new Error(glContext.getShaderInfoLog(shader));
-  }
-
-  return shader;
-}
-
-function collectLocations(glContext, program, countName, activeGetter, locationGetter) {
-  const locations = {};
-  const count = glContext.getProgramParameter(program, countName);
-
-  for (let i = 0; i < count; i += 1) {
-    const info = activeGetter.call(glContext, program, i);
-    const name = info.name.replace(/\[0\]$/, '');
-    locations[name] = locationGetter.call(glContext, program, name);
-  }
-
-  return locations;
-}
-
-function createBuffer(glContext, data) {
-  const buffer = glContext.createBuffer();
-  glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
-  glContext.bufferData(glContext.ARRAY_BUFFER, data, glContext.STATIC_DRAW);
-  return buffer;
-}
-
-function createDynamicBuffer(glContext) {
-  const buffer = glContext.createBuffer();
-  glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
-  glContext.bufferData(glContext.ARRAY_BUFFER, 0, glContext.DYNAMIC_DRAW);
-  return buffer;
-}
-
-function updateBuffer(glContext, buffer, data) {
-  glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
-  glContext.bufferData(glContext.ARRAY_BUFFER, data, glContext.DYNAMIC_DRAW);
-}
-
-function bindAttribute(glContext, location, buffer, size) {
-  glContext.bindBuffer(glContext.ARRAY_BUFFER, buffer);
-  glContext.enableVertexAttribArray(location);
-  glContext.vertexAttribPointer(location, size, glContext.FLOAT, false, 0, 0);
-}
-
-function perspective(fov, aspect, near, far) {
-  const f = 1 / Math.tan(fov / 2);
-  const rangeInv = 1 / (near - far);
-  return new Float32Array([
-    f / aspect, 0, 0, 0,
-    0, f, 0, 0,
-    0, 0, (near + far) * rangeInv, -1,
-    0, 0, near * far * rangeInv * 2, 0,
-  ]);
-}
-
-function multiplyMat4(a, b) {
-  const out = new Float32Array(16);
-  for (let column = 0; column < 4; column += 1) {
-    for (let row = 0; row < 4; row += 1) {
-      out[column * 4 + row] =
-        a[0 * 4 + row] * b[column * 4 + 0]
-        + a[1 * 4 + row] * b[column * 4 + 1]
-        + a[2 * 4 + row] * b[column * 4 + 2]
-        + a[3 * 4 + row] * b[column * 4 + 3];
-    }
-  }
-  return out;
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
 }
 
 async function start() {

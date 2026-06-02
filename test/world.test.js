@@ -247,7 +247,7 @@ test('builds a 1-bit polygon cathedral with black and white texture mapping', ()
   assert.ok(world.floor);
   assert.ok(world.textures.every((texture) => (
     texture.id.startsWith('oneBit')
-    || ['zombie', 'one-eye-alien', 'molten-sentinel', 'healthPotion', 'warpGate'].includes(texture.id)
+    || ['zombie', 'one-eye-alien', 'molten-sentinel', 'healthPotion', 'warpGate', 'bloodBurst'].includes(texture.id)
   )));
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
   assert.ok(world.clearColor[0] > 0);
@@ -424,6 +424,15 @@ test('maps every scene to an explicit enemy encounter difficulty and composition
     assert.ok(encounter.allowedTypes.includes('zombie'), definition.id);
     assert.ok(Array.isArray(encounter.allowedTypes), definition.id);
     assert.deepEqual([...new Set(encounter.allowedTypes)], encounter.allowedTypes, definition.id);
+    assert.equal(encounter.horde.enabled, true, definition.id);
+    assert.ok(encounter.horde.maxAlive >= world.zombieSpawns.length, definition.id);
+    assert.ok(encounter.horde.pulseIntervalMs >= 4000, definition.id);
+    assert.ok(encounter.horde.minPlayerDistance >= 6, definition.id);
+    assert.equal(typeof encounter.ecology, 'object', definition.id);
+    assert.deepEqual(world.hordeTriggers, [], definition.id);
+    assert.deepEqual(world.encounterTriggers, [], definition.id);
+    assert.deepEqual(world.soundZones, [], definition.id);
+    assert.deepEqual(world.objectives, [], definition.id);
     difficulties.add(encounter.difficulty);
 
     for (const enemyType of enemyTypes) {
@@ -437,6 +446,34 @@ test('maps every scene to an explicit enemy encounter difficulty and composition
   }
 
   assert.ok(difficulties.size >= 3);
+  assert.ok(createSceneWorld('alien-landscape').enemyEncounter.ecology['one-eye-alien'].secondaryTargetRange > 4.4);
+});
+
+test('gives every scene a diegetic navigation artifact instead of a clean minimap', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const world = createSceneWorld(definition.id);
+    const map = world.diegeticMap;
+
+    assert.equal(map.sceneId, definition.id);
+    assert.ok(map.artifactType, definition.id);
+    assert.ok(map.title, definition.id);
+    assert.ok(map.clueText, definition.id);
+    assert.equal(map.reliable, false, definition.id);
+    assert.ok(map.glitchIntensity >= 0, definition.id);
+    assert.ok(map.glitchIntensity <= 1, definition.id);
+  }
+
+  assert.equal(createSceneWorld('motel-mirage').diegeticMap.artifactType, 'fire-exit-plan');
+  assert.equal(createSceneWorld('derelict-starship').diegeticMap.artifactType, 'bulkhead-diagram');
+  assert.equal(createSceneWorld('one-bit-cathedral').diegeticMap.artifactType, 'stained-glass-floor');
+});
+
+test('exposes fallback emitter metadata as an empty authoring surface', () => {
+  for (const definition of SCENE_DEFINITIONS) {
+    const scene = createSceneWorld(definition.id);
+
+    assert.deepEqual(scene.emitters, [], definition.id);
+  }
 });
 
 test('places two or three green health potion pickups in every scene', () => {

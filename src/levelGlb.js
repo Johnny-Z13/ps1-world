@@ -57,6 +57,11 @@ export function parseLevelGlb(arrayBuffer, expectedId = null) {
     enemySpawns: [],
     healthPotions: [],
     damageZones: [],
+    hordeTriggers: [],
+    encounterTriggers: [],
+    soundZones: [],
+    objectives: [],
+    emitters: [],
     lights: [],
     torchLights: [],
     killY: null,
@@ -103,6 +108,18 @@ function getNodeRole(node) {
   if (name.startsWith('COLLISION_')) return 'collision';
   if (name.startsWith('WALKABLE_')) return 'walkable';
   if (name.startsWith('MARKER_')) return name.split('_').slice(2, -1).join('_');
+  if (name.startsWith('TRIGGER_')) return getTriggerRoleFromName(name);
+  if (name.includes('_EMITTER_')) return 'EMITTER';
+  return null;
+}
+
+function getTriggerRoleFromName(name) {
+  if (name.includes('_EMITTER_')) return 'EMITTER';
+  if (name.includes('_OBJECTIVE_TRIGGER_') || name.includes('_OBJECTIVE_')) return 'OBJECTIVE_TRIGGER';
+  if (name.includes('_SOUND_ZONE_')) return 'SOUND_ZONE';
+  if (name.includes('_ENCOUNTER_TRIGGER_') || name.includes('_ENCOUNTER_')) return 'ENCOUNTER_TRIGGER';
+  if (name.includes('_HORDE_TRIGGER_') || name.includes('_HORDE_')) return 'HORDE_TRIGGER';
+  if (name.includes('_DAMAGE_ZONE_')) return 'DAMAGE_ZONE';
   return null;
 }
 
@@ -131,6 +148,47 @@ function applyMarker(level, role, name, position, extras) {
   }
   if (role === 'DAMAGE_ZONE') {
     level.damageZones.push({ ...marker, ...parseMarkerExtras(extras) });
+    return;
+  }
+  if (role === 'HORDE_TRIGGER') {
+    level.hordeTriggers.push({
+      ...marker,
+      triggerType: 'awaken_horde',
+      ...parseMarkerExtras(extras),
+    });
+    return;
+  }
+  if (role === 'ENCOUNTER_TRIGGER') {
+    level.encounterTriggers.push({
+      ...marker,
+      encounterType: 'set_piece',
+      ...parseMarkerExtras(extras),
+    });
+    return;
+  }
+  if (role === 'SOUND_ZONE') {
+    level.soundZones.push({
+      ...marker,
+      soundZoneType: 'ambience',
+      ...parseMarkerExtras(extras),
+    });
+    return;
+  }
+  if (role === 'OBJECTIVE' || role.startsWith('OBJECTIVE_') || role === 'OBJECTIVE_TRIGGER') {
+    level.objectives.push({
+      ...marker,
+      objectiveType: 'ritual',
+      requiredInRogue: true,
+      ...parseMarkerExtras(extras),
+    });
+    return;
+  }
+  if (role === 'EMITTER' || role.startsWith('EMITTER_')) {
+    level.emitters.push({
+      ...marker,
+      emitterType: 'ambient',
+      ...parseMarkerExtras(extras),
+    });
     return;
   }
   if (role === 'LIGHT') {
@@ -277,10 +335,12 @@ function readMaterials(json, bin) {
     const textureIndex = pbr.baseColorTexture?.index;
     const imageIndex = textureIndex === undefined ? undefined : json.textures?.[textureIndex]?.source;
     const image = imageIndex === undefined ? undefined : json.images?.[imageIndex];
+    const surface = readMaterialSurface(material);
     return {
       name: material.name ?? `material_${index}`,
       textureId: readMaterialTextureId(material, index),
       baseColor: pbr.baseColorFactor ?? [1, 1, 1, 1],
+      ...surface,
       texture: image?.bufferView === undefined ? null : {
         name: image.name ?? `material_${index}_texture`,
         mimeType: image.mimeType ?? 'application/octet-stream',
@@ -292,7 +352,26 @@ function readMaterials(json, bin) {
 
 function readMaterialTextureId(material, index) {
   const name = material.name ?? `material_${index}`;
-  return name.startsWith('LEVELMAT_') ? name.slice('LEVELMAT_'.length) : name;
+  if (name.startsWith('LEVELMAT_')) return name.slice('LEVELMAT_'.length);
+  if (name.startsWith('SURFACE_')) return name.slice('SURFACE_'.length).toLowerCase();
+  return name;
+}
+
+function readMaterialSurface(material) {
+  const extras = material.extras ?? {};
+  const surfaceType = parseJsonString(extras.surfaceType ?? extras.level_surface) ?? readSurfaceTypeFromName(material.name);
+  const surface = {};
+  if (surfaceType !== null) surface.surfaceType = surfaceType;
+  for (const key of ['footstepSoundId', 'splashSoundId', 'damagePerSecond', 'friction', 'wet']) {
+    if (extras[key] !== undefined) surface[key] = parseJsonString(extras[key]);
+  }
+  return surface;
+}
+
+function readSurfaceTypeFromName(name = '') {
+  if (!name.startsWith('SURFACE_')) return null;
+  const type = name.slice('SURFACE_'.length).split('_')[0];
+  return type ? type.toLowerCase() : null;
 }
 
 function readSceneId(nodes) {

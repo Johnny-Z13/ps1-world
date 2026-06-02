@@ -9,7 +9,7 @@ The browser runtime uses Web Audio after the first user gesture. Audio is organi
 - `playerSfxGain`: player damage, death, pickup, and similar diegetic player events.
 - Spatial emitters: zombies and torches use panners and update from world positions.
 
-The v1 cinematic layer is orchestrated from `src/app.js`, with asset URLs, gain levels, enemy audio profiles, and reverb presets centralized in `src/audioConfig.js`. Keep helper functions focused and named by responsibility: `ensureMusicLoop`, `syncCinematicMusicAudio`, `ensureSceneAmbienceLoop`, `playTransitionOneShot`, `playUiOneShot`, `playSpatialOneShot`, and `syncCutUpCountdownAudio`.
+The v1 cinematic layer is split between `src/app.js` and `src/audioRuntime.js`. `src/app.js` owns gameplay decisions and per-frame sync, while `src/audioRuntime.js` owns reusable Web Audio graph setup, asset loading, loop-source setup, ambience crossfades, heartbeat pulse generation, torch crackle voices, rain/waterfall voices, zombie grunt voices, special-enemy loop voices, special-enemy attack cooldown routing, one-shot bus routing, reverb helpers, listener updates, and target-gain calculations. Asset URLs, gain levels, enemy audio profiles, and reverb presets stay centralized in `src/audioConfig.js`.
 
 Rogue mode reuses the transition bus for the final congratulations confetti sound. Scene ambience is data-driven from `src/world.js`, including the Rotwood forest wind/storm leaf beds.
 

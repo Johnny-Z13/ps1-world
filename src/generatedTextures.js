@@ -96,6 +96,11 @@ export function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
     return;
   }
 
+  if (id === 'bloodBurst') {
+    drawBloodBurstTexture(ctx, x, y, tile);
+    return;
+  }
+
   if (id.startsWith('neon') || id === 'lightning') {
     drawNeonTexture(ctx, id, x, y, tile, sourceSize);
     return;
@@ -182,6 +187,24 @@ function drawZombieTexture(ctx, x, y, tile) {
   ctx.fillRect(x + tile * 0.44, y + tile * 0.25, tile * 0.14, tile * 0.04);
   ctx.fillStyle = 'rgba(150, 185, 120, 0.28)';
   ctx.fillRect(x + tile * 0.24, y + tile * 0.04, tile * 0.52, tile * 0.9);
+}
+
+function drawBloodBurstTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const spots = [
+    [0.42, 0.48, 0.28, '#7f0610'],
+    [0.54, 0.38, 0.2, '#b3161f'],
+    [0.33, 0.62, 0.18, '#4c0508'],
+    [0.66, 0.58, 0.14, '#c53a31'],
+    [0.5, 0.66, 0.1, '#2b0204'],
+  ];
+
+  for (const [cx, cy, radius, color] of spots) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x + tile * cx, y + tile * cy, tile * radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawStarTexture(ctx, x, y, tile) {

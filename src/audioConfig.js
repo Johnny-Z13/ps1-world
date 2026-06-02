@@ -78,8 +78,6 @@ export const PLAYER_LAND_SOUND_GAIN = 0.24;
 export const PLAYER_WALK_FOOTSTEP_GAIN = 0.13;
 export const PLAYER_SPRINT_FOOTSTEP_GAIN = 0.19;
 export const PLAYER_LOW_HEALTH_BREATHING_GAIN = 0.24;
-export const HEALTH_PICKUP_FLASH_DURATION_MS = 520;
-export const DAMAGE_FLASH_DURATION_MS = 420;
 export const DAMAGE_SCRATCH_MAX_OFFSET = 0.055;
 export const DAMAGE_SCRATCH_MAX_ROTATION = 0.18;
 export const LOW_HEALTH_NOTICE_DURATION_MS = 2200;
@@ -103,6 +101,9 @@ export const ZOMBIE_GRUNT_MAX_GAIN = 0.085;
 export const ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER = 0.32;
 export const ZOMBIE_GRUNT_OPEN_FILTER_HZ = 4200;
 export const ZOMBIE_GRUNT_OCCLUDED_FILTER_HZ = 760;
+export const SPECIAL_ENEMY_LOOP_FULL_VOLUME_DISTANCE = 1.2;
+export const SPECIAL_ENEMY_LOOP_MAX_DISTANCE = 24;
+export const SPECIAL_ENEMY_ATTACK_COOLDOWN_MS = 1450;
 export const SCENE_REVERB_PRESETS = Object.freeze({
   'tight-room': Object.freeze({ duration: 0.42, decay: 2.8, wet: 0.11 }),
   'open-air': Object.freeze({ duration: 0.28, decay: 4.6, wet: 0.045 }),

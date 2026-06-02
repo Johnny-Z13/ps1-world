@@ -5,10 +5,12 @@ import { applyEnemyDifficulty } from '../src/enemyCatalog.js';
 import { PLAYER_EYE_HEIGHT } from '../src/playerPhysics.js';
 import { createSceneWorld } from '../src/world.js';
 import {
+  createHordeState,
   createZombieEnemies,
   selectEnemyTarget,
   isPlayerTouchedByZombie,
   resolvePlayerZombieCollision,
+  updateHordeSpawns,
   updateZombieEnemies,
 } from '../src/zombies.js';
 
@@ -92,6 +94,32 @@ test('boss targets the player first but can acquire nearby zombies and aliens', 
   assert.equal(playerTarget.id, 'player');
 });
 
+test('scene ecology overrides enemy target priorities', () => {
+  const world = {
+    id: 'ecology-arena',
+    playerSpawn: { x: 0, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0 },
+    enemyEncounter: {
+      difficulty: 1,
+      ecology: {
+        'one-eye-alien': {
+          hostileFactions: ['undead'],
+          secondaryTargetRange: 8,
+        },
+      },
+    },
+    zombieSpawns: [{ x: 4, y: PLAYER_EYE_HEIGHT, z: 0 }],
+    enemySpawns: [{ enemyType: 'one-eye-alien', x: 0, y: PLAYER_EYE_HEIGHT, z: 0 }],
+  };
+  const enemies = createZombieEnemies(world);
+  const alien = enemies.find((enemy) => enemy.enemyType === 'one-eye-alien');
+
+  const target = selectEnemyTarget(alien, { id: 'player', x: 1, y: PLAYER_EYE_HEIGHT, z: 0 }, enemies);
+
+  assert.deepEqual(alien.targeting.hostileFactions, ['undead']);
+  assert.equal(alien.targeting.secondaryTargetRange, 8);
+  assert.equal(target.enemyType, 'zombie');
+});
+
 test('boss damages nearby hostile enemies when not focused on the player', () => {
   const enemies = [
     {
@@ -134,9 +162,12 @@ test('boss damages nearby hostile enemies when not focused on the player', () =>
   assert.equal(sentinel.state, 'attack');
   assert.equal(sentinel.targetId, 'zombie');
   assert.ok(zombie.health < 90);
+  assert.equal(zombie.lastHitAt, 1000);
+  assert.equal(zombie.hitById, 'sentinel');
+  assert.equal(zombie.hitByEnemyType, 'molten-sentinel');
 });
 
-test('removes enemies killed by hostile enemies', () => {
+test('keeps enemies killed by hostile enemies visible before removing them', () => {
   const enemies = [
     {
       id: 'sentinel',
@@ -166,14 +197,36 @@ test('removes enemies killed by hostile enemies', () => {
     },
   ];
 
-  const updated = updateZombieEnemies(enemies, { id: 'player', x: 12, y: PLAYER_EYE_HEIGHT, z: 0 }, {
+  const dying = updateZombieEnemies(enemies, { id: 'player', x: 12, y: PLAYER_EYE_HEIGHT, z: 0 }, {
     colliders: [],
     walkableSurfaces: [{ minX: -100, maxX: 100, minZ: -100, maxZ: 100, topY: 0 }],
     dt: 0.1,
     now: 1000,
   });
 
-  assert.equal(updated.some((enemy) => enemy.id === 'zombie'), false);
+  const dyingZombie = dying.find((enemy) => enemy.id === 'zombie');
+  assert.equal(dyingZombie.state, 'dying');
+  assert.equal(dyingZombie.diedAt, 1000);
+  assert.equal(dyingZombie.killedById, 'sentinel');
+
+  const removed = updateZombieEnemies(dying, { id: 'player', x: 12, y: PLAYER_EYE_HEIGHT, z: 0 }, {
+    colliders: [],
+    walkableSurfaces: [{ minX: -100, maxX: 100, minZ: -100, maxZ: 100, topY: 0 }],
+    dt: 0.1,
+    now: 2601,
+  });
+
+  assert.equal(removed.some((enemy) => enemy.id === 'zombie'), false);
+});
+
+test('dying enemies no longer touch or block the player', () => {
+  const player = { x: 0.2, y: PLAYER_EYE_HEIGHT, z: 0 };
+  const enemies = [
+    { id: 'zombie-1', state: 'dying', x: 0, y: PLAYER_EYE_HEIGHT, z: 0, radius: 0.38 },
+  ];
+
+  assert.equal(isPlayerTouchedByZombie(player, enemies), false);
+  assert.deepEqual(resolvePlayerZombieCollision(player, enemies), player);
 });
 
 test('does not spawn enemy capsules on top of each other', () => {
@@ -212,6 +265,76 @@ test('moves zombies toward the player without changing their count', () => {
   assert.equal(updated[0].y, PLAYER_EYE_HEIGHT);
 });
 
+test('horde director pulses extra zombies from distant authored markers under a scene cap', () => {
+  const world = {
+    id: 'arena',
+    playerSpawn: { x: 0, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0 },
+    enemyEncounter: {
+      difficulty: 1,
+      horde: {
+        enabled: true,
+        maxAlive: 3,
+        pulseIntervalMs: 500,
+        minPlayerDistance: 5,
+      },
+    },
+    zombieSpawns: [
+      { x: 1, z: 0 },
+      { x: 8, z: 0 },
+      { x: -8, z: 0 },
+      { x: 12, z: 0 },
+    ],
+    enemySpawns: [],
+  };
+  const player = { x: 0, y: PLAYER_EYE_HEIGHT, z: 0 };
+  const enemies = createZombieEnemies({ ...world, zombieSpawns: [{ x: 8, z: 0 }] });
+  const state = createHordeState(world);
+
+  const first = updateHordeSpawns(enemies, world, player, state, { now: 500 });
+
+  assert.equal(first.enemies.length, 2);
+  assert.ok(first.enemies.some((enemy) => enemy.id === 'arena-horde-zombie-1'));
+  assert.notEqual(first.enemies.find((enemy) => enemy.id === 'arena-horde-zombie-1').x, 1);
+  assert.equal(first.state.spawned, 1);
+  assert.equal(first.state.nextPulseAt, 1000);
+
+  const capped = updateHordeSpawns(first.enemies, world, player, first.state, { now: 1000 });
+  assert.equal(capped.enemies.length, 3);
+
+  const stillCapped = updateHordeSpawns(capped.enemies, world, player, capped.state, { now: 1500 });
+  assert.equal(stillCapped.enemies.length, 3);
+});
+
+test('horde director stays idle when disabled or before its pulse time', () => {
+  const world = {
+    id: 'quiet',
+    playerSpawn: { x: 0, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0 },
+    enemyEncounter: {
+      difficulty: 1,
+      horde: { enabled: false, maxAlive: 4, pulseIntervalMs: 500, minPlayerDistance: 5 },
+    },
+    zombieSpawns: [{ x: 8, z: 0 }],
+    enemySpawns: [],
+  };
+  const enemies = createZombieEnemies(world);
+  const state = createHordeState(world);
+
+  assert.deepEqual(updateHordeSpawns(enemies, world, world.playerSpawn, state, { now: 1000 }), {
+    enemies,
+    state,
+  });
+
+  const enabledWorld = {
+    ...world,
+    enemyEncounter: {
+      ...world.enemyEncounter,
+      horde: { enabled: true, maxAlive: 4, pulseIntervalMs: 500, minPlayerDistance: 5 },
+    },
+  };
+  const waitingState = createHordeState(enabledWorld);
+  assert.equal(updateHordeSpawns(enemies, enabledWorld, enabledWorld.playerSpawn, waitingState, { now: 499 }).enemies.length, enemies.length);
+});
+
 test('turns zombies to face the player while chasing', () => {
   const zombies = [
     { id: 'zombie-1', x: 0, y: PLAYER_EYE_HEIGHT, z: 0, yaw: 0, radius: 0.38, speed: 1.15 },
@@ -225,6 +348,46 @@ test('turns zombies to face the player while chasing', () => {
   });
 
   assert.equal(updated.yaw, Math.PI / 2);
+});
+
+test('horde zombies use deterministic target offsets so packs fan out while chasing', () => {
+  const enemies = [
+    {
+      id: 'horde-a',
+      role: 'horde',
+      enemyType: 'zombie',
+      faction: 'undead',
+      x: -4,
+      y: PLAYER_EYE_HEIGHT,
+      z: 0,
+      yaw: 0,
+      radius: 0.38,
+      speed: 1.15,
+      hordeLaneOffset: -1.2,
+    },
+    {
+      id: 'horde-b',
+      role: 'horde',
+      enemyType: 'zombie',
+      faction: 'undead',
+      x: -4,
+      y: PLAYER_EYE_HEIGHT,
+      z: 1.2,
+      yaw: 0,
+      radius: 0.38,
+      speed: 1.15,
+      hordeLaneOffset: 1.2,
+    },
+  ];
+
+  const updated = updateZombieEnemies(enemies, { id: 'player', x: 4, y: PLAYER_EYE_HEIGHT, z: 0 }, {
+    colliders: [],
+    walkableSurfaces: [{ minX: -100, maxX: 100, minZ: -100, maxZ: 100, topY: 0 }],
+    dt: 0.5,
+  });
+
+  assert.notEqual(updated[0].targetOffsetZ, updated[1].targetOffsetZ);
+  assert.notEqual(updated[0].yaw, updated[1].yaw);
 });
 
 test('detects zombie contact with the player on the same level', () => {

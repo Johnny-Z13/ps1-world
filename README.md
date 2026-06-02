@@ -4,6 +4,12 @@ Browser-based PS1-style first-person world prototype: low-res WebGL rendering, C
 
 This repository is the lead project. A downstream Unity version may be scaffolded from it, but agents should not edit that downstream folder from this repo unless the user explicitly asks.
 
+## Creative Direction
+
+PS1 World is a PS1/PS2-era sandbox horror FPS: a liminal 3D maze, zombie/monster/alien stress toy, and trippy late-night demo-disc walker. Feature work should protect that identity: fast first-person exploration, authored Blender spaces, crunchy low-resolution rendering, strange enemy encounters, spatial audio dread, and mode-driven surrealism rather than clean modern shooter polish.
+
+Current product direction and engineering recommendations are tracked in [docs/recommendations.md](docs/recommendations.md).
+
 ## Quick Start
 
 ```bash
@@ -16,6 +22,18 @@ Run tests:
 
 ```bash
 npm test
+```
+
+Check cache-sensitive static references after JS/CSS/audio/GLB changes:
+
+```bash
+npm run cache:check
+```
+
+Run the optional browser smoke checklist/runner:
+
+```bash
+npm run smoke:browser
 ```
 
 The app uses vanilla ES modules and WebGL. There is no frontend build step.
@@ -41,6 +59,10 @@ On touch devices, press the left side to spawn a floating movement joystick, dra
 - Player health, low-health screen/audio pressure, red damage flash/scratch feedback, zombie bite damage, authored lava damage zones, death sequence, health flasks, and pickup flash.
 - Generated ambience/SFX assets, per-enemy idle and attack sounds, torch crackle, footsteps, jump/land spots, heartbeat, menu UI sounds, damage, death, pickup, Rogue win, rain drips, lightning, and rare world stingers.
 - Runtime enemy spawn validation snaps GLB-authored zombie and enemy markers onto walkable space and keeps capsules out of walls, cubes, and blockers.
+- Blender-authored horde, encounter, and objective trigger metadata flows into runtime worlds for future set-piece and ritual behavior.
+- Blender-authored sound-zone metadata flows into runtime worlds for future humming walls, radio bleed, hostile silence, and lure-zone audio.
+- Scene-specific monster ecology can tune enemy hostile factions and secondary target range through `enemyEncounter.ecology`.
+- Each scene exposes unreliable diegetic navigation metadata through `world.diegeticMap` instead of a clean minimap.
 - Scene 2 (`alien-landscape`) is currently a 20-zombie stress scene.
 
 ## Project Map
@@ -48,9 +70,26 @@ On touch devices, press the left side to spawn a floating movement joystick, dra
 - `index.html`: app shell, title controls, HUDs, options dialog, cache-busted JS/CSS references.
 - `styles.css`: fixed UI, title hitboxes, HUDs, touch controls, options dialog.
 - `src/app.js`: main runtime orchestration, WebGL render path, input, audio, gameplay, title/Cut-Up/Rogue flow.
+- `src/audioRuntime.js`: reusable Web Audio graph construction, asset loading, loop setup, ambience crossfades, heartbeat pulses, one-shots, reverb, and listener helpers.
+- `src/playerFeedback.js`: pure low-health, screen-flash, and death-camera/tint feedback calculations.
+- `src/inputRuntime.js`: pure gamepad, touch joystick, and soft mouse fallback input helpers.
+- `src/debugHud.js`: pure debug HUD snapshot formatting and DOM text application helpers.
+- `src/sceneEffects.js`: pure lightning strength and torch flicker/render-state helpers.
+- `src/renderMath.js`: projection, matrix multiplication, and clamp helpers used by the WebGL path.
+- `src/webglResources.js`: WebGL buffer, attribute, mesh-buffer deletion, and low-resolution render-target helpers.
+- `src/webglPrograms.js`: WebGL shader compilation, program linking, and attribute/uniform location collection helpers.
+- `src/renderMeshes.js`: primitive render mesh helpers for scene mesh attribute binding, sky dome buffers, and fullscreen post quads.
+- `src/renderSceneMeshes.js`: static level/fallback scene mesh construction for GLB art, boxes, cards, health flasks, warp gates, weather, and shared face primitives.
+- `src/renderEnemyMeshes.js`: dynamic zombie/special-enemy and blood burst mesh buffer construction.
+- `src/renderTextureAtlas.js`: generated/fallback, GLB material, embedded image, and character texture atlas construction.
+- `src/renderSkyDome.js`: sky dome mode/palette mapping and WebGL draw-state orchestration.
+- `src/renderPostPass.js`: post-processing texture binding, screen-effect uniforms, and fullscreen quad draw orchestration.
+- `src/renderScenePass.js`: main scene atlas binding, scene-light uniforms, static torch uniforms, and static/dynamic mesh draw ordering.
+- `src/sceneRuntime.js`: GLB/procedural scene runtime assembly, level cache lookup, spawn normalization, collider/walkable conversion, and pickup/trigger merging.
+- `src/titleRenderer.js`: PS1 bitmap title canvas renderer, font metrics, button drawing, and title-screen visual timing.
 - `src/rogueMode.js`: pure Rogue run progression helpers.
 - `src/enemySpawnValidation.js`: runtime validation for GLB-authored zombie and enemy spawn markers.
-- `src/world.js`: scene registry and fallback/generated scene metadata.
+- `src/world.js`: scene registry and fallback/generated metadata; new layout and art should be authored in Blender, not grown here as the primary surface.
 - `src/levelGlb.js`: runtime GLB parser for Blender-authored level packages.
 - `src/ps1Display.js`: video presets, resolution modes, effect defaults.
 - `src/playerPhysics.js`, `src/playerHealth.js`, `src/zombies.js`, `src/zombieModel.js`: focused gameplay/model helpers.
@@ -82,6 +121,10 @@ blender -b assets/models/levels/ps1-world-levels.blend --python scripts/reexport
 The runtime loads GLBs through `src/levelGlb.js`. GLB nodes are classified by `extras.level_role` first, then by documented name prefixes such as `ART_`, `COLLISION_`, `WALKABLE_`, and `MARKER_`.
 
 Enemy and zombie markers can be authored in Blender, but they are validated when levels load: the browser runtime snaps them to the highest walkable surface at their X/Z and offsets blocked capsules away from collision. Keep markers intentionally in open playable areas anyway; runtime validation is a safety net, not a substitute for clean authoring.
+
+Blender-authored `EMITTER_*` markers flow through `src/levelGlb.js` and `src/sceneRuntime.js` as `world.emitters`, preserving point-effect metadata such as `emitterId`, `emitterType`, `targetId`, `textureId`, `soundId`, `targetBus`, `gain`, `radius`, `rate`, and `enabled` for future drips, sparks, lure noises, and particles.
+
+GLB materials can carry `SURFACE_*` or custom-property surface metadata. `src/levelGlb.js` preserves `surfaceType`, `footstepSoundId`, `splashSoundId`, `damagePerSecond`, `friction`, and `wet` for future material-aware footsteps, splashes, damage feedback, and movement tuning.
 
 Each `LEVEL_<scene-id>` collection in Blender is organized into collapsible child collections for art, collision, walkable surfaces, markers, and triggers. The dungeon includes a concrete example of material-driven gameplay: `ART_dungeon_example_lava_damage_floor` uses `LEVELMAT_lava`, and `TRIGGER_dungeon_DAMAGE_ZONE_1_example_lava_damage_trigger` defines the damage volume consumed by the game.
 

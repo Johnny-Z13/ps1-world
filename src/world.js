@@ -1,4 +1,5 @@
 import { getEnemyDefinition } from './enemyCatalog.js';
+import { BLOOD_BURST_TEXTURE_ID } from './bloodEffects.js';
 
 const WALL_HEIGHT = 3.0;
 const SKY_DOME_STARRY = Object.freeze({ mode: 'starry', palette: 'deep-night' });
@@ -18,6 +19,63 @@ export const SCENE_DEFINITIONS = Object.freeze([
   Object.freeze({ id: 'astral-geometry-garden', label: 'Astral Geometry Garden' }),
   Object.freeze({ id: 'motel-mirage', label: 'Liminal Motel Mirage' }),
 ]);
+
+const DIEGETIC_MAPS = Object.freeze({
+  dungeon: Object.freeze({
+    artifactType: 'torch-scorched-plan',
+    title: 'Soot map scratched into a service door',
+    clueText: 'The bright rooms lie. Follow the warm walls when the storage bay repeats.',
+    glitchIntensity: 0.35,
+  }),
+  'alien-landscape': Object.freeze({
+    artifactType: 'star-chart-scar',
+    title: 'Living star chart under the red sun',
+    clueText: 'The horizon folds toward metal. The loudest crater is never the exit.',
+    glitchIntensity: 0.68,
+  }),
+  'derelict-starship': Object.freeze({
+    artifactType: 'bulkhead-diagram',
+    title: 'Emergency bulkhead diagram with missing decks',
+    clueText: 'Airlock arrows point backward after the reactor hum cuts out.',
+    glitchIntensity: 0.52,
+  }),
+  'neon-backstreets': Object.freeze({
+    artifactType: 'corrupted-transit-ad',
+    title: 'Transit advert that redraws the skyline',
+    clueText: 'Pink signs mark dead ends. Blue clouds hide the safe span.',
+    glitchIntensity: 0.82,
+  }),
+  'sunken-temple': Object.freeze({
+    artifactType: 'waterlogged-relief',
+    title: 'Flooded stone relief with impossible tide marks',
+    clueText: 'The dry altar is a trap. Count the rain where the floor rises.',
+    glitchIntensity: 0.6,
+  }),
+  'one-bit-cathedral': Object.freeze({
+    artifactType: 'stained-glass-floor',
+    title: 'Black-and-white floor glass that changes when ignored',
+    clueText: 'White paths confess. Black paths remember the door.',
+    glitchIntensity: 0.74,
+  }),
+  'rotwood-forest': Object.freeze({
+    artifactType: 'bark-compass',
+    title: 'Compass carved into a tree that keeps healing over',
+    clueText: 'Moonbeams are paths only while they move.',
+    glitchIntensity: 0.7,
+  }),
+  'astral-geometry-garden': Object.freeze({
+    artifactType: 'demo-disc-orbit-map',
+    title: 'Demo-disc sculpture casting wrong shadows',
+    clueText: 'Follow the shape that orbits slower than your breathing.',
+    glitchIntensity: 0.88,
+  }),
+  'motel-mirage': Object.freeze({
+    artifactType: 'fire-exit-plan',
+    title: 'Sun-bleached motel fire-exit plan',
+    clueText: 'Poolside exits are printed in the wrong decade. Trust the buzzing sign.',
+    glitchIntensity: 0.58,
+  }),
+});
 
 export function createSceneWorld(id) {
   if (id === 'alien-landscape') return createAlienLandscapeWorld();
@@ -1155,9 +1213,22 @@ function createSpecialEnemySpawner(enemyType, options) {
 
 const SCENE_ENCOUNTER_CONFIGS = Object.freeze({
   dungeon: Object.freeze({ difficulty: 1 }),
-  'alien-landscape': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
+  'alien-landscape': Object.freeze({
+    difficulty: 2,
+    boss: 'molten-sentinel',
+    ecology: Object.freeze({
+      'one-eye-alien': Object.freeze({ secondaryTargetRange: 7.5 }),
+      zombie: Object.freeze({ secondaryTargetRange: 4.2 }),
+    }),
+  }),
   'derelict-starship': Object.freeze({ difficulty: 2 }),
-  'neon-backstreets': Object.freeze({ difficulty: 3, boss: 'molten-sentinel' }),
+  'neon-backstreets': Object.freeze({
+    difficulty: 3,
+    boss: 'molten-sentinel',
+    ecology: Object.freeze({
+      'molten-sentinel': Object.freeze({ secondaryTargetRange: 7.2 }),
+    }),
+  }),
   'sunken-temple': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
   'one-bit-cathedral': Object.freeze({ difficulty: 3 }),
   'rotwood-forest': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
@@ -1182,16 +1253,34 @@ function withZombies(scene, zombieSpawns) {
   const textures = texturesWithHealth.some((texture) => texture.id === 'warpGate')
     ? texturesWithHealth
     : [...texturesWithHealth, { id: 'warpGate', size: 64 }];
+  const texturesWithBlood = textures.some((texture) => texture.id === BLOOD_BURST_TEXTURE_ID)
+    ? textures
+    : [...textures, { id: BLOOD_BURST_TEXTURE_ID, size: 64 }];
 
   return {
     ...scene,
     enemyEncounter,
     zombieSpawns,
     enemySpawns: createTypedEnemySpawns(scene, zombieSpawns, enemyEncounter),
+    hordeTriggers: scene.hordeTriggers ?? [],
+    encounterTriggers: scene.encounterTriggers ?? [],
+    soundZones: scene.soundZones ?? [],
+    objectives: scene.objectives ?? [],
+    emitters: scene.emitters ?? [],
+    diegeticMap: scene.diegeticMap ?? createSceneDiegeticMap(scene.id),
     warpGate: createRogueWarpGate(scene, zombieSpawns),
     healthPotions,
     audio: scene.audio ?? { reverb: getSceneReverb(scene.id) },
-    textures,
+    textures: texturesWithBlood,
+  };
+}
+
+function createSceneDiegeticMap(sceneId) {
+  const artifact = DIEGETIC_MAPS[sceneId] ?? DIEGETIC_MAPS.dungeon;
+  return {
+    sceneId,
+    reliable: false,
+    ...artifact,
   };
 }
 
@@ -1208,6 +1297,19 @@ function createSceneEnemyEncounter(scene) {
     difficulty: override.difficulty ?? 1,
     allowedTypes,
     boss: canSpawnBoss ? 'molten-sentinel' : null,
+    ecology: override.ecology ?? {},
+    horde: createSceneHordeConfig(scene, override.difficulty ?? 1),
+  };
+}
+
+function createSceneHordeConfig(scene, difficulty) {
+  const baseZombies = scene.id === 'alien-landscape' ? 20 : 3;
+  const maxAlive = Math.max(scene.zombieSpawns?.length ?? 0, baseZombies + difficulty * 3);
+  return {
+    enabled: true,
+    maxAlive,
+    pulseIntervalMs: Math.max(4200, 7600 - difficulty * 900),
+    minPlayerDistance: 7.5,
   };
 }
 
