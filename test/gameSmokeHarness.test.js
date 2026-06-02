@@ -55,6 +55,8 @@ test('smoke harness completes Rogue only after all nine warp advances', () => {
 
   assert.equal(run.mode, 'rogue');
   assert.equal(run.world.id, SCENE_DEFINITIONS[0].id);
+  assert.ok(run.world.objectives.some((objective) => objective.requiredInRogue !== false));
+  assert.ok(run.world.encounterTriggers.some((trigger) => trigger.encounterType === 'awaken_horde'));
   assert.equal(run.label, 'ROGUE 1/9');
   assert.equal(run.complete, false);
 
@@ -63,6 +65,8 @@ test('smoke harness completes Rogue only after all nine warp advances', () => {
     assert.equal(run.mode, 'rogue');
     assert.equal(run.complete, false);
     assert.equal(run.world.id, SCENE_DEFINITIONS[index].id);
+    assert.ok(run.world.objectives.some((objective) => objective.requiredInRogue !== false));
+    assert.ok(run.world.enemyEncounter.horde.maxAlive >= run.world.zombieSpawns.length + 4);
     assert.equal(run.label, `ROGUE ${index + 1}/9`);
   }
 

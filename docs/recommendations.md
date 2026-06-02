@@ -94,6 +94,11 @@ This is the recommended order for the requested animation, boss-fight, gore, dea
 
 ## Concrete Next Engineering Pass
 
+Current in-progress gameplay pass:
+
+1. Make the Rogue title button launch the opinionated dungeon-crawling mode. Status: implemented on branch `codex/gameplay-binding-systems`.
+   `src/rogueWorld.js` wraps each Rogue stage with a required ritual objective, stronger staged horde settings, and a generated horde wake trigger near the ritual. `src/app.js` applies that wrapper only while `gameState.mode === 'rogue'`, so Free Roam and Cut-Up keep their existing scene behavior. Rogue now shows a terse corrupted objective notice at the start of each stage and blocks the warp gate until the required ritual is complete.
+
 Last completed implementation pass:
 
 1. Extract main scene render pass uniform orchestration from `src/app.js`. Status: implemented.

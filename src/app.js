@@ -68,6 +68,9 @@ import {
   stepRogueRun,
 } from './rogueMode.js';
 import {
+  createRogueStageWorld,
+} from './rogueWorld.js';
+import {
   createObjectiveState,
   getObjectiveHudText,
   isRogueGateUnlocked,
@@ -1686,6 +1689,7 @@ async function startRogueMode() {
   playTransitionOneShot(FREE_ROAM_START_SOUND_URL);
   const sceneLoaded = await setScene(getRogueSceneId(rogueRun, SCENE_DEFINITIONS));
   if (!sceneLoaded) return;
+  showGameplayNotice(getObjectiveHudText(world, objectiveState, 'rogue') || 'FEED THE DOOR', performance.now());
   syncSceneSelect();
   leaveTitleScreen();
 }
@@ -1760,6 +1764,7 @@ async function updateRogueMode(now) {
   playTransitionOneShot(CUT_UP_SCENE_SLICE_SOUND_URL, TRANSITION_SFX_GAIN * 0.58);
   try {
     await setScene(sceneId);
+    showGameplayNotice(getObjectiveHudText(world, objectiveState, 'rogue') || 'FEED THE DOOR', now);
     syncSceneSelect();
   } finally {
     rogueTransitionPending = false;
@@ -2271,10 +2276,21 @@ function setRenderResolution(id) {
 
 async function setScene(id) {
   const requestId = ++sceneLoadRequest;
-  const nextWorld = await createSceneRuntimeWorld(id);
+  const loadedWorld = await createSceneRuntimeWorld(id);
   if (requestId !== sceneLoadRequest) return false;
 
+  const nextWorld = getPlayableWorldForMode(loadedWorld);
   if (world.id === nextWorld.id) {
+    effects.sceneId = nextWorld.id;
+    world = nextWorld;
+    textureIndices = new Map(world.textures.map((texture, index) => [texture.id, index]));
+    colliders = getSceneColliders(world);
+    walkableSurfaces = getSceneWalkableSurfaces(world);
+    healthPotions = createSceneHealthPotions(world);
+    damageZones = createSceneDamageZones(world);
+    resetAuthoredRuntimeState();
+    resetPlayerToSpawn();
+    if (warehouseMesh) rebuildWarehouseMesh();
     syncSceneSelect();
     return true;
   }
@@ -2298,6 +2314,13 @@ async function setScene(id) {
   if (audioState) ensureSceneAudio();
   syncSceneSelect();
   return true;
+}
+
+function getPlayableWorldForMode(nextWorld) {
+  if (gameState.mode === 'rogue' && rogueRun?.active) {
+    return createRogueStageWorld(nextWorld, rogueRun, SCENE_DEFINITIONS);
+  }
+  return nextWorld;
 }
 
 function resetPlayerToSpawn() {
