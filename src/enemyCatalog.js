@@ -105,12 +105,22 @@ export function applyEnemyDifficulty(enemyType = 'zombie', difficulty = 1) {
   };
 }
 
+export function createEnemyTargeting(enemyType = 'zombie', ecology = {}) {
+  const definition = getEnemyDefinition(enemyType);
+  const override = ecology[definition.id] ?? {};
+  return {
+    hostileFactions: override.hostileFactions ?? definition.targeting.hostileFactions,
+    secondaryTargetRange: override.secondaryTargetRange ?? definition.targeting.secondaryTargetRange,
+  };
+}
+
 export function createLevelEncounterConfig(world) {
   const override = world.enemyEncounter ?? {};
   return {
     difficulty: override.difficulty ?? 1,
     allowedTypes: override.allowedTypes ?? Object.keys(ENEMY_TYPES),
     boss: override.boss ?? null,
+    ecology: override.ecology ?? {},
   };
 }
 

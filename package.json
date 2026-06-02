@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node scripts/dev-server.mjs",
     "dev": "node scripts/dev-server.mjs",
+    "cache:check": "node scripts/check-cache-busting.mjs",
+    "smoke:browser": "node scripts/browser-smoke.mjs",
     "test": "node --test"
   }
 }

@@ -6,6 +6,7 @@ import {
 import {
   ENEMY_FACTIONS,
   applyEnemyDifficulty,
+  createEnemyTargeting,
   createLevelEncounterConfig,
   getEnemyDefinition,
 } from './enemyCatalog.js';
@@ -14,6 +15,7 @@ const ZOMBIE_SPEED = 1.15;
 const ZOMBIE_RADIUS = 0.38;
 const PLAYER_RADIUS = 0.36;
 const TOUCH_VERTICAL_TOLERANCE = 1.05;
+const ENEMY_DEATH_VISIBLE_MS = 1600;
 
 export function createZombieEnemies(world) {
   const encounter = createLevelEncounterConfig(world);
@@ -34,8 +36,55 @@ export function createZombieEnemies(world) {
   return separateEnemyCapsules([...zombies, ...specialEnemies]);
 }
 
+export function createHordeState(world = null) {
+  const horde = world?.enemyEncounter?.horde;
+  const pulseIntervalMs = horde?.pulseIntervalMs ?? 7000;
+  return {
+    spawned: 0,
+    spawnCursor: 0,
+    nextPulseAt: pulseIntervalMs,
+  };
+}
+
+export function updateHordeSpawns(enemies, world, player, state, options = {}) {
+  const horde = world.enemyEncounter?.horde;
+  if (!horde?.enabled) return { enemies, state };
+
+  const now = options.now ?? 0;
+  const pulseIntervalMs = horde.pulseIntervalMs ?? 7000;
+  const nextPulseAt = state.nextPulseAt ?? pulseIntervalMs;
+  if (now < nextPulseAt) return { enemies, state };
+
+  const liveEnemies = enemies.filter(isLiveEnemy);
+  if (liveEnemies.length >= (horde.maxAlive ?? liveEnemies.length)) {
+    return {
+      enemies,
+      state: { ...state, nextPulseAt: now + pulseIntervalMs },
+    };
+  }
+
+  const spawn = selectHordeSpawn(world, player, enemies, state.spawnCursor ?? 0, horde);
+  if (!spawn) {
+    return {
+      enemies,
+      state: { ...state, nextPulseAt: now + pulseIntervalMs },
+    };
+  }
+
+  const hordeEnemy = createHordeEnemy(world, spawn, state.spawned ?? 0);
+  return {
+    enemies: separateEnemyCapsules([...enemies, hordeEnemy]),
+    state: {
+      spawned: (state.spawned ?? 0) + 1,
+      spawnCursor: ((state.spawnCursor ?? 0) + 1) % Math.max(1, (world.zombieSpawns ?? []).length),
+      nextPulseAt: now + pulseIntervalMs,
+    },
+  };
+}
+
 export function updateZombieEnemies(zombies, player, options) {
-  const moved = zombies.map((zombie) => updateZombieEnemy(zombie, player, zombies, options));
+  const currentEnemies = removeExpiredDyingEnemies(zombies, options.now ?? 0);
+  const moved = currentEnemies.map((zombie) => updateZombieEnemy(zombie, player, currentEnemies, options));
   return applyEnemyInfightingDamage(separateEnemyCapsules(moved), player, options);
 }
 
@@ -44,7 +93,7 @@ export function isPlayerTouchedByZombie(player, zombies) {
 }
 
 export function getTouchingEnemy(player, zombies) {
-  return zombies.find((zombie) => {
+  return zombies.filter(isLiveEnemy).find((zombie) => {
     const horizontalDistance = Math.hypot(player.x - zombie.x, player.z - zombie.z);
     const verticalDistance = Math.abs(player.y - zombie.y);
     return horizontalDistance <= PLAYER_RADIUS + zombie.radius && verticalDistance <= TOUCH_VERTICAL_TOLERANCE;
@@ -52,29 +101,32 @@ export function getTouchingEnemy(player, zombies) {
 }
 
 export function resolvePlayerZombieCollision(player, zombies, playerRadius = PLAYER_RADIUS) {
-  return zombies.reduce((position, zombie) => (
+  return zombies.filter(isLiveEnemy).reduce((position, zombie) => (
     resolveCapsuleAgainstBody(position, playerRadius, zombie, zombie.radius)
   ), player);
 }
 
 export function selectEnemyTarget(enemy, player, enemies = []) {
   const definition = getEnemyDefinition(enemy.enemyType);
+  const targeting = enemy.targeting ?? definition.targeting;
   const playerTarget = { ...player, id: 'player', faction: ENEMY_FACTIONS.player, radius: PLAYER_RADIUS };
   const candidates = [
     playerTarget,
-    ...enemies.filter((candidate) => candidate.id !== enemy.id && candidate.state !== 'dead'),
+    ...enemies.filter((candidate) => candidate.id !== enemy.id && isLiveEnemy(candidate)),
   ];
   const hostileCandidates = candidates.filter((candidate) => (
-    definition.targeting.hostileFactions.includes(candidate.faction ?? ENEMY_FACTIONS.player)
+    targeting.hostileFactions.includes(candidate.faction ?? ENEMY_FACTIONS.player)
   ));
+  const playerIsHostile = hostileCandidates.some((candidate) => candidate.id === playerTarget.id);
 
   const playerDistance = distance2D(enemy, playerTarget);
   const nearbyEnemyTarget = hostileCandidates
     .filter((candidate) => candidate.faction !== ENEMY_FACTIONS.player)
-    .filter((candidate) => distance2D(enemy, candidate) <= definition.targeting.secondaryTargetRange)
+    .filter((candidate) => distance2D(enemy, candidate) <= targeting.secondaryTargetRange)
     .sort((a, b) => distance2D(enemy, a) - distance2D(enemy, b))[0];
 
-  if (playerDistance <= definition.base.attackRange || !nearbyEnemyTarget) return playerTarget;
+  if (playerIsHostile && (playerDistance <= definition.base.attackRange || !nearbyEnemyTarget)) return playerTarget;
+  if (!nearbyEnemyTarget) return playerTarget;
   return nearbyEnemyTarget;
 }
 
@@ -97,15 +149,19 @@ function createEnemyFromSpawn({ world, spawn, index, enemyType, encounter }) {
     damage: spawn.damage ?? stats.attackDamage,
     attackRange: spawn.attackRange ?? stats.attackRange,
     attackCooldownMs: spawn.attackCooldownMs ?? stats.attackCooldownMs,
+    targeting: createEnemyTargeting(enemyType, encounter.ecology),
     mesh: spawn.mesh,
     animationSeed: stableEnemySeed(world.id, index),
   };
 }
 
 function updateZombieEnemy(zombie, player, enemies, options) {
+  if (!isLiveEnemy(zombie)) return zombie;
+
   const target = selectEnemyTarget(zombie, player, enemies);
-  const dx = target.x - zombie.x;
-  const dz = target.z - zombie.z;
+  const targetPoint = getEnemyTargetPoint(zombie, target);
+  const dx = targetPoint.x - zombie.x;
+  const dz = targetPoint.z - zombie.z;
   const distance = Math.hypot(dx, dz);
   if (distance < 0.001) return { ...zombie, state: 'attack', targetId: target.id };
 
@@ -136,6 +192,27 @@ function updateZombieEnemy(zombie, player, enemies, options) {
     yaw: Math.atan2(dx, dz),
     state: distance <= (zombie.attackRange ?? ZOMBIE_RADIUS + PLAYER_RADIUS) ? 'attack' : 'chase',
     targetId: target.id,
+    targetOffsetX: targetPoint.offsetX,
+    targetOffsetZ: targetPoint.offsetZ,
+  };
+}
+
+function getEnemyTargetPoint(enemy, target) {
+  if (enemy.role !== 'horde' || target.faction !== ENEMY_FACTIONS.player) {
+    return { x: target.x, z: target.z, offsetX: 0, offsetZ: 0 };
+  }
+
+  const dx = target.x - enemy.x;
+  const dz = target.z - enemy.z;
+  const distance = Math.hypot(dx, dz) || 1;
+  const laneOffset = enemy.hordeLaneOffset ?? 0;
+  const offsetX = -dz / distance * laneOffset;
+  const offsetZ = dx / distance * laneOffset;
+  return {
+    x: target.x + offsetX,
+    z: target.z + offsetZ,
+    offsetX: roundEnemyValue(offsetX),
+    offsetZ: roundEnemyValue(offsetZ),
   };
 }
 
@@ -148,7 +225,7 @@ function applyEnemyInfightingDamage(enemies, player, options) {
   const next = enemies.map((enemy) => ({ ...enemy }));
 
   for (const attacker of next) {
-    if (attacker.state === 'dead') continue;
+    if (!isLiveEnemy(attacker)) continue;
     const target = selectEnemyTarget(attacker, player, next);
     if (target.faction === ENEMY_FACTIONS.player) continue;
     if (distance2D(attacker, target) > (attacker.attackRange ?? 0)) continue;
@@ -164,11 +241,56 @@ function applyEnemyInfightingDamage(enemies, player, options) {
     next[targetIndex] = {
       ...next[targetIndex],
       health,
-      state: health <= 0 ? 'dead' : next[targetIndex].state,
+      state: health <= 0 ? 'dying' : next[targetIndex].state,
+      diedAt: health <= 0 ? now : next[targetIndex].diedAt,
+      killedById: health <= 0 ? attacker.id : next[targetIndex].killedById,
+      lastHitAt: now,
+      hitById: attacker.id,
+      hitByEnemyType: attacker.enemyType,
     };
   }
 
-  return next.filter((enemy) => enemy.state !== 'dead');
+  return next;
+}
+
+function createHordeEnemy(world, spawn, index) {
+  const encounter = createLevelEncounterConfig(world);
+  const stats = applyEnemyDifficulty('zombie', encounter.difficulty);
+  const animationSeed = stableEnemySeed(world.id, `horde:${index}`);
+  return {
+    id: `${world.id}-horde-zombie-${index + 1}`,
+    enemyType: 'zombie',
+    faction: ENEMY_FACTIONS.undead,
+    role: 'horde',
+    x: spawn.x,
+    y: spawn.y ?? world.playerSpawn.y,
+    z: spawn.z,
+    yaw: spawn.yaw ?? 0,
+    radius: spawn.radius ?? stats.radius ?? ZOMBIE_RADIUS,
+    speed: spawn.speed ?? stats.speed ?? ZOMBIE_SPEED,
+    health: spawn.health ?? stats.health,
+    state: 'chase',
+    damage: spawn.damage ?? stats.attackDamage,
+    attackRange: spawn.attackRange ?? stats.attackRange,
+    attackCooldownMs: spawn.attackCooldownMs ?? stats.attackCooldownMs,
+    targeting: createEnemyTargeting('zombie', encounter.ecology),
+    animationSeed,
+    hordeLaneOffset: roundEnemyValue((animationSeed * 2 - 1) * 1.45),
+  };
+}
+
+function selectHordeSpawn(world, player, enemies, startIndex, horde) {
+  const spawns = world.zombieSpawns ?? [];
+  if (!spawns.length) return null;
+
+  for (let offset = 0; offset < spawns.length; offset += 1) {
+    const spawn = spawns[(startIndex + offset) % spawns.length];
+    if (distance2D(spawn, player) < (horde.minPlayerDistance ?? 7)) continue;
+    if (enemies.some((enemy) => isLiveEnemy(enemy) && distance2D(spawn, enemy) < (enemy.radius ?? ZOMBIE_RADIUS) + ZOMBIE_RADIUS)) continue;
+    return spawn;
+  }
+
+  return null;
 }
 
 function separateEnemyCapsules(enemies) {
@@ -184,6 +306,7 @@ function separateEnemyCapsules(enemies) {
 }
 
 function separateEnemyPair(a, b) {
+  if (!isLiveEnemy(a) || !isLiveEnemy(b)) return;
   if (!capsulesOverlapVertically(a, b)) return;
 
   const dx = b.x - a.x;
@@ -242,4 +365,19 @@ function stableEnemySeed(sceneId, index) {
     hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0) / 4294967295;
+}
+
+function roundEnemyValue(value) {
+  return Math.round(value * 1000) / 1000;
+}
+
+function removeExpiredDyingEnemies(enemies, now) {
+  return enemies.filter((enemy) => (
+    enemy.state !== 'dying'
+    || now - (enemy.diedAt ?? now) <= ENEMY_DEATH_VISIBLE_MS
+  ));
+}
+
+function isLiveEnemy(enemy) {
+  return enemy.state !== 'dying' && enemy.state !== 'dead';
 }

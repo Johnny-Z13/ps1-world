@@ -26,6 +26,8 @@ Multiple chats may be working in the same tree. Do not stage, revert, or commit 
 ```bash
 npm run dev
 npm test
+npm run cache:check
+npm run smoke:browser
 ```
 
 Local app URL:
@@ -42,11 +44,13 @@ This app serves static files directly. After changing assets or runtime files, b
 - `src/app.js`: audio asset URLs when replacing SFX/ambience
 - `src/levelGlb.js`: GLB URLs when replacing level exports
 
+Use `npm run cache:check` to verify known static references include `?v=N` and to list changed JS/CSS/audio/GLB files that need cache-bust review.
+
 If behavior looks stale, hard-refresh the browser.
 
 ## Level Pipeline Summary
 
-Blender is the authoring tool. The browser runtime loads one exported GLB per scene.
+Blender is the authoring tool. The browser runtime loads one exported GLB per scene. Treat `src/world.js` as fallback metadata and procedural resilience. New layout/art changes should start in Blender or documented seed-generation paths, then flow through `src/levelGlb.js` and `src/sceneRuntime.js`.
 
 Source and exports:
 
@@ -65,6 +69,27 @@ blender -b assets/models/levels/ps1-world-levels.blend --python scripts/reexport
 Runtime parser:
 
 - `src/levelGlb.js`
+- `src/sceneRuntime.js` converts parsed level assets and fallback scene data into runtime worlds.
+- `src/titleRenderer.js` owns the importable PS1 bitmap title canvas renderer.
+- `src/playerFeedback.js` owns pure low-health, screen-flash, and death-camera/tint feedback calculations.
+- `src/inputRuntime.js` owns pure gamepad, touch joystick, and soft mouse fallback input helpers.
+- `src/sceneEffects.js` owns pure lightning strength and torch flicker/render-state helpers.
+- `src/renderMath.js` owns projection, matrix multiplication, and clamp helpers used by the WebGL path.
+- `src/webglResources.js` owns WebGL buffer, attribute, mesh-buffer deletion, and low-resolution render-target helpers.
+- `src/webglPrograms.js` owns WebGL shader compilation, program linking, and attribute/uniform location collection helpers.
+- `src/renderMeshes.js` owns primitive render mesh helpers for scene mesh attribute binding, sky dome buffers, and fullscreen post quads.
+- `src/renderSceneMeshes.js` owns static level/fallback scene mesh construction for GLB art, boxes, cards, health flasks, warp gates, weather, and shared face primitives.
+- `src/renderEnemyMeshes.js` owns dynamic zombie/special-enemy and blood burst mesh buffer construction.
+- `src/renderTextureAtlas.js` owns generated/fallback, GLB material, embedded image, and character texture atlas construction.
+- `src/renderSkyDome.js` owns sky dome mode/palette mapping and WebGL draw-state orchestration.
+- `src/renderPostPass.js` owns post-processing texture binding, screen-effect uniforms, and fullscreen quad draw orchestration.
+- `src/renderScenePass.js` owns main scene atlas binding, scene-light uniforms, static torch uniforms, and static/dynamic mesh draw ordering.
+- `src/debugHud.js` owns debug HUD snapshot formatting and DOM text application helpers.
+- `enemyEncounter.ecology` carries scene-specific hostile-faction and secondary-target-range tuning for monster relationships.
+- `world.soundZones` carries Blender-authored spatial audio zone metadata for future audio behavior.
+- `world.emitters` carries Blender-authored point-effect metadata for future visual/audio emitters.
+- GLB material surface metadata carries future footstep, splash, damage-feedback, and friction hints through `surfaceType`, `footstepSoundId`, `splashSoundId`, `damagePerSecond`, `friction`, and `wet`.
+- `world.diegeticMap` carries unreliable in-world navigation artifact metadata; do not replace it with a clean minimap.
 
 Tests:
 

@@ -5,6 +5,7 @@ import {
   ENEMY_FACTIONS,
   ENEMY_TYPES,
   applyEnemyDifficulty,
+  createEnemyTargeting,
   createLevelEncounterConfig,
   getEnemyDefinition,
 } from '../src/enemyCatalog.js';
@@ -47,12 +48,38 @@ test('creates a level encounter config with defaults and world overrides', () =>
       difficulty: 3,
       allowedTypes: ['zombie', 'molten-sentinel'],
       boss: 'molten-sentinel',
+      ecology: {
+        'molten-sentinel': {
+          secondaryTargetRange: 7.5,
+        },
+      },
     },
   });
 
   assert.equal(defaultConfig.difficulty, 1);
   assert.ok(defaultConfig.allowedTypes.includes('one-eye-alien'));
+  assert.deepEqual(defaultConfig.ecology, {});
   assert.equal(hardConfig.difficulty, 3);
   assert.deepEqual(hardConfig.allowedTypes, ['zombie', 'molten-sentinel']);
   assert.equal(hardConfig.boss, 'molten-sentinel');
+  assert.deepEqual(hardConfig.ecology, {
+    'molten-sentinel': {
+      secondaryTargetRange: 7.5,
+    },
+  });
+});
+
+test('creates enemy targeting from catalog defaults plus scene ecology overrides', () => {
+  const defaultAlienTargeting = createEnemyTargeting('one-eye-alien');
+  const ecologyAlienTargeting = createEnemyTargeting('one-eye-alien', {
+    'one-eye-alien': {
+      hostileFactions: [ENEMY_FACTIONS.undead],
+      secondaryTargetRange: 9,
+    },
+  });
+
+  assert.deepEqual(defaultAlienTargeting.hostileFactions, [ENEMY_FACTIONS.player, ENEMY_FACTIONS.undead]);
+  assert.equal(defaultAlienTargeting.secondaryTargetRange, 4.4);
+  assert.deepEqual(ecologyAlienTargeting.hostileFactions, [ENEMY_FACTIONS.undead]);
+  assert.equal(ecologyAlienTargeting.secondaryTargetRange, 9);
 });

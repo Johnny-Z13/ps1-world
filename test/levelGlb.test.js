@@ -11,6 +11,53 @@ function readLevel(id) {
   return parseLevelGlb(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength));
 }
 
+function makeMarkerOnlyGlb(nodes, overrides = {}) {
+  const jsonBytes = padChunk(new TextEncoder().encode(JSON.stringify({
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: nodes.map((_, index) => index) }],
+    nodes,
+    buffers: [{ byteLength: 0 }],
+    ...overrides,
+  })), 0x20);
+  const binBytes = new Uint8Array(0);
+  const buffer = new ArrayBuffer(12 + 8 + jsonBytes.byteLength + 8 + binBytes.byteLength);
+  const view = new DataView(buffer);
+  let offset = 0;
+
+  writeAscii(view, offset, 'glTF');
+  offset += 4;
+  view.setUint32(offset, 2, true);
+  offset += 4;
+  view.setUint32(offset, buffer.byteLength, true);
+  offset += 4;
+  view.setUint32(offset, jsonBytes.byteLength, true);
+  offset += 4;
+  view.setUint32(offset, 0x4e4f534a, true);
+  offset += 4;
+  new Uint8Array(buffer, offset, jsonBytes.byteLength).set(jsonBytes);
+  offset += jsonBytes.byteLength;
+  view.setUint32(offset, binBytes.byteLength, true);
+  offset += 4;
+  view.setUint32(offset, 0x004e4942, true);
+
+  return buffer;
+}
+
+function padChunk(bytes, padByte) {
+  const paddedLength = Math.ceil(bytes.byteLength / 4) * 4;
+  const padded = new Uint8Array(paddedLength);
+  padded.set(bytes);
+  padded.fill(padByte, bytes.byteLength);
+  return padded;
+}
+
+function writeAscii(view, offset, value) {
+  for (let i = 0; i < value.length; i += 1) {
+    view.setUint8(offset + i, value.charCodeAt(i));
+  }
+}
+
 test('maps every selectable scene to a Blender-authored GLB', () => {
   assert.deepEqual(
     Object.keys(LEVEL_GLB_URLS),
@@ -113,6 +160,346 @@ test('damage zone markers keep lava material gameplay metadata', () => {
   assert.ok(lavaZone.depth > 0);
   assert.ok(lavaZone.height > 0);
   assert.ok(lavaZone.damagePerSecond > 0);
+});
+
+test('horde trigger markers preserve authored encounter metadata', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([
+    {
+      name: 'TRIGGER_dungeon_HORDE_TRIGGER_1_lobby_alarm',
+      translation: [2.5, 1.25, -7.5],
+      extras: {
+        scene_id: 'dungeon',
+        triggerType: 'awaken_horde',
+        width: 6,
+        depth: 8,
+        height: 2,
+        maxAlive: '12',
+        pulseIntervalMs: '2400',
+      },
+    },
+    {
+      name: 'MarkerWithExtrasRole',
+      translation: [-3, 0.5, 4],
+      extras: {
+        level_role: 'HORDE_TRIGGER',
+        scene_id: 'dungeon',
+        triggerType: 'boss_feed',
+        enabled: 'false',
+      },
+    },
+  ]), 'dungeon');
+
+  assert.deepEqual(level.hordeTriggers, [
+    {
+      name: 'TRIGGER_dungeon_HORDE_TRIGGER_1_lobby_alarm',
+      x: 2.5,
+      y: 1.25,
+      z: 7.5,
+      triggerType: 'awaken_horde',
+      width: 6,
+      depth: 8,
+      height: 2,
+      maxAlive: 12,
+      pulseIntervalMs: 2400,
+    },
+    {
+      name: 'MarkerWithExtrasRole',
+      x: -3,
+      y: 0.5,
+      z: -4,
+      triggerType: 'boss_feed',
+      enabled: false,
+    },
+  ]);
+});
+
+test('encounter trigger markers preserve authored set-piece metadata', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([
+    {
+      name: 'TRIGGER_dungeon_ENCOUNTER_TRIGGER_1_monster_closet',
+      translation: [1, 0.75, -2],
+      extras: {
+        scene_id: 'dungeon',
+        encounterType: 'monster_closet',
+        targetId: 'closet-a',
+        width: 3,
+        depth: 2,
+        height: 2.5,
+        oneShot: 'true',
+      },
+    },
+    {
+      name: 'JumpScareExtrasRole',
+      translation: [-4, 1, 5],
+      extras: {
+        level_role: 'ENCOUNTER_TRIGGER',
+        scene_id: 'dungeon',
+        encounterType: 'jump_scare',
+        soundId: 'radio-burst',
+        enabled: 'false',
+      },
+    },
+  ]), 'dungeon');
+
+  assert.deepEqual(level.encounterTriggers, [
+    {
+      name: 'TRIGGER_dungeon_ENCOUNTER_TRIGGER_1_monster_closet',
+      x: 1,
+      y: 0.75,
+      z: 2,
+      encounterType: 'monster_closet',
+      targetId: 'closet-a',
+      width: 3,
+      depth: 2,
+      height: 2.5,
+      oneShot: true,
+    },
+    {
+      name: 'JumpScareExtrasRole',
+      x: -4,
+      y: 1,
+      z: -5,
+      encounterType: 'jump_scare',
+      soundId: 'radio-burst',
+      enabled: false,
+    },
+  ]);
+});
+
+test('sound zone markers preserve authored spatial audio metadata', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([
+    {
+      name: 'TRIGGER_dungeon_SOUND_ZONE_1_radio_bleed',
+      translation: [2, 1, -3],
+      extras: {
+        scene_id: 'dungeon',
+        soundZoneType: 'radio_bleed',
+        soundId: 'radio-static',
+        width: 5,
+        depth: 7,
+        height: 3,
+        gain: '0.45',
+        enabled: 'true',
+      },
+    },
+    {
+      name: 'HummingWallExtrasRole',
+      translation: [-6, 0.5, 8],
+      extras: {
+        level_role: 'SOUND_ZONE',
+        scene_id: 'dungeon',
+        soundZoneType: 'hostile_silence',
+        targetBus: 'ambience',
+        gain: '0',
+      },
+    },
+  ]), 'dungeon');
+
+  assert.deepEqual(level.soundZones, [
+    {
+      name: 'TRIGGER_dungeon_SOUND_ZONE_1_radio_bleed',
+      x: 2,
+      y: 1,
+      z: 3,
+      soundZoneType: 'radio_bleed',
+      soundId: 'radio-static',
+      width: 5,
+      depth: 7,
+      height: 3,
+      gain: 0.45,
+      enabled: true,
+    },
+    {
+      name: 'HummingWallExtrasRole',
+      x: -6,
+      y: 0.5,
+      z: -8,
+      soundZoneType: 'hostile_silence',
+      targetBus: 'ambience',
+      gain: 0,
+    },
+  ]);
+});
+
+test('objective markers preserve authored ritual metadata', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([
+    {
+      name: 'MARKER_dungeon_OBJECTIVE_tune_beacon',
+      translation: [3, 1.5, -6],
+      extras: {
+        scene_id: 'dungeon',
+        objectiveId: 'beacon-a',
+        objectiveType: 'tune_beacon',
+        label: 'tune the wrong beacon',
+        requiredInRogue: 'true',
+        countRequired: '1',
+      },
+    },
+    {
+      name: 'ObjectiveTriggerExtrasRole',
+      translation: [-2, 0.5, 7],
+      extras: {
+        level_role: 'OBJECTIVE_TRIGGER',
+        scene_id: 'dungeon',
+        objectiveId: 'feed-gate',
+        objectiveType: 'feed_gate',
+        targetId: 'gate-a',
+      },
+    },
+  ]), 'dungeon');
+
+  assert.deepEqual(level.objectives, [
+    {
+      name: 'MARKER_dungeon_OBJECTIVE_tune_beacon',
+      x: 3,
+      y: 1.5,
+      z: 6,
+      objectiveType: 'tune_beacon',
+      requiredInRogue: true,
+      objectiveId: 'beacon-a',
+      label: 'tune the wrong beacon',
+      countRequired: 1,
+    },
+    {
+      name: 'ObjectiveTriggerExtrasRole',
+      x: -2,
+      y: 0.5,
+      z: -7,
+      objectiveType: 'feed_gate',
+      requiredInRogue: true,
+      objectiveId: 'feed-gate',
+      targetId: 'gate-a',
+    },
+  ]);
+});
+
+test('emitter markers preserve authored visual and audio emitter metadata', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([
+    {
+      name: 'MARKER_dungeon_EMITTER_1_dripping_wall',
+      translation: [1, 2, -3],
+      extras: {
+        scene_id: 'dungeon',
+        emitterId: 'drip-a',
+        emitterType: 'water_drip',
+        targetId: 'pipe-a',
+        textureId: 'water-drop',
+        soundId: 'rain-spot-drip',
+        radius: '4',
+        rate: '0.35',
+        enabled: 'true',
+      },
+    },
+    {
+      name: 'StaticEmitterExtrasRole',
+      translation: [-4, 0.5, 6],
+      extras: {
+        level_role: 'EMITTER',
+        scene_id: 'dungeon',
+        emitterType: 'radio_spark',
+        targetBus: 'sfx',
+        gain: '0.6',
+      },
+    },
+  ]), 'dungeon');
+
+  assert.deepEqual(level.emitters, [
+    {
+      name: 'MARKER_dungeon_EMITTER_1_dripping_wall',
+      x: 1,
+      y: 2,
+      z: 3,
+      emitterType: 'water_drip',
+      emitterId: 'drip-a',
+      targetId: 'pipe-a',
+      textureId: 'water-drop',
+      soundId: 'rain-spot-drip',
+      radius: 4,
+      rate: 0.35,
+      enabled: true,
+    },
+    {
+      name: 'StaticEmitterExtrasRole',
+      x: -4,
+      y: 0.5,
+      z: -6,
+      emitterType: 'radio_spark',
+      targetBus: 'sfx',
+      gain: 0.6,
+    },
+  ]);
+});
+
+test('surface material metadata preserves authored footstep splash and damage hints', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([], {
+    materials: [
+      {
+        name: 'SURFACE_METAL_grate',
+        extras: {
+          surfaceType: 'metal',
+          footstepSoundId: 'boot-metal',
+          friction: '0.85',
+        },
+      },
+      {
+        name: 'LEVELMAT_water',
+        extras: {
+          level_surface: 'water',
+          splashSoundId: 'water-splash',
+          wet: 'true',
+        },
+      },
+      {
+        name: 'LEVELMAT_lava',
+        extras: {
+          surfaceType: 'lava',
+          damagePerSecond: '18',
+        },
+      },
+    ],
+  }), 'dungeon');
+
+  assert.deepEqual(level.materials.map((material) => ({
+    name: material.name,
+    textureId: material.textureId,
+    surfaceType: material.surfaceType,
+    footstepSoundId: material.footstepSoundId,
+    splashSoundId: material.splashSoundId,
+    damagePerSecond: material.damagePerSecond,
+    friction: material.friction,
+    wet: material.wet,
+  })), [
+    {
+      name: 'SURFACE_METAL_grate',
+      textureId: 'metal_grate',
+      surfaceType: 'metal',
+      footstepSoundId: 'boot-metal',
+      splashSoundId: undefined,
+      damagePerSecond: undefined,
+      friction: 0.85,
+      wet: undefined,
+    },
+    {
+      name: 'LEVELMAT_water',
+      textureId: 'water',
+      surfaceType: 'water',
+      footstepSoundId: undefined,
+      splashSoundId: 'water-splash',
+      damagePerSecond: undefined,
+      friction: undefined,
+      wet: true,
+    },
+    {
+      name: 'LEVELMAT_lava',
+      textureId: 'lava',
+      surfaceType: 'lava',
+      footstepSoundId: undefined,
+      splashSoundId: undefined,
+      damagePerSecond: 18,
+      friction: undefined,
+      wet: undefined,
+    },
+  ]);
 });
 
 test('enemy spawn markers preserve typed entity metadata', () => {

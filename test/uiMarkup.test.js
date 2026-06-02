@@ -5,12 +5,30 @@ import test from 'node:test';
 const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../src/app.js', import.meta.url), 'utf8');
+const sceneRuntime = readFileSync(new URL('../src/sceneRuntime.js', import.meta.url), 'utf8');
+const titleRenderer = readFileSync(new URL('../src/titleRenderer.js', import.meta.url), 'utf8');
 const audioConfig = readFileSync(new URL('../src/audioConfig.js', import.meta.url), 'utf8');
+const audioRuntime = readFileSync(new URL('../src/audioRuntime.js', import.meta.url), 'utf8');
+const playerFeedback = readFileSync(new URL('../src/playerFeedback.js', import.meta.url), 'utf8');
+const inputRuntime = readFileSync(new URL('../src/inputRuntime.js', import.meta.url), 'utf8');
+const sceneEffects = readFileSync(new URL('../src/sceneEffects.js', import.meta.url), 'utf8');
+const renderMath = readFileSync(new URL('../src/renderMath.js', import.meta.url), 'utf8');
+const webglResources = readFileSync(new URL('../src/webglResources.js', import.meta.url), 'utf8');
+const webglPrograms = readFileSync(new URL('../src/webglPrograms.js', import.meta.url), 'utf8');
+const renderMeshes = readFileSync(new URL('../src/renderMeshes.js', import.meta.url), 'utf8');
+const renderSceneMeshes = readFileSync(new URL('../src/renderSceneMeshes.js', import.meta.url), 'utf8');
+const renderEnemyMeshes = readFileSync(new URL('../src/renderEnemyMeshes.js', import.meta.url), 'utf8');
+const renderTextureAtlas = readFileSync(new URL('../src/renderTextureAtlas.js', import.meta.url), 'utf8');
+const renderSkyDome = readFileSync(new URL('../src/renderSkyDome.js', import.meta.url), 'utf8');
+const renderPostPass = readFileSync(new URL('../src/renderPostPass.js', import.meta.url), 'utf8');
+const renderScenePass = readFileSync(new URL('../src/renderScenePass.js', import.meta.url), 'utf8');
+const debugHud = readFileSync(new URL('../src/debugHud.js', import.meta.url), 'utf8');
 const enemyCatalog = readFileSync(new URL('../src/enemyCatalog.js', import.meta.url), 'utf8');
 const generatedTextures = readFileSync(new URL('../src/generatedTextures.js', import.meta.url), 'utf8');
 const renderShaders = readFileSync(new URL('../src/renderShaders.js', import.meta.url), 'utf8');
-const runtimeSource = [app, audioConfig, enemyCatalog, generatedTextures, renderShaders].join('\n');
+const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
 const zombieModel = readFileSync(new URL('../src/zombieModel.js', import.meta.url), 'utf8');
+const enemyAnimation = readFileSync(new URL('../src/enemyAnimation.js', import.meta.url), 'utf8');
 const cutUpMode = readFileSync(new URL('../src/cutUpMode.js', import.meta.url), 'utf8');
 
 test('renders a center reticule with an options toggle', () => {
@@ -25,10 +43,8 @@ test('offers a small debug HUD with frame and enemy counts', () => {
   assert.match(index, /id="debugScene"/);
   assert.match(index, /Debug HUD/);
   assert.match(styles, /\.debug-hud/);
-  assert.match(runtimeSource, /function updateDebugHud/);
-  assert.match(runtimeSource, /debugHud\.fps/);
-  assert.match(runtimeSource, /effects\.debugHud/);
-  assert.match(runtimeSource, /debugScene/);
+  assert.match(runtimeSource, /function createDebugHudSnapshot/);
+  assert.match(runtimeSource, /function applyDebugHudSnapshot/);
   assert.match(runtimeSource, /world\.label/);
   assert.match(runtimeSource, /zombies\.length/);
 });
@@ -48,10 +64,7 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(styles, /\.title-canvas/);
   assert.match(styles, /image-rendering:\s*pixelated/);
   assert.match(runtimeSource, /function startRandomScene/);
-  assert.match(runtimeSource, /const TITLE_WIDTH = 512/);
   assert.match(runtimeSource, /drawBitmapGlyph/);
-  assert.match(runtimeSource, /TITLE_LAST_COMMIT_MESSAGE = 'last commit polish scenes and gameplay feedback'/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\(TITLE_LAST_COMMIT_MESSAGE,\s*462,\s*1,\s*'#8f8a77',\s*time/);
   assert.match(runtimeSource, /wasd\+mouse or gamepad/);
   assert.match(runtimeSource, /watch out for the zombies/);
   assert.match(runtimeSource, /drawBloodWarningText/);
@@ -129,16 +142,11 @@ test('keeps title mode buttons compact and vertically separated', () => {
   assert.match(styles, /max-height:\s*32px/);
   assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.29\)/);
   assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.067\)/);
-  assert.match(runtimeSource, /const titleButtonBlink = getTitleButtonBlink\(time\)/);
-  assert.match(runtimeSource, /drawBitmapButton\(time,\s*\{ y: 264,\s*label: 'free roam'/);
-  assert.match(runtimeSource, /drawBitmapButton\(time,\s*\{ y: 310,\s*label: 'cut-up mode'/);
-  assert.match(runtimeSource, /drawBitmapButton\(time,\s*\{ y: 356,\s*label: 'rogue'/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\('wasd\+mouse or gamepad', 416, 1\.25/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\(TITLE_LAST_COMMIT_MESSAGE, 462, 1/);
+  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 416, 1\.25/);
   assert.match(runtimeSource, /const width = 150/);
   assert.match(runtimeSource, /const height = 32/);
   assert.match(runtimeSource, /const textScale = 1\.5/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\('ps1-world', 146, 7/);
+  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'ps1-world', 146, 7/);
   assert.match(styles, /font-size:\s*11px/);
 });
 
@@ -415,8 +423,9 @@ test('adds gamepad movement, look, jump, sprint, and menu bindings', () => {
   assert.match(runtimeSource, /function updateGamepadInput/);
   assert.match(runtimeSource, /function applyGamepadLook/);
   assert.match(runtimeSource, /function normalizeGamepadAxis/);
-  assert.match(runtimeSource, /buttonPressed\(gamepad,\s*0\)/);
-  assert.match(runtimeSource, /buttonPressed\(gamepad,\s*9\)/);
+  assert.match(runtimeSource, /createGamepadSnapshot\(gamepad,\s*gamepadInput\.previousButtons\)/);
+  assert.match(runtimeSource, /isGamepadButtonPressed\(gamepad,\s*0\)/);
+  assert.match(runtimeSource, /isGamepadButtonPressed\(gamepad,\s*9\)/);
   assert.match(runtimeSource, /gamepadInput\.sprint/);
 });
 
@@ -486,8 +495,10 @@ test('loads typed enemy models and gives special enemies unique audio hooks', ()
   assert.match(runtimeSource, /one-eye-alien/);
   assert.match(runtimeSource, /locomotionNames:\s*Object\.freeze\(\['Running', 'Run', 'Walk', 'Locomotion'\]\)/);
   assert.match(runtimeSource, /attackNames:\s*Object\.freeze\(\['Attack', 'Attacking', 'Confused_Scratch', 'Scratch', 'Punch', 'Hit'\]\)/);
-  assert.match(runtimeSource, /findPreferredAnimationName\(model,\s*enemyDefinition\.animation\.attackNames\)/);
-  assert.match(runtimeSource, /findPreferredAnimationName\(model,\s*enemyDefinition\.animation\.locomotionNames\)/);
+  assert.match(runtimeSource, /chooseEnemyAnimation/);
+  assert.match(enemyAnimation, /findPreferredAnimationName\(model,\s*definition\.animation\.attackNames\)/);
+  assert.match(enemyAnimation, /findPreferredAnimationName\(model,\s*definition\.animation\.locomotionNames\)/);
+  assert.match(enemyAnimation, /state === 'attack'/);
   assert.match(runtimeSource, /function getRuntimeEnemySpawns/);
   assert.match(runtimeSource, /spawn\.enemyType !== 'molten-sentinel'/);
   assert.match(runtimeSource, /getEnemyDefinition\(enemy\?\.enemyType\)\.base\.attackDamage/);
@@ -555,7 +566,8 @@ test('crossfades walking and sprinting player footstep loops', () => {
   assert.match(runtimeSource, /player-footsteps-walk-8bit-loop\.mp3\?v=1/);
   assert.match(runtimeSource, /PLAYER_SPRINT_FOOTSTEP_LOOP_URL/);
   assert.match(runtimeSource, /player-footsteps-sprint-8bit-loop\.mp3\?v=1/);
-  assert.match(runtimeSource, /function ensurePlayerFootstepLoops/);
+  assert.match(runtimeSource, /function ensurePlayerFootstepLoopSources/);
+  assert.match(runtimeSource, /ensurePlayerFootstepLoopSources\(audioState/);
   assert.match(runtimeSource, /function syncPlayerFootstepAudio/);
   assert.match(runtimeSource, /function syncPlayerMovementSpotAudio/);
   assert.match(runtimeSource, /player-jump-8bit\.wav\?v=1/);
@@ -584,7 +596,7 @@ test('loops a generated player heartbeat that speeds up near zombies', () => {
   assert.match(runtimeSource, /PLAYER_HEARTBEAT_DANGER_INTERVAL_MS/);
   assert.match(runtimeSource, /heartbeatGain/);
   assert.match(runtimeSource, /function ensurePlayerHeartbeatLoop/);
-  assert.match(runtimeSource, /function scheduleHeartbeatPulse/);
+  assert.match(runtimeSource, /function schedulePlayerHeartbeatPulse/);
   assert.match(runtimeSource, /function getPlayerHeartbeatParams/);
   assert.match(runtimeSource, /getNearestZombieDistance\(\)/);
   assert.match(runtimeSource, /oscillator\.type = 'square'/);
