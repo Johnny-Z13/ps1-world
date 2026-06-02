@@ -152,3 +152,39 @@ test('createSceneMesh builds fallback world boxes and billboards into static buf
   assert.ok(textureIds.includes(5));
   assert.ok(textureIds.includes(6));
 });
+
+test('createSceneMesh expands black smoke emitters into dithered particle cards', () => {
+  const { gl, calls } = createFakeGl();
+  const indices = new Map([
+    ['floor', 1],
+    ['blackSmoke', 7],
+  ]);
+  const scene = {
+    floor: { x: 0, y: 0, z: 0, width: 4, depth: 4, height: 0.2, texture: 'floor' },
+    walls: [],
+    crates: [],
+    mountains: [],
+    emitters: [{
+      name: 'test black smoke vent',
+      emitterType: 'black_smoke',
+      x: 1,
+      y: 0.2,
+      z: -1,
+      radius: 2.4,
+      height: 4.8,
+      texture: 'blackSmoke',
+      motion: 'smoke-plume',
+      rate: 5,
+    }],
+  };
+
+  const mesh = createSceneMesh(gl, scene, indices);
+  const [positions, uvs, textureIds, shades, motions] = getBufferPayloads(calls);
+  const smokeVertexCount = textureIds.filter((textureId) => textureId === 7).length;
+
+  assert.equal(mesh.count, positions.length / 3);
+  assert.equal(uvs.length, mesh.count * 2);
+  assert.equal(smokeVertexCount, 60);
+  assert.equal(motions.filter((motion) => motion === 16).length, smokeVertexCount);
+  assert.ok(shades.some((shade) => shade < 0.7));
+});

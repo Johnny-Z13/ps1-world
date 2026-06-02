@@ -23,6 +23,7 @@ export function getActiveSoundZoneDecision(world = {}, player = {}) {
 export function getActiveEmitterDecisions(world = {}, player = {}) {
   return (world.emitters ?? [])
     .filter((emitter) => emitter?.enabled !== false)
+    .filter((emitter) => emitter.soundId)
     .map((emitter) => ({
       id: getEmitterId(emitter),
       type: emitter.emitterType ?? 'ambient',

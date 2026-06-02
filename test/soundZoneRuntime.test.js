@@ -49,3 +49,13 @@ test('returns nearby emitter decisions ordered by distance', () => {
   assert.equal(decisions[0].distance, 2);
   assert.equal(decisions[0].gain, 0.4);
 });
+
+test('ignores visual-only emitters that do not declare a sound id', () => {
+  const world = {
+    emitters: [
+      { emitterId: 'smoke', emitterType: 'black_smoke', x: 0, y: 0, z: 0, radius: 8, gain: 0.5 },
+    ],
+  };
+
+  assert.deepEqual(getActiveEmitterDecisions(world, { x: 0, y: 0, z: 0 }), []);
+});

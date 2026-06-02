@@ -14,6 +14,7 @@ export const MOTION_CODES = Object.freeze({
     'torch-flame': 13,
     'pickup-bob': 14,
     'warp-gate': 15,
+    'smoke-plume': 16,
 });
 
 export function motionCode(name) {
@@ -98,6 +99,11 @@ export function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
 
   if (id === 'bloodBurst') {
     drawBloodBurstTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'blackSmoke') {
+    drawBlackSmokeTexture(ctx, x, y, tile);
     return;
   }
 
@@ -205,6 +211,37 @@ function drawBloodBurstTexture(ctx, x, y, tile) {
     ctx.arc(x + tile * cx, y + tile * cy, tile * radius, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+
+function drawBlackSmokeTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const cell = tile / 16;
+  for (let row = 0; row < 16; row += 1) {
+    for (let col = 0; col < 16; col += 1) {
+      const nx = (col + 0.5) / 16 - 0.5;
+      const ny = (row + 0.5) / 16 - 0.5;
+      const body = Math.hypot(nx * 1.05, (ny + 0.05) * 0.8);
+      const shoulder = Math.hypot((nx + 0.2) * 1.35, (ny - 0.12) * 1.1);
+      const crown = Math.hypot((nx - 0.18) * 1.35, (ny + 0.18) * 1.25);
+      const density = Math.max(
+        0,
+        0.76 - body,
+        0.52 - shoulder,
+        0.48 - crown,
+      );
+      const noise = hash(col, row, 91);
+      const edgeCut = hash(col + 17, row + 11, 93);
+      if (density <= 0 || noise * 0.72 > density || (density < 0.18 && edgeCut > 0.42)) continue;
+
+      const alpha = Math.min(0.82, 0.12 + density * 1.05 + noise * 0.18);
+      const shade = 8 + Math.floor(noise * 34);
+      ctx.fillStyle = `rgba(${shade}, ${shade}, ${shade + 2}, ${alpha.toFixed(2)})`;
+      ctx.fillRect(x + col * cell, y + row * cell, Math.ceil(cell), Math.ceil(cell));
+    }
+  }
+
+  ctx.fillStyle = 'rgba(3, 3, 4, 0.55)';
+  ctx.fillRect(x + tile * 0.42, y + tile * 0.72, tile * 0.18, tile * 0.18);
 }
 
 function drawStarTexture(ctx, x, y, tile) {

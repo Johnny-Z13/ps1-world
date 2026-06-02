@@ -468,11 +468,37 @@ test('gives every scene a diegetic navigation artifact instead of a clean minima
   assert.equal(createSceneWorld('one-bit-cathedral').diegeticMap.artifactType, 'stained-glass-floor');
 });
 
-test('exposes fallback emitter metadata as an empty authoring surface', () => {
+test('dots open-air fallback scenes with authored black smoke emitters', () => {
+  const smokeSceneIds = [
+    'alien-landscape',
+    'rotwood-forest',
+    'neon-backstreets',
+    'sunken-temple',
+    'motel-mirage',
+  ];
+
   for (const definition of SCENE_DEFINITIONS) {
     const scene = createSceneWorld(definition.id);
 
-    assert.deepEqual(scene.emitters, [], definition.id);
+    assert.ok(Array.isArray(scene.emitters), definition.id);
+
+    if (!smokeSceneIds.includes(definition.id)) {
+      assert.deepEqual(scene.emitters, [], definition.id);
+      continue;
+    }
+
+    const smokeEmitters = scene.emitters.filter((emitter) => emitter.emitterType === 'black_smoke');
+
+    assert.ok(smokeEmitters.length >= 2, definition.id);
+    assert.ok(scene.textures.some((texture) => texture.id === 'blackSmoke' && texture.size === 64), definition.id);
+
+    for (const emitter of smokeEmitters) {
+      assert.equal(emitter.texture, 'blackSmoke', emitter.name);
+      assert.equal(emitter.motion, 'smoke-plume', emitter.name);
+      assert.ok(emitter.radius >= 2.2, emitter.name);
+      assert.ok(emitter.height >= 4.5, emitter.name);
+      assert.ok(emitter.rate >= 4, emitter.name);
+    }
   }
 });
 

@@ -302,6 +302,11 @@ function createAlienLandscapeWorld() {
       { x: 15, y: 4, z: 8, color: [0.8, 0.55, 1.0] },
       { x: 0, y: 5, z: 20, color: [0.55, 1.0, 0.78] },
     ],
+    emitters: [
+      blackSmokeEmitter('probe wreck black smoke', -7, -5, { radius: 2.8, height: 5.2, rate: 6 }),
+      blackSmokeEmitter('broken pylon black smoke', 13, 4, { radius: 2.4, height: 4.7, rate: 5 }),
+      blackSmokeEmitter('ridge vent black smoke', 10, -13, { radius: 2.7, height: 5.8, rate: 6 }),
+    ],
     playerSpawn: { x: 0, y: 1.45, z: 15, yaw: 3.12 },
     killY: -10,
     textures,
@@ -574,6 +579,11 @@ function createRotwoodForestWorld() {
         },
       ],
     },
+    emitters: [
+      blackSmokeEmitter('hollow tree black smoke', -9, -13, { radius: 2.6, height: 5.4, rate: 5 }),
+      blackSmokeEmitter('black pond cold smoke', 13.5, 7.4, { radius: 3.1, height: 4.9, rate: 4 }),
+      blackSmokeEmitter('stone circle ground smoke', 4, -13, { radius: 2.7, height: 5.0, rate: 5 }),
+    ],
     playerTorch: {
       radius: 12,
       intensity: 2.9,
@@ -761,6 +771,11 @@ function createMotelMirageWorld() {
     ],
     sun: null,
     shootingStar: { texture: 'shootingStar', x: -25, y: 12, z: -36, width: 12, height: 1.2, interval: 11, delay: 2, duration: 2.1 },
+    emitters: [
+      blackSmokeEmitter('parked car black smoke', 13, 12, { radius: 2.4, height: 4.7, rate: 4 }),
+      blackSmokeEmitter('vending machine black smoke', -16.8, 6.2, { radius: 2.2, height: 4.6, rate: 4 }),
+      blackSmokeEmitter('rear warped room black smoke', 13, -33, { radius: 2.8, height: 5.8, rate: 6 }),
+    ],
     lights: [
       { x: -7, y: 6, z: 13, color: [1.0, 0.72, 0.28] },
       { x: -17, y: 3, z: 6, color: [0.38, 0.72, 1.0] },
@@ -778,6 +793,22 @@ function createMotelMirageWorld() {
 
 function card(name, x, y, z, width, height, texture, motion = null) {
   return { name, x, y, z, width, height, texture, motion };
+}
+
+function blackSmokeEmitter(name, x, z, options = {}) {
+  return {
+    name,
+    emitterId: name.toLowerCase().replaceAll(' ', '-'),
+    emitterType: 'black_smoke',
+    x,
+    y: options.y ?? 0.18,
+    z,
+    radius: options.radius ?? 2.5,
+    height: options.height ?? 5.0,
+    rate: options.rate ?? 5,
+    texture: 'blackSmoke',
+    motion: 'smoke-plume',
+  };
 }
 
 function createDerelictStarshipWorld() {
@@ -974,6 +1005,11 @@ function createNeonBackstreetsWorld() {
         },
       ],
     },
+    emitters: [
+      blackSmokeEmitter('void trench black smoke', -2.5, 5.5, { y: 0.05, radius: 2.7, height: 5.6, rate: 6 }),
+      blackSmokeEmitter('glass tower roof black smoke', 3, -27, { y: 0.2, radius: 2.9, height: 6.2, rate: 6 }),
+      blackSmokeEmitter('tree island black smoke', 11, 1, { y: 0.55, radius: 2.4, height: 5.0, rate: 5 }),
+    ],
     lights: [
       { x: -23, y: 12, z: -26, color: [0.5, 0.9, 1.0] },
       { x: 22, y: 10, z: -4, color: [0.35, 1.0, 1.0] },
@@ -1052,6 +1088,11 @@ function createSunkenTempleWorld() {
       texture: 'rain',
       drops: rainDrops,
     },
+    emitters: [
+      blackSmokeEmitter('altar incense black smoke', 0, 0, { radius: 2.3, height: 4.8, rate: 4 }),
+      blackSmokeEmitter('west obelisk black smoke', -8, -7, { radius: 2.4, height: 5.0, rate: 5 }),
+      blackSmokeEmitter('east obelisk black smoke', 8, 8, { radius: 2.4, height: 5.0, rate: 5 }),
+    ],
     lights: [
       { x: 0, y: 6, z: 0, color: [0.45, 1.0, 0.82] },
       { x: -8, y: 4, z: -7, color: [0.6, 0.9, 1.0] },
@@ -1239,6 +1280,7 @@ const SCENE_ENCOUNTER_CONFIGS = Object.freeze({
 function withZombies(scene, zombieSpawns) {
   const enemyEncounter = createSceneEnemyEncounter(scene);
   const healthPotions = scene.healthPotions ?? createHealthPotions(scene.id);
+  const emitters = scene.emitters ?? [];
   const texturesWithZombie = scene.textures.some((texture) => texture.id === 'zombie')
     ? scene.textures
     : [...scene.textures, { id: 'zombie', size: 64 }];
@@ -1256,6 +1298,13 @@ function withZombies(scene, zombieSpawns) {
   const texturesWithBlood = textures.some((texture) => texture.id === BLOOD_BURST_TEXTURE_ID)
     ? textures
     : [...textures, { id: BLOOD_BURST_TEXTURE_ID, size: 64 }];
+  const texturesWithSmoke = emitters.some((emitter) => (
+    emitter.emitterType === 'black_smoke'
+    || emitter.texture === 'blackSmoke'
+    || emitter.textureId === 'blackSmoke'
+  )) && !texturesWithBlood.some((texture) => texture.id === 'blackSmoke')
+    ? [...texturesWithBlood, { id: 'blackSmoke', size: 64 }]
+    : texturesWithBlood;
 
   return {
     ...scene,
@@ -1266,12 +1315,12 @@ function withZombies(scene, zombieSpawns) {
     encounterTriggers: scene.encounterTriggers ?? [],
     soundZones: scene.soundZones ?? [],
     objectives: scene.objectives ?? [],
-    emitters: scene.emitters ?? [],
+    emitters,
     diegeticMap: scene.diegeticMap ?? createSceneDiegeticMap(scene.id),
     warpGate: createRogueWarpGate(scene, zombieSpawns),
     healthPotions,
     audio: scene.audio ?? { reverb: getSceneReverb(scene.id) },
-    textures: texturesWithBlood,
+    textures: texturesWithSmoke,
   };
 }
 

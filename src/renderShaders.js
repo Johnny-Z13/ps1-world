@@ -148,6 +148,7 @@ void main() {
   float zombieMask = 1.0 - step(0.5, abs(aMotion - ${shaderFloat(MOTION_CODES['zombie-walk'])}));
   float torchFlameMask = 1.0 - step(0.5, abs(aMotion - ${shaderFloat(MOTION_CODES['torch-flame'])}));
   float pickupMask = 1.0 - step(0.5, abs(aMotion - ${shaderFloat(MOTION_CODES['pickup-bob'])}));
+  float smokeMask = 1.0 - step(0.5, abs(aMotion - ${shaderFloat(MOTION_CODES['smoke-plume'])}));
   warped.x += sin(uTime * 1.5 + aPosition.z * 1.8) * 0.24 * swayMask;
   warped.x += sin(uTime * 2.8 + aPosition.y * 3.0) * 0.7 * fireflyMask;
   warped.y += sin(uTime * 3.2 + aPosition.x * 2.0) * 0.36 * fireflyMask;
@@ -173,6 +174,9 @@ void main() {
   warped.x += sin(uTime * 17.0 + aPosition.y * 11.0) * 0.06 * torchFlameMask;
   warped.y += floor(mod(uTime * 14.0 + aPosition.x * 3.0, 2.0)) * 0.08 * torchFlameMask;
   warped.y += (sin(uTime * 3.6 + aPosition.x * 1.7) * 0.12 + 0.12) * pickupMask;
+  warped.x += sin(uTime * 0.85 + aPosition.y * 1.9 + aPosition.z) * 0.42 * smokeMask;
+  warped.z += cos(uTime * 0.72 + aPosition.y * 1.4 + aPosition.x) * 0.28 * smokeMask;
+  warped.y += floor(mod(uTime * 1.1 + aPosition.x * 0.23 + aPosition.z * 0.19, 3.0)) * 0.08 * smokeMask;
   float wobble = sin((aPosition.x + aPosition.z) * 8.0 + uTime * 6.0) * 0.006;
   warped.xz += vec2(wobble, -wobble) * uWarping;
 
