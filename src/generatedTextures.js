@@ -15,6 +15,9 @@ export const MOTION_CODES = Object.freeze({
     'pickup-bob': 14,
     'warp-gate': 15,
     'smoke-plume': 16,
+    'spark-shower': 17,
+    'astral-mote': 18,
+    'glitch-static': 19,
 });
 
 export function motionCode(name) {
@@ -104,6 +107,21 @@ export function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
 
   if (id === 'blackSmoke') {
     drawBlackSmokeTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'vfxSpark') {
+    drawSparkVfxTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'vfxMote') {
+    drawMoteVfxTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'vfxStatic') {
+    drawStaticVfxTexture(ctx, x, y, tile);
     return;
   }
 
@@ -242,6 +260,47 @@ function drawBlackSmokeTexture(ctx, x, y, tile) {
 
   ctx.fillStyle = 'rgba(3, 3, 4, 0.55)';
   ctx.fillRect(x + tile * 0.42, y + tile * 0.72, tile * 0.18, tile * 0.18);
+}
+
+function drawSparkVfxTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const cells = [
+    [0.48, 0.1, 0.16, 'rgba(255, 248, 160, 0.92)'],
+    [0.42, 0.24, 0.22, 'rgba(255, 145, 44, 0.78)'],
+    [0.55, 0.34, 0.2, 'rgba(216, 46, 22, 0.64)'],
+    [0.35, 0.48, 0.14, 'rgba(255, 216, 80, 0.72)'],
+    [0.62, 0.56, 0.12, 'rgba(255, 88, 28, 0.58)'],
+    [0.5, 0.72, 0.1, 'rgba(102, 22, 10, 0.45)'],
+  ];
+
+  for (const [cx, cy, size, color] of cells) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x + tile * cx - tile * size * 0.5, y + tile * cy - tile * size * 0.5, tile * size, tile * size);
+  }
+}
+
+function drawMoteVfxTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = 'rgba(34, 255, 238, 0.82)';
+  ctx.fillRect(x + tile * 0.38, y + tile * 0.32, tile * 0.2, tile * 0.2);
+  ctx.fillStyle = 'rgba(255, 58, 216, 0.7)';
+  ctx.fillRect(x + tile * 0.52, y + tile * 0.42, tile * 0.18, tile * 0.18);
+  ctx.fillStyle = 'rgba(255, 246, 92, 0.64)';
+  ctx.fillRect(x + tile * 0.28, y + tile * 0.55, tile * 0.16, tile * 0.16);
+  ctx.fillStyle = 'rgba(170, 255, 255, 0.34)';
+  ctx.fillRect(x + tile * 0.25, y + tile * 0.25, tile * 0.5, tile * 0.5);
+}
+
+function drawStaticVfxTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const cell = tile / 8;
+  for (let index = 0; index < 18; index += 1) {
+    const px = Math.floor(hash(index, 2, 101) * 8);
+    const py = Math.floor(hash(index, 3, 102) * 8);
+    const white = hash(index, 4, 103) > 0.45;
+    ctx.fillStyle = white ? 'rgba(245, 240, 210, 0.86)' : 'rgba(18, 14, 10, 0.78)';
+    ctx.fillRect(x + px * cell, y + py * cell, cell, cell);
+  }
 }
 
 function drawStarTexture(ctx, x, y, tile) {

@@ -36,7 +36,7 @@ export function createLevelMesh(glContext, scene, indices) {
     addWarpGate(geometry, scene.warpGate, indices);
   }
 
-  addSmokeEmitters(geometry, scene.emitters, indices);
+  addVisualEmitters(geometry, scene.emitters, indices);
 
   return createStaticMeshBuffers(glContext, geometry);
 }
@@ -162,7 +162,7 @@ export function createWarehouseMesh(glContext, scene, indices) {
     addSun(geometry, scene.sun, indices);
   }
 
-  addSmokeEmitters(geometry, scene.emitters, indices);
+  addVisualEmitters(geometry, scene.emitters, indices);
 
   return createStaticMeshBuffers(glContext, geometry);
 }
@@ -398,10 +398,13 @@ function addRain(geometry, rain, indices) {
   }
 }
 
-function addSmokeEmitters(geometry, emitters = [], indices) {
+function addVisualEmitters(geometry, emitters = [], indices) {
   for (const emitter of emitters) {
-    if (!isBlackSmokeEmitter(emitter)) continue;
-    addSmokePlume(geometry, emitter, indices);
+    if (isBlackSmokeEmitter(emitter)) {
+      addSmokePlume(geometry, emitter, indices);
+    } else if (isSpecialVfxEmitter(emitter)) {
+      addSpecialVfxParticles(geometry, emitter, indices);
+    }
   }
 }
 
@@ -448,6 +451,53 @@ function addSmokePlume(geometry, emitter, indices) {
       [centerX, centerY + halfHeight, centerZ - halfWidth],
     ], 1, 1, motion);
   }
+}
+
+function isSpecialVfxEmitter(emitter) {
+  if (!emitter || emitter.enabled === false) return false;
+  return emitter.emitterType === 'spark_shower'
+    || emitter.emitterType === 'astral_motes'
+    || emitter.emitterType === 'glitch_static';
+}
+
+function addSpecialVfxParticles(geometry, emitter, indices) {
+  const config = getSpecialVfxConfig(emitter.emitterType);
+  const textureId = indices.get(emitter.texture ?? config.texture) ?? 0;
+  const motion = motionCode(emitter.motion ?? config.motion);
+  const radius = Number(emitter.radius ?? config.radius);
+  const height = Number(emitter.height ?? config.height);
+  const baseX = Number(emitter.x ?? 0);
+  const baseY = Number(emitter.y ?? 0);
+  const baseZ = Number(emitter.z ?? 0);
+
+  for (let index = 0; index < config.count; index += 1) {
+    const angle = hashSmokeOffset(baseX, baseZ, index + 31) * Math.PI * 2;
+    const distance = radius * (0.18 + hashSmokeOffset(baseZ, baseX, index + 41) * 0.82);
+    const phase = hashSmokeOffset(baseX + 3, baseZ - 5, index + 53);
+    const centerX = baseX + Math.cos(angle) * distance;
+    const centerY = baseY + height * phase;
+    const centerZ = baseZ + Math.sin(angle) * distance;
+    const size = config.size * (0.75 + hashSmokeOffset(baseX, baseZ, index + 61) * 0.6);
+    const half = size / 2;
+    const shade = config.shade + hashSmokeOffset(baseZ, baseX, index + 73) * 0.24;
+
+    face(geometry, textureId, shade, [
+      [centerX - half, centerY - half, centerZ],
+      [centerX + half, centerY - half, centerZ],
+      [centerX + half, centerY + half, centerZ],
+      [centerX - half, centerY + half, centerZ],
+    ], 1, 1, motion);
+  }
+}
+
+function getSpecialVfxConfig(emitterType) {
+  if (emitterType === 'spark_shower') {
+    return { texture: 'vfxSpark', motion: 'spark-shower', count: 12, radius: 1.4, height: 3.4, size: 0.34, shade: 1.25 };
+  }
+  if (emitterType === 'astral_motes') {
+    return { texture: 'vfxMote', motion: 'astral-mote', count: 14, radius: 2.4, height: 2.8, size: 0.42, shade: 1.3 };
+  }
+  return { texture: 'vfxStatic', motion: 'glitch-static', count: 10, radius: 1.8, height: 2.4, size: 0.36, shade: 1.18 };
 }
 
 function hashSmokeOffset(x, z, seed) {

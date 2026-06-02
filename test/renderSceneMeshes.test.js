@@ -188,3 +188,35 @@ test('createSceneMesh expands black smoke emitters into dithered particle cards'
   assert.equal(motions.filter((motion) => motion === 16).length, smokeVertexCount);
   assert.ok(shades.some((shade) => shade < 0.7));
 });
+
+test('createSceneMesh expands special visual emitters into particle cards', () => {
+  const { gl, calls } = createFakeGl();
+  const indices = new Map([
+    ['floor', 1],
+    ['vfxSpark', 8],
+    ['vfxMote', 9],
+    ['vfxStatic', 10],
+  ]);
+  const scene = {
+    floor: { x: 0, y: 0, z: 0, width: 4, depth: 4, height: 0.2, texture: 'floor' },
+    walls: [],
+    crates: [],
+    mountains: [],
+    emitters: [
+      { name: 'test sparks', emitterType: 'spark_shower', x: 0, y: 0.3, z: 0, radius: 1.4, height: 3.6, texture: 'vfxSpark', motion: 'spark-shower', rate: 12 },
+      { name: 'test motes', emitterType: 'astral_motes', x: 1, y: 1.2, z: 0, radius: 2.2, height: 2.8, texture: 'vfxMote', motion: 'astral-mote', rate: 14 },
+      { name: 'test static', emitterType: 'glitch_static', x: -1, y: 1.1, z: 0, radius: 1.8, height: 2.4, texture: 'vfxStatic', motion: 'glitch-static', rate: 10 },
+    ],
+  };
+
+  createSceneMesh(gl, scene, indices);
+  const [, , textureIds, shades, motions] = getBufferPayloads(calls);
+
+  assert.equal(textureIds.filter((textureId) => textureId === 8).length, 72);
+  assert.equal(textureIds.filter((textureId) => textureId === 9).length, 84);
+  assert.equal(textureIds.filter((textureId) => textureId === 10).length, 60);
+  assert.equal(motions.filter((motion) => motion === 17).length, 72);
+  assert.equal(motions.filter((motion) => motion === 18).length, 84);
+  assert.equal(motions.filter((motion) => motion === 19).length, 60);
+  assert.ok(shades.some((shade) => shade > 1.2));
+});

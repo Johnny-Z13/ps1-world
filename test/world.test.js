@@ -247,7 +247,7 @@ test('builds a 1-bit polygon cathedral with black and white texture mapping', ()
   assert.ok(world.floor);
   assert.ok(world.textures.every((texture) => (
     texture.id.startsWith('oneBit')
-    || ['zombie', 'one-eye-alien', 'molten-sentinel', 'healthPotion', 'warpGate', 'bloodBurst'].includes(texture.id)
+    || ['zombie', 'one-eye-alien', 'molten-sentinel', 'healthPotion', 'warpGate', 'bloodBurst', 'vfxStatic'].includes(texture.id)
   )));
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
   assert.ok(world.clearColor[0] > 0);
@@ -483,7 +483,7 @@ test('dots open-air fallback scenes with authored black smoke emitters', () => {
     assert.ok(Array.isArray(scene.emitters), definition.id);
 
     if (!smokeSceneIds.includes(definition.id)) {
-      assert.deepEqual(scene.emitters, [], definition.id);
+      assert.deepEqual(scene.emitters.filter((emitter) => emitter.emitterType === 'black_smoke'), [], definition.id);
       continue;
     }
 
@@ -498,6 +498,41 @@ test('dots open-air fallback scenes with authored black smoke emitters', () => {
       assert.ok(emitter.radius >= 2.2, emitter.name);
       assert.ok(emitter.height >= 4.5, emitter.name);
       assert.ok(emitter.rate >= 4, emitter.name);
+    }
+  }
+});
+
+test('adds special-case visual particle emitters to distinctive fallback scenes', () => {
+  const expectedByScene = {
+    dungeon: ['spark_shower'],
+    'derelict-starship': ['spark_shower'],
+    'astral-geometry-garden': ['astral_motes'],
+    'one-bit-cathedral': ['glitch_static'],
+    'neon-backstreets': ['astral_motes'],
+  };
+  const textureByType = {
+    spark_shower: 'vfxSpark',
+    astral_motes: 'vfxMote',
+    glitch_static: 'vfxStatic',
+  };
+  const motionByType = {
+    spark_shower: 'spark-shower',
+    astral_motes: 'astral-mote',
+    glitch_static: 'glitch-static',
+  };
+
+  for (const [sceneId, emitterTypes] of Object.entries(expectedByScene)) {
+    const scene = createSceneWorld(sceneId);
+
+    for (const emitterType of emitterTypes) {
+      const emitter = scene.emitters.find((candidate) => candidate.emitterType === emitterType);
+      const texture = textureByType[emitterType];
+
+      assert.ok(emitter, `${sceneId} ${emitterType}`);
+      assert.equal(emitter.texture, texture, emitter.name);
+      assert.equal(emitter.motion, motionByType[emitterType], emitter.name);
+      assert.ok(emitter.rate >= 8, emitter.name);
+      assert.ok(scene.textures.some((candidate) => candidate.id === texture && candidate.size === 64), emitter.name);
     }
   }
 });

@@ -198,6 +198,10 @@ export function createWarehouseWorld() {
       { x: -5, y: 2.8, z: 5, color: [1.0, 0.86, 0.58] },
       { x: 8, y: 2.8, z: 8, color: [0.85, 0.95, 1.0] },
     ],
+    emitters: [
+      vfxEmitter('lava spark shower', 'spark_shower', -1.8, 2.8, { y: 0.45, radius: 1.35, height: 3.2, rate: 12 }),
+      vfxEmitter('storage machine spark shower', 'spark_shower', 0.6, 6.2, { y: 1.1, radius: 1.2, height: 2.7, rate: 10 }),
+    ],
     playerSpawn: { x: -9.5, y: 1.45, z: 9.5, yaw: 2.35 },
     killY: -8,
     damageZones,
@@ -681,6 +685,10 @@ function createAstralGeometryGardenWorld() {
       { x: -18, y: 6, z: -18, color: [1.0, 0.2, 0.9] },
       { x: 18, y: 6, z: -17, color: [1.0, 0.9, 0.18] },
     ],
+    emitters: [
+      vfxEmitter('central obelisk astral motes', 'astral_motes', 0, -7, { y: 2.2, radius: 2.8, height: 3.2, rate: 16 }),
+      vfxEmitter('rear demo disc astral motes', 'astral_motes', 0, -32, { y: 1.4, radius: 3.0, height: 3.4, rate: 14 }),
+    ],
     playerSpawn: { x: 0, y: 1.45, z: 8.5, yaw: 3.08 },
     killY: -12,
     textures,
@@ -811,6 +819,33 @@ function blackSmokeEmitter(name, x, z, options = {}) {
   };
 }
 
+function vfxEmitter(name, emitterType, x, z, options = {}) {
+  const textureByType = {
+    spark_shower: 'vfxSpark',
+    astral_motes: 'vfxMote',
+    glitch_static: 'vfxStatic',
+  };
+  const motionByType = {
+    spark_shower: 'spark-shower',
+    astral_motes: 'astral-mote',
+    glitch_static: 'glitch-static',
+  };
+
+  return {
+    name,
+    emitterId: name.toLowerCase().replaceAll(' ', '-'),
+    emitterType,
+    x,
+    y: options.y ?? 1.0,
+    z,
+    radius: options.radius ?? 2.0,
+    height: options.height ?? 3.0,
+    rate: options.rate ?? 10,
+    texture: textureByType[emitterType],
+    motion: motionByType[emitterType],
+  };
+}
+
 function createDerelictStarshipWorld() {
   const textures = [
     { id: 'starshipFloor', size: 128 },
@@ -886,6 +921,10 @@ function createDerelictStarshipWorld() {
       { x: 0, y: 2.6, z: 7, color: [1.0, 0.24, 0.18] },
       { x: -10, y: 2.5, z: 6, color: [0.55, 0.9, 1.0] },
       { x: 10, y: 2.5, z: 10, color: [1.0, 0.68, 0.32] },
+    ],
+    emitters: [
+      vfxEmitter('cracked reactor spark shower', 'spark_shower', 0, 6.8, { y: 1.5, radius: 1.6, height: 3.2, rate: 14 }),
+      vfxEmitter('server rack spark shower', 'spark_shower', 11, -5.5, { y: 1.2, radius: 1.2, height: 2.8, rate: 10 }),
     ],
     playerSpawn: { x: 0, y: 1.45, z: 13, yaw: 3.14 },
     killY: -8,
@@ -1009,6 +1048,8 @@ function createNeonBackstreetsWorld() {
       blackSmokeEmitter('void trench black smoke', -2.5, 5.5, { y: 0.05, radius: 2.7, height: 5.6, rate: 6 }),
       blackSmokeEmitter('glass tower roof black smoke', 3, -27, { y: 0.2, radius: 2.9, height: 6.2, rate: 6 }),
       blackSmokeEmitter('tree island black smoke', 11, 1, { y: 0.55, radius: 2.4, height: 5.0, rate: 5 }),
+      vfxEmitter('void trench astral motes', 'astral_motes', -2.5, 5.5, { y: 1.1, radius: 2.6, height: 3.2, rate: 14 }),
+      vfxEmitter('high shard astral motes', 'astral_motes', 18, -17, { y: 3.6, radius: 2.2, height: 3.0, rate: 12 }),
     ],
     lights: [
       { x: -23, y: 12, z: -26, color: [0.5, 0.9, 1.0] },
@@ -1197,6 +1238,10 @@ function createOneBitCathedralWorld() {
       { x: 11, y: 6, z: 2, color: [1, 1, 1] },
       { x: 0, y: 4, z: 18, color: [1, 1, 1] },
     ],
+    emitters: [
+      vfxEmitter('altar raster static flecks', 'glitch_static', 0, -8.2, { y: 2.0, radius: 2.3, height: 3.0, rate: 10 }),
+      vfxEmitter('nave raster static flecks', 'glitch_static', 0, 8, { y: 1.5, radius: 3.2, height: 2.8, rate: 12 }),
+    ],
     playerSpawn: { x: 0, y: 1.45, z: 21, yaw: 3.14 },
     killY: -8,
     textures,
@@ -1298,13 +1343,14 @@ function withZombies(scene, zombieSpawns) {
   const texturesWithBlood = textures.some((texture) => texture.id === BLOOD_BURST_TEXTURE_ID)
     ? textures
     : [...textures, { id: BLOOD_BURST_TEXTURE_ID, size: 64 }];
-  const texturesWithSmoke = emitters.some((emitter) => (
-    emitter.emitterType === 'black_smoke'
-    || emitter.texture === 'blackSmoke'
-    || emitter.textureId === 'blackSmoke'
-  )) && !texturesWithBlood.some((texture) => texture.id === 'blackSmoke')
-    ? [...texturesWithBlood, { id: 'blackSmoke', size: 64 }]
-    : texturesWithBlood;
+  const visualEmitterTextureIds = emitters
+    .map((emitter) => emitter.texture ?? emitter.textureId)
+    .filter((textureId) => ['blackSmoke', 'vfxSpark', 'vfxMote', 'vfxStatic'].includes(textureId));
+  const texturesWithVisualEmitters = visualEmitterTextureIds.reduce((textures, textureId) => (
+    textures.some((texture) => texture.id === textureId)
+      ? textures
+      : [...textures, { id: textureId, size: 64 }]
+  ), texturesWithBlood);
 
   return {
     ...scene,
@@ -1320,7 +1366,7 @@ function withZombies(scene, zombieSpawns) {
     warpGate: createRogueWarpGate(scene, zombieSpawns),
     healthPotions,
     audio: scene.audio ?? { reverb: getSceneReverb(scene.id) },
-    textures: texturesWithSmoke,
+    textures: texturesWithVisualEmitters,
   };
 }
 
