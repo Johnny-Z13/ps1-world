@@ -4,11 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PS1 World</title>
-    <link rel="stylesheet" href="./styles.css?v=14">
+    <link rel="stylesheet" href="./styles.css?v=16">
   </head>
   <body class="title-active">
     <canvas id="screen" aria-label="PS1 world renderer"></canvas>
     <div id="reticule" class="reticule" aria-hidden="true"></div>
+    <canvas id="radarHud" class="radar-hud" width="128" height="128" aria-label="Radar map" hidden></canvas>
 
     <main id="titleScreen" class="title-screen">
       <canvas id="titleCanvas" class="title-canvas" width="512" height="480" aria-hidden="true"></canvas>
@@ -80,6 +81,7 @@
         <label><input id="noise" type="checkbox" checked> RF noise</label>
         <label><input id="playerTorch" type="checkbox" checked> Player torch</label>
         <label><input id="zombies" type="checkbox" checked> Zombies</label>
+        <label><input id="radarMapToggle" type="checkbox" checked> Radar map</label>
         <label><input id="debugHudToggle" type="checkbox"> Debug HUD</label>
         <label><input id="showReticule" type="checkbox" checked> Reticule</label>
 
@@ -97,6 +99,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./src/app.js?v=152"></script>
+    <script type="module" src="./src/app.js?v=153"></script>
   </body>
 </html>

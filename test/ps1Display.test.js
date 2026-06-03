@@ -30,6 +30,7 @@ test('starts with PS1/CRT effects enabled and adjustable', () => {
   assert.equal(DEFAULT_EFFECTS.colorBleed, true);
   assert.equal(DEFAULT_EFFECTS.playerTorch, true);
   assert.equal(DEFAULT_EFFECTS.zombies, true);
+  assert.equal(DEFAULT_EFFECTS.radarMap, true);
   assert.equal(DEFAULT_EFFECTS.debugHud, false);
 });
 
@@ -56,6 +57,7 @@ test('video presets are complete whole-option profiles', () => {
     'wobble',
     'playerTorch',
     'zombies',
+    'radarMap',
     'debugHud',
     'brightness',
     'contrast',
@@ -85,6 +87,7 @@ test('portable TV preset restores the full crunchy PS1 profile', () => {
   assert.equal(portable.noise, true);
   assert.equal(portable.playerTorch, true);
   assert.equal(portable.zombies, true);
+  assert.equal(portable.radarMap, true);
   assert.equal(portable.debugHud, false);
 });
 
@@ -103,6 +106,7 @@ test('includes a clean test view preset matching the 1024 art-check settings', (
   assert.equal(effects.noise, false);
   assert.equal(effects.playerTorch, true);
   assert.equal(effects.zombies, true);
+  assert.equal(effects.radarMap, true);
   assert.equal(effects.showReticule, true);
   assert.equal(effects.debugHud, false);
 });

@@ -29,6 +29,7 @@ export const DEFAULT_EFFECTS = Object.freeze({
   wobble: true,
   playerTorch: true,
   zombies: true,
+  radarMap: true,
   debugHud: false,
 });
 
@@ -72,6 +73,7 @@ const PORTABLE_TV_EFFECTS = Object.freeze({
   wobble: true,
   playerTorch: true,
   zombies: true,
+  radarMap: true,
   debugHud: false,
   brightness: 1.05,
   contrast: 1.08,
@@ -94,6 +96,7 @@ const CLEAN_RGB_EFFECTS = Object.freeze({
   wobble: false,
   playerTorch: true,
   zombies: true,
+  radarMap: true,
   debugHud: false,
   brightness: 1.04,
   contrast: 1.02,
@@ -116,6 +119,7 @@ const CLEAN_TEST_VIEW_EFFECTS = Object.freeze({
   wobble: false,
   playerTorch: true,
   zombies: true,
+  radarMap: true,
   debugHud: false,
   brightness: 1,
   contrast: 1,

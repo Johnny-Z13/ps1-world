@@ -237,9 +237,11 @@ import {
   applyDebugHudSnapshot,
   createDebugHudSnapshot,
 } from './debugHud.js';
+import { drawRadarHud } from './radarHud.js';
 
 const canvas = document.querySelector('#screen');
 const reticule = document.querySelector('#reticule');
+const radarHudCanvas = document.querySelector('#radarHud');
 const debugHudPanel = document.querySelector('#debugHud');
 const debugFps = document.querySelector('#debugFps');
 const debugScene = document.querySelector('#debugScene');
@@ -259,6 +261,7 @@ const quitGameButton = document.querySelector('#quitGameButton');
 const touchMove = document.querySelector('#touchMove');
 const touchMoveStick = document.querySelector('#touchMoveStick');
 const touchJump = document.querySelector('#touchJump');
+const radarHudContext = radarHudCanvas.getContext('2d');
 const titleContext = titleCanvas.getContext('2d');
 const gl = canvas.getContext('webgl', {
   antialias: false,
@@ -551,6 +554,7 @@ function render(time, now = performance.now()) {
     renderTitleScreen(time);
   }
   updateLowHealthNotice(now);
+  updateRadarHud();
 }
 
 function ensureAudioState() {
@@ -1518,6 +1522,7 @@ function setupOptions() {
     ['noise', 'noise'],
     ['playerTorch', 'playerTorch'],
     ['zombies', 'zombies'],
+    ['radarMapToggle', 'radarMap'],
     ['debugHudToggle', 'debugHud'],
   ];
   for (const [id, key] of bindings) {
@@ -1527,6 +1532,7 @@ function setupOptions() {
       playUiToggleSound();
       effects[key] = input.checked;
       if (key === 'showReticule') syncReticule();
+      if (key === 'radarMap') updateRadarHud();
       if (key === 'debugHud') updateDebugHud(0);
     });
   }
@@ -1613,6 +1619,7 @@ function syncOptionsControls() {
     ['noise', 'noise'],
     ['playerTorch', 'playerTorch'],
     ['zombies', 'zombies'],
+    ['radarMapToggle', 'radarMap'],
     ['debugHudToggle', 'debugHud'],
   ];
   for (const [id, key] of bindings) {
@@ -1631,6 +1638,7 @@ function syncOptionsControls() {
 
   canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
   syncReticule();
+  updateRadarHud();
   updateDebugHud(0);
 }
 
@@ -1860,6 +1868,25 @@ function updateDebugHud(dt) {
     zombies: debugZombies,
     enemies: debugEnemies,
   }, snapshot);
+}
+
+function updateRadarHud() {
+  const visible = effects.radarMap
+    && !titleActive
+    && !optionsDialog.open
+    && !deathState.active
+    && rogueWinScreen.hidden;
+  radarHudCanvas.hidden = !visible;
+  if (!visible) {
+    radarHudContext.clearRect(0, 0, radarHudCanvas.width, radarHudCanvas.height);
+    return;
+  }
+
+  drawRadarHud(radarHudContext, {
+    player,
+    enemies: effects.zombies ? zombies : [],
+    portal: world.warpGate,
+  });
 }
 
 function damagePlayer(now, enemy = null) {

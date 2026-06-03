@@ -23,10 +23,11 @@ const renderSkyDome = readFileSync(new URL('../src/renderSkyDome.js', import.met
 const renderPostPass = readFileSync(new URL('../src/renderPostPass.js', import.meta.url), 'utf8');
 const renderScenePass = readFileSync(new URL('../src/renderScenePass.js', import.meta.url), 'utf8');
 const debugHud = readFileSync(new URL('../src/debugHud.js', import.meta.url), 'utf8');
+const radarHud = readFileSync(new URL('../src/radarHud.js', import.meta.url), 'utf8');
 const enemyCatalog = readFileSync(new URL('../src/enemyCatalog.js', import.meta.url), 'utf8');
 const generatedTextures = readFileSync(new URL('../src/generatedTextures.js', import.meta.url), 'utf8');
 const renderShaders = readFileSync(new URL('../src/renderShaders.js', import.meta.url), 'utf8');
-const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
+const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, radarHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
 const zombieModel = readFileSync(new URL('../src/zombieModel.js', import.meta.url), 'utf8');
 const enemyAnimation = readFileSync(new URL('../src/enemyAnimation.js', import.meta.url), 'utf8');
 const cutUpMode = readFileSync(new URL('../src/cutUpMode.js', import.meta.url), 'utf8');
@@ -47,6 +48,16 @@ test('offers a small debug HUD with frame and enemy counts', () => {
   assert.match(runtimeSource, /function applyDebugHudSnapshot/);
   assert.match(runtimeSource, /world\.label/);
   assert.match(runtimeSource, /zombies\.length/);
+});
+
+test('renders a toggleable GTA-style radar HUD', () => {
+  assert.match(index, /id="radarHud"/);
+  assert.match(index, /id="radarMapToggle"/);
+  assert.match(index, /Radar map/);
+  assert.match(styles, /\.radar-hud/);
+  assert.match(runtimeSource, /drawRadarHud/);
+  assert.match(runtimeSource, /world\.warpGate/);
+  assert.match(runtimeSource, /effects\.radarMap/);
 });
 
 test('offers a clean test view video preset in the options menu', () => {

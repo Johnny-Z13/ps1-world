@@ -27,12 +27,14 @@ body.title-active #screen {
 
 body.title-active #screen,
 body.title-active .reticule,
+body.title-active .radar-hud,
 body.title-active .hud,
 body.title-active .debug-hud {
   cursor: default;
 }
 
 body.title-active .reticule,
+body.title-active .radar-hud,
 body.title-active .hud,
 body.title-active .debug-hud {
   display: none;
@@ -83,6 +85,26 @@ body.game-active * {
 .reticule::after {
   width: 2px;
   height: 18px;
+}
+
+.radar-hud {
+  position: fixed;
+  left: max(14px, env(safe-area-inset-left));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 3;
+  width: 128px;
+  height: 128px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  pointer-events: none;
+  opacity: 0.92;
+  border: 1px solid rgba(112, 255, 145, 0.42);
+  border-radius: 50%;
+  background: rgba(2, 15, 7, 0.34);
+  filter: saturate(0.88) contrast(1.12);
+  box-shadow:
+    0 0 0 2px rgba(2, 7, 4, 0.7),
+    0 0 26px rgba(26, 255, 117, 0.12);
 }
 
 [hidden] {
@@ -231,8 +253,8 @@ body.game-active * {
 
 .hud {
   position: fixed;
-  left: 16px;
-  bottom: 14px;
+  left: max(156px, calc(env(safe-area-inset-left) + 156px));
+  bottom: max(18px, env(safe-area-inset-bottom));
   display: flex;
   gap: 10px;
   align-items: center;
@@ -370,7 +392,7 @@ body.options-open .touch-jump {
 
 @media (pointer: coarse) {
   .hud {
-    left: 10px;
+    left: max(148px, calc(env(safe-area-inset-left) + 148px));
     right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     flex-wrap: wrap;
@@ -380,6 +402,13 @@ body.options-open .touch-jump {
 
   .hud div {
     padding: 4px 5px;
+  }
+
+  .radar-hud {
+    left: max(8px, env(safe-area-inset-left));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: 120px;
+    height: 120px;
   }
 
   body.game-active .touch-jump {
