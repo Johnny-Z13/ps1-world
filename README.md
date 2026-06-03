@@ -45,7 +45,7 @@ The app uses vanilla ES modules and WebGL. There is no frontend build step.
 - Space: jump
 - Shift: sprint
 - Gamepad: left stick move, right stick look, south button jump, shoulder/trigger sprint, Start/Menu options
-- 1-9 / numpad 1-9: switch scenes
+- 1-8 / numpad 1-8: switch scenes
 - Esc: video/options menu
 
 On touch devices, press the left side to spawn a floating movement joystick, drag the right side to look, and use the jump button for platforming.
@@ -53,8 +53,8 @@ On touch devices, press the left side to spawn a floating movement joystick, dra
 ## Current Gameplay
 
 - Title screen with Free Roam, Cut-Up Mode, and Rogue.
-- Cut-Up Mode cycles through all nine worlds, warns with `jump in 3/2/1`, flashes white, then jumps to the next world.
-- Rogue starts in world 1, places a far warp gate in each scene, advances through all nine worlds, then shows an in-game pixel `GAME OVER` completion screen with confetti SFX and a title return button.
+- Cut-Up Mode cycles through all active worlds, warns with `jump in 3/2/1`, flashes white, then jumps to the next world.
+- Rogue starts in world 1, places a far warp gate in each scene, advances through all active worlds, then shows an in-game pixel `GAME OVER` completion screen with confetti SFX and a title return button.
 - CRT/video presets, resolution modes, reticule toggle, debug HUD, player torch, and zombie toggle.
 - Player health, low-health screen/audio pressure, red damage flash/scratch feedback, zombie bite damage, authored lava damage zones, death sequence, health flasks, and pickup flash.
 - Generated ambience/SFX assets, per-enemy idle and attack sounds, torch crackle, footsteps, jump/land spots, heartbeat, menu UI sounds, damage, death, pickup, Rogue win, rain drips, lightning, and rare world stingers.

@@ -3,7 +3,6 @@ import { BLOOD_BURST_TEXTURE_ID } from './bloodEffects.js';
 
 const WALL_HEIGHT = 3.0;
 const SKY_DOME_STARRY = Object.freeze({ mode: 'starry', palette: 'deep-night' });
-const SKY_DOME_ONE_BIT = Object.freeze({ mode: 'starry', palette: 'one-bit-night' });
 const SKY_DOME_CLOUDS = Object.freeze({ mode: 'clouds', palette: 'electric-blue' });
 const SKY_DOME_PSYCHEDELIC_PURPLE = Object.freeze({ mode: 'clouds', palette: 'psychedelic-purple' });
 const SKY_DOME_LIMINAL_BLUE = Object.freeze({ mode: 'clouds', palette: 'liminal-blue' });
@@ -14,7 +13,6 @@ export const SCENE_DEFINITIONS = Object.freeze([
   Object.freeze({ id: 'derelict-starship', label: 'Derelict starship' }),
   Object.freeze({ id: 'neon-backstreets', label: 'Neon backstreets' }),
   Object.freeze({ id: 'sunken-temple', label: 'Sunken temple' }),
-  Object.freeze({ id: 'one-bit-cathedral', label: '1-bit cathedral' }),
   Object.freeze({ id: 'rotwood-forest', label: 'Polygonal Rotwood Forest' }),
   Object.freeze({ id: 'astral-geometry-garden', label: 'Astral Geometry Garden' }),
   Object.freeze({ id: 'motel-mirage', label: 'Liminal Motel Mirage' }),
@@ -51,12 +49,6 @@ const DIEGETIC_MAPS = Object.freeze({
     clueText: 'The dry altar is a trap. Count the rain where the floor rises.',
     glitchIntensity: 0.6,
   }),
-  'one-bit-cathedral': Object.freeze({
-    artifactType: 'stained-glass-floor',
-    title: 'Black-and-white floor glass that changes when ignored',
-    clueText: 'White paths confess. Black paths remember the door.',
-    glitchIntensity: 0.74,
-  }),
   'rotwood-forest': Object.freeze({
     artifactType: 'bark-compass',
     title: 'Compass carved into a tree that keeps healing over',
@@ -82,7 +74,6 @@ export function createSceneWorld(id) {
   if (id === 'derelict-starship') return createDerelictStarshipWorld();
   if (id === 'neon-backstreets') return createNeonBackstreetsWorld();
   if (id === 'sunken-temple') return createSunkenTempleWorld();
-  if (id === 'one-bit-cathedral') return createOneBitCathedralWorld();
   if (id === 'rotwood-forest') return createRotwoodForestWorld();
   if (id === 'astral-geometry-garden') return createAstralGeometryGardenWorld();
   if (id === 'motel-mirage') return createMotelMirageWorld();
@@ -615,7 +606,6 @@ function createAstralGeometryGardenWorld() {
     { id: 'astralMagenta', size: 64 },
     { id: 'astralYellow', size: 64 },
     { id: 'astralBlack', size: 64 },
-    { id: 'oneBitGrid', size: 128 },
     { id: 'shootingStar', size: 128 },
     { id: 'flickerComet', size: 64 },
   ];
@@ -624,7 +614,7 @@ function createAstralGeometryGardenWorld() {
     box('cyan bridge north', 0, -17, 5, 16, 0.35, 'astralCyan', -0.08),
     box('yellow left platform', -17, -19, 15, 13, 0.38, 'astralYellow', -0.06),
     box('magenta right platform', 18, -17, 15, 15, 0.38, 'astralMagenta', -0.06),
-    box('one-bit rear dais', 0, -32, 18, 11, 0.4, 'oneBitGrid', -0.05),
+    box('rear checker dais', 0, -32, 18, 11, 0.4, 'astralGrid', -0.05),
     box('black bridge east', 11, 0, 12, 4.2, 0.33, 'astralBlack', -0.05),
   ];
   const walls = [
@@ -646,8 +636,8 @@ function createAstralGeometryGardenWorld() {
     box('magenta rotating diamond east', 16, -11, 2.8, 2.8, 3.8, 'astralMagenta', 3.2, false, 'bob'),
     box('yellow rotating diamond west', -16, -11, 2.8, 2.8, 3.8, 'astralYellow', 3.0, false, 'bob'),
     box('black rotating diamond rear', 7, -31, 2.8, 2.8, 3.8, 'astralBlack', 3.7, false, 'bob'),
-    box('mirrored monolith left', -20, -23, 2, 4, 6.5, 'oneBitGrid'),
-    box('mirrored monolith right', 22, -20, 2, 4, 6.5, 'oneBitGrid'),
+    box('mirrored monolith left', -20, -23, 2, 4, 6.5, 'astralBlack'),
+    box('mirrored monolith right', 22, -20, 2, 4, 6.5, 'astralBlack'),
   ];
   for (let i = 0; i < 10; i += 1) {
     const angle = i / 10 * Math.PI * 2;
@@ -1150,108 +1140,6 @@ function createSunkenTempleWorld() {
   ]);
 }
 
-function createOneBitCathedralWorld() {
-  const textures = [
-    { id: 'oneBitVoid', size: 128 },
-    { id: 'oneBitGrid', size: 128 },
-    { id: 'oneBitCross', size: 64 },
-    { id: 'oneBitStripe', size: 64 },
-    { id: 'oneBitCircuit', size: 128 },
-  ];
-  const walls = [
-    box('outer west raster wall', -22.5, 0, 0.7, 50, 5.4, 'oneBitCircuit'),
-    box('outer east raster wall', 22.5, 0, 0.7, 50, 5.4, 'oneBitCircuit'),
-    box('outer north lintel', 0, -25.2, 45, 0.7, 5.8, 'oneBitStripe'),
-    box('outer south threshold', 0, 25.2, 45, 0.7, 2.2, 'oneBitGrid'),
-    box('left central pier', -7.2, -5.2, 1.0, 26, 8.4, 'oneBitCross'),
-    box('right central pier', 7.2, -5.2, 1.0, 26, 8.4, 'oneBitCross'),
-    box('rear tower face', 0, -18.5, 13, 0.8, 9.2, 'oneBitCross'),
-    box('altar back screen', 0, -8.2, 11, 0.6, 5.8, 'oneBitStripe'),
-    box('left altar return', -5.8, -3.6, 0.6, 9, 5.0, 'oneBitGrid'),
-    box('right altar return', 5.8, -3.6, 0.6, 9, 5.0, 'oneBitGrid'),
-    box('low nave rail left', -4.2, 8, 0.5, 23, 1.1, 'oneBitStripe'),
-    box('low nave rail right', 4.2, 8, 0.5, 23, 1.1, 'oneBitStripe'),
-  ];
-
-  for (let i = 0; i < 6; i += 1) {
-    const z = -18 + i * 7.2;
-    const height = 5.4 - i * 0.3;
-    walls.push(box(`west horizontal band ${i + 1}`, -14.2, z, 11.2, 0.55, height, 'oneBitStripe'));
-    walls.push(box(`east horizontal band ${i + 1}`, 14.2, z, 11.2, 0.55, height, 'oneBitStripe'));
-    walls.push(box(`west side spine ${i + 1}`, -18.3 + i * 0.2, z + 2.6, 0.5, 4.2, 4.4, 'oneBitCircuit'));
-    walls.push(box(`east side spine ${i + 1}`, 18.3 - i * 0.2, z + 2.6, 0.5, 4.2, 4.4, 'oneBitCircuit'));
-  }
-
-  for (let i = 0; i < 5; i += 1) {
-    const offset = i * 1.3;
-    walls.push(box(`left nested arch ${i + 1}`, -10.8 - offset, 6 + i * 2.4, 0.45, 14 - i, 3.4 + i * 0.45, 'oneBitGrid'));
-    walls.push(box(`right nested arch ${i + 1}`, 10.8 + offset, 6 + i * 2.4, 0.45, 14 - i, 3.4 + i * 0.45, 'oneBitGrid'));
-  }
-
-  const crates = [
-    box('black altar slab', 0, -2.6, 5.2, 3.1, 1.2, 'oneBitVoid'),
-    box('white altar core', 0, -4.2, 2.2, 1.7, 3.8, 'oneBitCross'),
-    box('tower crown base', 0, -16.2, 7.0, 2.2, 2.0, 'oneBitStripe', 5.8),
-    box('tower crown spike', 0, -17.4, 2.0, 1.4, 3.7, 'oneBitCross', 7.8),
-    box('center aisle dark strip', 0, 10.4, 2.1, 22.4, 0.18, 'oneBitVoid', 0, true),
-  ];
-  const platforms = [
-    box('pixel stair low', -3.5, 14, 3.0, 2.2, 0.55, 'oneBitStripe'),
-    box('pixel stair high', 0, 14, 3.0, 2.2, 1.1, 'oneBitCross'),
-    box('altar side platform', 4.2, -2.6, 2.6, 3.1, 1.65, 'oneBitGrid'),
-  ];
-
-  for (let i = 0; i < 8; i += 1) {
-    const z = -16 + i * 4.8;
-    const width = 1.0 + (i % 3) * 0.35;
-    crates.push(box(`west pixel rib ${i + 1}`, -6.0 - i * 0.55, z, width, 1.2, 2.2 + i * 0.18, 'oneBitCross'));
-    crates.push(box(`east pixel rib ${i + 1}`, 6.0 + i * 0.55, z, width, 1.2, 2.2 + i * 0.18, 'oneBitCross'));
-  }
-
-  for (let i = 0; i < 7; i += 1) {
-    const z = 16.5 - i * 3.0;
-    crates.push(box(`left circuit plinth ${i + 1}`, -16.8 + i * 0.7, z, 2.8, 0.7, 1.1 + i * 0.18, 'oneBitCircuit'));
-    crates.push(box(`right circuit plinth ${i + 1}`, 16.8 - i * 0.7, z, 2.8, 0.7, 1.1 + i * 0.18, 'oneBitCircuit'));
-  }
-
-  return withZombies({
-    id: 'one-bit-cathedral',
-    label: '1-bit cathedral',
-    oneBit: true,
-    oneBitStyle: 'dithered-gradient',
-    skyDome: SKY_DOME_ONE_BIT,
-    clearColor: [0.075, 0.068, 0.052, 1],
-    floor: box('one bit floor', 0, 0, 45, 50, 0.08, 'oneBitGrid', -0.08),
-    ceiling: null,
-    walls,
-    crates,
-    platforms,
-    mountains: [
-      mountain('left raster skyline', -18, -31, 14, 8, 7, 'oneBitCircuit'),
-      mountain('center raster skyline', 0, -33, 18, 9, 9, 'oneBitCross'),
-      mountain('right raster skyline', 18, -31, 14, 8, 7, 'oneBitCircuit'),
-    ],
-    sun: null,
-    lights: [
-      { x: 0, y: 8, z: -14, color: [1, 1, 1] },
-      { x: -11, y: 6, z: 2, color: [1, 1, 1] },
-      { x: 11, y: 6, z: 2, color: [1, 1, 1] },
-      { x: 0, y: 4, z: 18, color: [1, 1, 1] },
-    ],
-    emitters: [
-      vfxEmitter('altar raster static flecks', 'glitch_static', 0, -8.2, { y: 2.0, radius: 2.3, height: 3.0, rate: 10 }),
-      vfxEmitter('nave raster static flecks', 'glitch_static', 0, 8, { y: 1.5, radius: 3.2, height: 2.8, rate: 12 }),
-    ],
-    playerSpawn: { x: 0, y: 1.45, z: 21, yaw: 3.14 },
-    killY: -8,
-    textures,
-  }, [
-    { x: -18, z: 20 },
-    { x: 18, z: 20 },
-    { x: 0, z: 12 },
-  ]);
-}
-
 function box(name, x, z, width, depth, height, texture, y = 0, noCollider = false, motion = null) {
   return {
     name,
@@ -1316,7 +1204,6 @@ const SCENE_ENCOUNTER_CONFIGS = Object.freeze({
     }),
   }),
   'sunken-temple': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
-  'one-bit-cathedral': Object.freeze({ difficulty: 3 }),
   'rotwood-forest': Object.freeze({ difficulty: 2, boss: 'molten-sentinel' }),
   'astral-geometry-garden': Object.freeze({ difficulty: 3, boss: 'molten-sentinel' }),
   'motel-mirage': Object.freeze({ difficulty: 1, boss: 'molten-sentinel' }),
@@ -1598,7 +1485,6 @@ function createHealthPotions(sceneId) {
     'derelict-starship': [[-10, -4], [10, 8], [0, -12]],
     'neon-backstreets': [[-12, 0], [10, 2], [0, -15]],
     'sunken-temple': [[-12, 10], [12, -10], [0, 0]],
-    'one-bit-cathedral': [[-14, 8], [14, 8], [0, -12]],
     'rotwood-forest': [[-14, 10], [14, -8], [0, -20]],
     'astral-geometry-garden': [[-15, -18], [17, -14], [0, -28]],
     'motel-mirage': [[-18, 8], [18, 8], [0, -16]],
@@ -1626,7 +1512,6 @@ function getSceneReverb(sceneId) {
     'derelict-starship': 'metal-hall',
     'neon-backstreets': 'open-air',
     'sunken-temple': 'stone-vault',
-    'one-bit-cathedral': 'stone-vault',
     'rotwood-forest': 'open-air',
     'astral-geometry-garden': 'dream-space',
     'motel-mirage': 'open-air',

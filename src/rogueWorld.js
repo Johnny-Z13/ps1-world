@@ -14,7 +14,6 @@ const HORDE_SCENE_BONUS = Object.freeze({
   'alien-landscape': 7,
   'neon-backstreets': 5,
   'rotwood-forest': 8,
-  'one-bit-cathedral': 6,
 });
 
 export function createRogueStageWorld(world, run, scenes = []) {

@@ -87,7 +87,7 @@ Implemented:
 2. A scene-id to GLB URL map:
    - `dungeon` -> `./assets/models/levels/dungeon.glb`
    - `alien-landscape` -> `./assets/models/levels/alien-landscape.glb`
-   - all nine scenes are registered with cache-busting.
+   - all active scenes are registered with cache-busting.
 3. Visible render buffers are built from `ART_*` nodes.
 4. Collision arrays are built from `COLLISION_*` nodes.
 5. Walkable-surface queries are built from `WALKABLE_*` nodes.

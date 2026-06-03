@@ -31,7 +31,6 @@ export function getSkyDomeMode(skyDome) {
 
 export function getSkyDomePalette(skyDome) {
   if (skyDome.palette === 'electric-blue') return 1;
-  if (skyDome.palette === 'one-bit-night') return 2;
   if (skyDome.palette === 'psychedelic-purple') return 3;
   if (skyDome.palette === 'liminal-blue') return 4;
   return 0;

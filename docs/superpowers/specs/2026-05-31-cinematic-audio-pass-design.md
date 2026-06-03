@@ -13,7 +13,7 @@ Make the audio feel deliberately scored across the title screen, Free Roam, and 
 The pass adds four layers:
 
 - Music beds: title, Free Roam, and Cut Up loops.
-- World ambience: the existing nine per-scene ambience loops, crossfaded during scene changes.
+- World ambience: the existing per-scene ambience loops, crossfaded during scene changes.
 - Transition SFX: Free Roam start, Cut Up start, Cut Up scene slice, options open, options close.
 - Reactive pressure: Cut Up countdown ticks, mode-based ducking, low-health and zombie tension continuing from the existing system.
 

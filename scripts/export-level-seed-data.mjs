@@ -39,8 +39,6 @@ const scenes = SCENE_DEFINITIONS.map((definition) => {
     damageZones: world.damageZones,
     playerTorch: world.playerTorch,
     skyMode: world.skyMode,
-    oneBit: world.oneBit,
-    oneBitStyle: world.oneBitStyle,
     audio: world.audio,
   };
 });

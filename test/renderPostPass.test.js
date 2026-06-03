@@ -66,7 +66,6 @@ function createPostProgram() {
       'uPixelScale',
       'uSourceResolution',
       'uFlipFramebufferY',
-      'uOneBit',
       'uLightningStrength',
       'uHealthDanger',
       'uHealthPulse',
@@ -114,7 +113,6 @@ test('drawPostPass binds the low-resolution scene texture, writes post uniforms,
       scanlineStrength: 0.5,
       vignette: 0.6,
     },
-    oneBit: true,
     lightningStrength: 0.7,
     healthEffect: { danger: 0.8, pulse: 0.9 },
     healthPickupFlash: 0.1,
@@ -139,6 +137,7 @@ test('drawPostPass binds the low-resolution scene texture, writes post uniforms,
   assert.ok(calls.some((call) => call[0] === 'uniform1f' && call[1] === 'uDistortion' && call[2] === 0));
   assert.ok(calls.some((call) => call[0] === 'uniform1f' && call[1] === 'uNoise' && call[2] === 0.3));
   assert.ok(calls.some((call) => call[0] === 'uniform1f' && call[1] === 'uColorBleed' && call[2] === 0));
+  assert.equal(calls.some((call) => call[1] === 'uOneBit'), false);
   assert.ok(calls.some((call) => call[0] === 'uniform2f' && call[1] === 'uDamageScratchOffset' && call[2] === 0.3 && call[3] === 0.4));
   assert.deepEqual(calls.slice(-4), [
     ['bindBuffer', 'ARRAY_BUFFER', quad],

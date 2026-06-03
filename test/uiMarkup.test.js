@@ -91,7 +91,7 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(runtimeSource, /openOptions\(\{ fromTitle: true \}\)/);
 });
 
-test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
+test('offers a hard Cut Up title mode that cycles all active worlds', () => {
   assert.match(index, /id="cutUpButton"/);
   assert.match(index, /aria-label="Cut Up Mode"/);
   assert.match(index, /id="cutUpHud"/);
@@ -263,13 +263,9 @@ test('offers a quit action in the Escape menu that returns to the title screen',
   assert.match(runtimeSource, /titleScreen\.hidden = false/);
 });
 
-test('renders one-bit scenes with ordered dithering instead of hard clipping', () => {
-  assert.match(runtimeSource, /orderedDither/);
-  assert.match(runtimeSource, /oneBitPaper/);
-  assert.match(runtimeSource, /oneBitInk/);
-  assert.match(runtimeSource, /oneBitMid/);
-  assert.match(runtimeSource, /oneBitAccent/);
-  assert.match(runtimeSource, /oneBitDepth/);
+test('does not expose the removed one-bit scene preset in runtime renderer code', () => {
+  assert.doesNotMatch(runtimeSource, /oneBit/);
+  assert.doesNotMatch(runtimeSource, /one-bit-night/);
 });
 
 test('renders scene cards and motion flags for animated preset props', () => {
@@ -566,7 +562,6 @@ test('plays audio assets for lightning and scene ambience', () => {
     'derelict-starship',
     'neon-backstreets',
     'sunken-temple',
-    'one-bit-cathedral',
     'astral-geometry-garden',
     'motel-mirage',
   ]) {

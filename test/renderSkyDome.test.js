@@ -55,7 +55,6 @@ test('maps sky dome modes and palettes to shader numeric uniforms', () => {
   assert.equal(getSkyDomeMode({ mode: 'clouds' }), 1);
   assert.equal(getSkyDomeMode({ mode: 'stars' }), 0);
   assert.equal(getSkyDomePalette({ palette: 'electric-blue' }), 1);
-  assert.equal(getSkyDomePalette({ palette: 'one-bit-night' }), 2);
   assert.equal(getSkyDomePalette({ palette: 'psychedelic-purple' }), 3);
   assert.equal(getSkyDomePalette({ palette: 'liminal-blue' }), 4);
   assert.equal(getSkyDomePalette({ palette: 'unknown' }), 0);

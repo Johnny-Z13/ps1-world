@@ -53,7 +53,6 @@ function createSceneProgram() {
     'uAtlas',
     'uTextureCount',
     'uTime',
-    'uOneBit',
     'uLightningTextureId',
     'uLightningStrength',
     'uRainTextureId',
@@ -134,7 +133,6 @@ test('drawScenePass binds atlas texture, writes scene uniforms, and draws static
       ['star', 6],
     ]),
     time: 22,
-    oneBit: true,
     lightningTexture: 'bolt',
     lightningStrength: 0.7,
     rainTexture: 'rain',
@@ -159,6 +157,7 @@ test('drawScenePass binds atlas texture, writes scene uniforms, and draws static
   assert.ok(calls.some((call) => call[0] === 'uniform1f' && call[1] === 'uLightningTextureId' && call[2] === 4));
   assert.ok(calls.some((call) => call[0] === 'uniform1f' && call[1] === 'uRainTextureId' && call[2] === 5));
   assert.ok(calls.some((call) => call[0] === 'uniform1f' && call[1] === 'uShootingStarTextureId' && call[2] === 6));
+  assert.equal(calls.some((call) => call[1] === 'uOneBit'), false);
   assert.ok(calls.some((call) => call[0] === 'uniform3f' && call[1] === 'uTorchPosition' && call[2] === 1 && call[3] === 2.25 && call[4] === 3));
   assert.deepEqual(calls.find((call) => call[0] === 'uniformMatrix4fv'), ['uniformMatrix4fv', 'uViewProjection', false, viewProjection]);
 

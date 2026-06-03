@@ -40,16 +40,16 @@ test('smoke harness steps Cut-Up countdown and scene jump', () => {
 
   const countdown = harness.stepCutUp(run, 1000 + CUT_UP_INTERVAL_MS - 1900);
   assert.equal(countdown.world.id, SCENE_DEFINITIONS[0].id);
-  assert.match(countdown.hud, /^CUT UP 1\/9 /);
+  assert.match(countdown.hud, new RegExp(`^CUT UP 1/${SCENE_DEFINITIONS.length} `));
   assert.equal(countdown.flash, 0);
 
   const jumped = harness.stepCutUp(run, 1000 + CUT_UP_INTERVAL_MS);
   assert.equal(jumped.world.id, SCENE_DEFINITIONS[1].id);
-  assert.match(jumped.hud, /^CUT UP 2\/9 /);
+  assert.match(jumped.hud, new RegExp(`^CUT UP 2/${SCENE_DEFINITIONS.length} `));
   assert.equal(jumped.flash, 1);
 });
 
-test('smoke harness completes Rogue only after all nine warp advances', () => {
+test('smoke harness completes Rogue only after all active scene warp advances', () => {
   const harness = createGameSmokeHarness();
   let run = harness.startRogue(2000);
 
@@ -57,7 +57,7 @@ test('smoke harness completes Rogue only after all nine warp advances', () => {
   assert.equal(run.world.id, SCENE_DEFINITIONS[0].id);
   assert.ok(run.world.objectives.some((objective) => objective.requiredInRogue !== false));
   assert.ok(run.world.encounterTriggers.some((trigger) => trigger.encounterType === 'awaken_horde'));
-  assert.equal(run.label, 'ROGUE 1/9');
+  assert.equal(run.label, `ROGUE 1/${SCENE_DEFINITIONS.length}`);
   assert.equal(run.complete, false);
 
   for (let index = 1; index < SCENE_DEFINITIONS.length; index += 1) {
@@ -67,7 +67,7 @@ test('smoke harness completes Rogue only after all nine warp advances', () => {
     assert.equal(run.world.id, SCENE_DEFINITIONS[index].id);
     assert.ok(run.world.objectives.some((objective) => objective.requiredInRogue !== false));
     assert.ok(run.world.enemyEncounter.horde.maxAlive >= run.world.zombieSpawns.length + 4);
-    assert.equal(run.label, `ROGUE ${index + 1}/9`);
+    assert.equal(run.label, `ROGUE ${index + 1}/${SCENE_DEFINITIONS.length}`);
   }
 
   run = harness.stepRogue(run, 2000 + SCENE_DEFINITIONS.length * 1000);

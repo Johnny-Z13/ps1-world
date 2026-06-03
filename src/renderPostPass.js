@@ -10,7 +10,6 @@ export function drawPostPass(glContext, options) {
     time,
     effects,
     preset,
-    oneBit,
     lightningStrength,
     healthEffect,
     healthPickupFlash,
@@ -42,7 +41,6 @@ export function drawPostPass(glContext, options) {
   glContext.uniform1f(program.uniforms.uPixelScale, effects.pixelScale);
   glContext.uniform2f(program.uniforms.uSourceResolution, renderResolution.width, renderResolution.height);
   glContext.uniform1f(program.uniforms.uFlipFramebufferY, effects.flipFramebufferY ? 1 : 0);
-  glContext.uniform1f(program.uniforms.uOneBit, oneBit ? 1 : 0);
   glContext.uniform1f(program.uniforms.uLightningStrength, lightningStrength);
   glContext.uniform1f(program.uniforms.uHealthDanger, healthEffect.danger);
   glContext.uniform1f(program.uniforms.uHealthPulse, healthEffect.pulse);

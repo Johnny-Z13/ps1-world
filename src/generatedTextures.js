@@ -130,11 +130,6 @@ export function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
     return;
   }
 
-  if (id.startsWith('oneBit')) {
-    drawOneBitTexture(ctx, id, x, y, tile, sourceSize);
-    return;
-  }
-
   const cell = tile / (sourceSize === 64 ? 8 : 16);
   ctx.fillStyle = palette(id, 0);
   ctx.fillRect(x, y, tile, tile);
@@ -475,37 +470,6 @@ function drawNeonTexture(ctx, id, x, y, tile, sourceSize) {
   }
 }
 
-function drawOneBitTexture(ctx, id, x, y, tile, sourceSize) {
-  const oneBitPaper = '#d8d0aa';
-  const oneBitInk = '#17130e';
-  const cells = sourceSize === 64 ? 8 : 16;
-  const cell = tile / cells;
-  ctx.fillStyle = id === 'oneBitVoid' ? oneBitInk : oneBitPaper;
-  ctx.fillRect(x, y, tile, tile);
-
-  for (let row = 0; row < cells; row += 1) {
-    for (let col = 0; col < cells; col += 1) {
-      const center = Math.abs(col - (cells - 1) / 2);
-      const verticalShade = row / Math.max(cells - 1, 1);
-      const n = hash(col, row, id.length);
-      const stripe = row % 4 === 0 || col % 4 === 0;
-      const checker = (row + col) % 2 === 0;
-      const circuit = stripe || (row % 3 === 1 && col % 5 < 2) || (col % 6 === 3 && row % 5 > 1);
-      const cross = center < 1 || Math.abs(row - (cells - 1) / 2) < 1 || checker;
-      let density = 0.35 + verticalShade * 0.2;
-
-      if (id === 'oneBitVoid') density = 0.82;
-      if (id === 'oneBitGrid') density = checker ? 0.32 : 0.52;
-      if (id === 'oneBitCross') density = cross ? 0.18 : 0.62;
-      if (id === 'oneBitStripe') density = row % 3 === 1 ? 0.24 : 0.68;
-      if (id === 'oneBitCircuit') density = circuit ? 0.2 : 0.58;
-
-      ctx.fillStyle = n < density ? oneBitInk : oneBitPaper;
-      ctx.fillRect(x + col * cell, y + row * cell, cell, cell);
-    }
-  }
-}
-
 function palette(id, n) {
   const palettes = {
     concrete: ['#585650', '#69655c', '#4c4b47', '#777062'],
@@ -555,11 +519,6 @@ function palette(id, n) {
     mossStone: ['#36523e', '#4d6843', '#2d3a31', '#71805b'],
     water: ['#14383d', '#1d535a', '#243f58', '#0f272d'],
     rain: ['#0c2025', '#b9ffff', '#6ccdd5', '#183940'],
-    oneBitVoid: ['#17130e', '#211b13', '#0e0b08', '#2a2218'],
-    oneBitGrid: ['#d8d0aa', '#17130e', '#b8ad88', '#352a1b'],
-    oneBitCross: ['#d8d0aa', '#211b13', '#c6bd98', '#17130e'],
-    oneBitStripe: ['#d8d0aa', '#17130e', '#a79d78', '#2a2218'],
-    oneBitCircuit: ['#d8d0aa', '#17130e', '#c0b890', '#302617'],
   };
   const list = palettes[id] ?? palettes.concrete;
   return list[Math.floor(n * list.length) % list.length];
