@@ -44,6 +44,8 @@ export function createAudioRuntimeState({
   const reverbInput = context.createGain();
   const convolver = context.createConvolver();
   const reverbWetGain = context.createGain();
+  const sfxGain = context.createGain();
+  const sfxReverbInput = context.createGain();
   const ambienceGain = context.createGain();
   const lightningGain = context.createGain();
   const musicGain = context.createGain();
@@ -65,10 +67,14 @@ export function createAudioRuntimeState({
   convolver.connect(reverbWetGain);
   reverbWetGain.gain.value = 0;
   reverbWetGain.connect(context.destination);
+  sfxGain.gain.value = 1;
+  sfxGain.connect(dryGain);
+  sfxReverbInput.gain.value = 1;
+  sfxReverbInput.connect(reverbInput);
   ambienceGain.gain.value = 0;
-  connectSceneAudioNode(ambienceGain, dryGain, reverbInput);
+  connectSceneAudioNode(ambienceGain, sfxGain, sfxReverbInput);
   lightningGain.gain.value = LIGHTNING_SOUND_GAIN;
-  connectSceneAudioNode(lightningGain, dryGain, reverbInput);
+  connectSceneAudioNode(lightningGain, sfxGain, sfxReverbInput);
   musicGain.gain.value = 1;
   musicGain.connect(dryGain);
   titleMusicGain.gain.value = 0;
@@ -78,19 +84,19 @@ export function createAudioRuntimeState({
   cutUpMusicGain.gain.value = 0;
   cutUpMusicGain.connect(musicGain);
   uiSfxGain.gain.value = UI_SFX_GAIN;
-  uiSfxGain.connect(dryGain);
+  uiSfxGain.connect(sfxGain);
   transitionSfxGain.gain.value = TRANSITION_SFX_GAIN;
-  transitionSfxGain.connect(dryGain);
+  transitionSfxGain.connect(sfxGain);
   playerSfxGain.gain.value = 1;
-  connectSceneAudioNode(playerSfxGain, dryGain, reverbInput);
+  connectSceneAudioNode(playerSfxGain, sfxGain, sfxReverbInput);
   footstepWalkGain.gain.value = 0;
-  connectSceneAudioNode(footstepWalkGain, dryGain, reverbInput);
+  connectSceneAudioNode(footstepWalkGain, sfxGain, sfxReverbInput);
   footstepSprintGain.gain.value = 0;
-  connectSceneAudioNode(footstepSprintGain, dryGain, reverbInput);
+  connectSceneAudioNode(footstepSprintGain, sfxGain, sfxReverbInput);
   lowHealthBreathingGain.gain.value = 0;
-  lowHealthBreathingGain.connect(dryGain);
+  lowHealthBreathingGain.connect(sfxGain);
   heartbeatGain.gain.value = 0;
-  heartbeatGain.connect(dryGain);
+  heartbeatGain.connect(sfxGain);
 
   return {
     context,
@@ -98,6 +104,8 @@ export function createAudioRuntimeState({
     audioBufferLoads: new Map(),
     dryGain,
     reverbInput,
+    sfxGain,
+    sfxReverbInput,
     convolver,
     reverbWetGain,
     activeReverbId: null,
@@ -161,6 +169,14 @@ export function createWaterNoiseBuffer(context, random = Math.random) {
 export function connectSceneAudioNode(node, dryGain, reverbInput) {
   node.connect(dryGain);
   node.connect(reverbInput);
+}
+
+function getSfxDryGain(state) {
+  return state.sfxGain ?? state.dryGain;
+}
+
+function getSfxReverbInput(state) {
+  return state.sfxReverbInput ?? state.reverbInput;
 }
 
 export function createAmbienceSlot(context, ambienceGain) {
@@ -282,7 +298,7 @@ export function playSpatialOneShot(state, url, position, volume = 1, options = {
   setAudioParam(panner.positionZ, position.z, state.context.currentTime, 0);
   source.connect(gain);
   gain.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  connectSceneAudioNode(panner, getSfxDryGain(state), getSfxReverbInput(state));
   source.start();
   return panner;
 }
@@ -609,7 +625,7 @@ export function getTorchCrackleVoice(state, id, torchLight, index, options = {})
   setAudioParam(panner.positionZ, torchLight.z, state.context.currentTime, 0);
   gain.connect(filter);
   filter.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  connectSceneAudioNode(panner, getSfxDryGain(state), getSfxReverbInput(state));
 
   const voice = { id, gain, filter, panner, timerId: null, seed: index * 19.13 };
   state.torchCrackleVoices.set(id, voice);
@@ -682,7 +698,7 @@ export function getRainWaterVoice(state, id, source, options = {}) {
   sourceNode.connect(filter);
   filter.connect(gain);
   gain.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  connectSceneAudioNode(panner, getSfxDryGain(state), getSfxReverbInput(state));
   sourceNode.start();
 
   const voice = { id, source: sourceNode, filter, gain, panner, timerId: null, seed: source.index * 23.41 };
@@ -801,7 +817,7 @@ export function getZombieVoice(state, zombie, buffer) {
   source.connect(gain);
   gain.connect(filter);
   filter.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  connectSceneAudioNode(panner, getSfxDryGain(state), getSfxReverbInput(state));
   source.start();
 
   const voice = { source, gain, filter, panner };
@@ -853,7 +869,7 @@ export function getSpecialEnemyVoice(state, enemy, buffer, profile) {
   source.connect(filter);
   filter.connect(gain);
   gain.connect(panner);
-  connectSceneAudioNode(panner, state.dryGain, state.reverbInput);
+  connectSceneAudioNode(panner, getSfxDryGain(state), getSfxReverbInput(state));
   source.start();
 
   const voice = {

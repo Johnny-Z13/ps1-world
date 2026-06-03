@@ -50,7 +50,8 @@ export function renderTitleScreen(context, time, options = {}) {
   drawBitmapButton(context, time, { y: 264, label: 'free roam', active: buttons.freeRoam, blink: titleButtonBlink });
   drawBitmapButton(context, time, { y: 310, label: 'cut-up mode', active: buttons.cutUp, blink: titleButtonBlink });
   drawBitmapButton(context, time, { y: 356, label: 'rogue', active: buttons.rogue, blink: titleButtonBlink });
-  drawCenteredBitmapText(context, 'wasd+mouse or gamepad', 416, 1.25, '#cfc7aa', time);
+  drawBitmapButton(context, time, { y: 392, label: 'options', active: buttons.options, blink: titleButtonBlink });
+  drawCenteredBitmapText(context, 'wasd+mouse or gamepad', 438, 1.25, '#cfc7aa', time);
   drawCenteredBitmapText(context, footerMessage, 462, 1, '#8f8a77', time);
 }
 

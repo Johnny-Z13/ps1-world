@@ -243,6 +243,8 @@ test('creates the audio runtime graph state with default buses and bookkeeping',
   assert.equal(state.context.sampleRate, 8);
   assert.equal(state.dryGain.gain.value, 1);
   assert.equal(state.reverbInput.gain.value, 0.8);
+  assert.equal(state.sfxGain.gain.value, 1);
+  assert.equal(state.sfxReverbInput.gain.value, 1);
   assert.equal(state.reverbWetGain.gain.value, 0);
   assert.equal(state.ambienceGain.gain.value, 0);
   assert.equal(state.lightningGain.gain.value, 0.55);
@@ -258,6 +260,11 @@ test('creates the audio runtime graph state with default buses and bookkeeping',
   assert.ok(state.audioBuffers instanceof Map);
   assert.ok(state.musicLoopsLoading instanceof Set);
   assert.ok(connections.some(([from, to]) => from === state.dryGain.name && to === 'destination'));
+  assert.ok(connections.some(([from, to]) => from === state.sfxGain.name && to === state.dryGain.name));
+  assert.ok(connections.some(([from, to]) => from === state.sfxReverbInput.name && to === state.reverbInput.name));
+  assert.ok(connections.some(([from, to]) => from === state.uiSfxGain.name && to === state.sfxGain.name));
+  assert.ok(connections.some(([from, to]) => from === state.playerSfxGain.name && to === state.sfxGain.name));
+  assert.ok(connections.some(([from, to]) => from === state.musicGain.name && to === state.dryGain.name));
 });
 
 test('flattens enemy audio profile URLs for preloading', () => {

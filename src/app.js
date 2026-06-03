@@ -252,6 +252,7 @@ const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
 const cutUpButton = document.querySelector('#cutUpButton');
 const rogueButton = document.querySelector('#rogueButton');
+const titleOptionsButton = document.querySelector('#titleOptionsButton');
 const cutUpHud = document.querySelector('#cutUpHud');
 const rogueWinScreen = document.querySelector('#rogueWinScreen');
 const rogueReturnButton = document.querySelector('#rogueReturnButton');
@@ -346,6 +347,7 @@ let titleActive = true;
 const titleButtonState = { active: false };
 const cutUpButtonState = { active: false };
 const rogueButtonState = { active: false };
+const titleOptionsButtonState = { active: false };
 const gameState = { mode: 'normal' };
 const cutUpState = createCutUpState(CUT_UP_SCENE_COUNT);
 let rogueRun = null;
@@ -568,6 +570,7 @@ function ensureAudioState() {
       sceneId: world.id,
     });
     applySceneReverb(audioState, world.audio.reverb);
+    syncAudioMasterVolumes(audioState);
   }
 
   if (audioState.context.state === 'suspended') {
@@ -677,6 +680,14 @@ function playUiToggleSound() {
 
 function playUiSelectSound() {
   playUiOneShot(UI_SELECT_SOUND_URL, UI_SFX_GAIN * 0.46);
+}
+
+function syncAudioMasterVolumes(state = audioState) {
+  if (!state) return;
+  const musicVolume = clamp(Number(effects.musicVolume ?? 1), 0, 1);
+  const sfxVolume = clamp(Number(effects.sfxVolume ?? 1), 0, 1);
+  state.musicGain.gain.setTargetAtTime(musicVolume, state.context.currentTime, 0.08);
+  state.sfxGain.gain.setTargetAtTime(sfxVolume, state.context.currentTime, 0.08);
 }
 
 function syncCinematicMusicAudio(state) {
@@ -795,6 +806,7 @@ function updateSceneAudio(time, lightningStrength) {
 
   updateAudioListener(audioState.context.listener, player, audioState.context.currentTime);
   applySceneReverb(audioState, world.audio.reverb);
+  syncAudioMasterVolumes(audioState);
   ensureSceneAmbienceLoop(audioState, world.id, SCENE_AMBIENCE_URLS, { isCurrent: isCurrentSceneAudioState });
   ensurePlayerFootstepLoopSources(audioState, { isCurrent: isCurrentAudioState });
   ensureLowHealthBreathingLoopSource(audioState);
@@ -1460,6 +1472,9 @@ function setupOptions() {
   rogueButton.addEventListener('click', () => {
     startRogueMode();
   });
+  titleOptionsButton.addEventListener('click', () => {
+    openOptions({ fromTitle: true });
+  });
   quitGameButton.addEventListener('click', () => {
     playUiSelectSound();
     quitToTitleScreen();
@@ -1509,6 +1524,20 @@ function setupOptions() {
   });
   rogueButton.addEventListener('blur', () => {
     rogueButtonState.active = false;
+  });
+  titleOptionsButton.addEventListener('pointerenter', () => {
+    titleOptionsButtonState.active = true;
+    playUiHoverSound();
+  });
+  titleOptionsButton.addEventListener('pointerleave', () => {
+    titleOptionsButtonState.active = false;
+  });
+  titleOptionsButton.addEventListener('focus', () => {
+    titleOptionsButtonState.active = true;
+    playUiHoverSound();
+  });
+  titleOptionsButton.addEventListener('blur', () => {
+    titleOptionsButtonState.active = false;
   });
 
   const bindings = [
@@ -1593,6 +1622,20 @@ function setupOptions() {
     canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
   });
 
+  const musicVolume = document.querySelector('#musicVolume');
+  musicVolume.value = String(effects.musicVolume);
+  musicVolume.addEventListener('input', () => {
+    effects.musicVolume = clamp(Number(musicVolume.value), 0, 1);
+    syncAudioMasterVolumes();
+  });
+
+  const sfxVolume = document.querySelector('#sfxVolume');
+  sfxVolume.value = String(effects.sfxVolume);
+  sfxVolume.addEventListener('input', () => {
+    effects.sfxVolume = clamp(Number(sfxVolume.value), 0, 1);
+    syncAudioMasterVolumes();
+  });
+
   optionsDialog.addEventListener('close', () => {
     if (optionsCloseReturnsToTitle) {
       optionsCloseReturnsToTitle = false;
@@ -1636,7 +1679,14 @@ function syncOptionsControls() {
   const pixelScale = document.querySelector('#pixelScale');
   if (pixelScale) pixelScale.value = String(effects.pixelScale);
 
+  const musicVolume = document.querySelector('#musicVolume');
+  if (musicVolume) musicVolume.value = String(effects.musicVolume);
+
+  const sfxVolume = document.querySelector('#sfxVolume');
+  if (sfxVolume) sfxVolume.value = String(effects.sfxVolume);
+
   canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
+  syncAudioMasterVolumes();
   syncReticule();
   updateRadarHud();
   updateDebugHud(0);
@@ -1799,6 +1849,7 @@ function renderTitleScreen(time) {
       freeRoam: titleButtonState.active,
       cutUp: cutUpButtonState.active,
       rogue: rogueButtonState.active,
+      options: titleOptionsButtonState.active,
     },
   });
 }

@@ -70,9 +70,12 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(index, /id="titleScreen"/);
   assert.match(index, /id="titleCanvas"/);
   assert.match(index, /id="startButton"/);
+  assert.match(index, /id="titleOptionsButton"/);
   assert.match(index, /aria-label="Free Roam"/);
+  assert.match(index, /aria-label="Options"/);
   assert.match(styles, /\.title-screen/);
   assert.match(styles, /\.title-canvas/);
+  assert.match(styles, /\.title-options-hitbox/);
   assert.match(styles, /image-rendering:\s*pixelated/);
   assert.match(runtimeSource, /function startRandomScene/);
   assert.match(runtimeSource, /drawBitmapGlyph/);
@@ -84,6 +87,8 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(runtimeSource, /z:/);
   assert.match(runtimeSource, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(runtimeSource, /document\.body\.classList\.remove\('title-active'\)/);
+  assert.match(runtimeSource, /titleOptionsButton\.addEventListener\('click'/);
+  assert.match(runtimeSource, /openOptions\(\{ fromTitle: true \}\)/);
 });
 
 test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
@@ -153,7 +158,8 @@ test('keeps title mode buttons compact and vertically separated', () => {
   assert.match(styles, /max-height:\s*32px/);
   assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.29\)/);
   assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.067\)/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 416, 1\.25/);
+  assert.match(runtimeSource, /drawBitmapButton\(context,\s*time,\s*\{ y: 392, label: 'options'/);
+  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 438, 1\.25/);
   assert.match(runtimeSource, /const width = 150/);
   assert.match(runtimeSource, /const height = 32/);
   assert.match(runtimeSource, /const textScale = 1\.5/);
@@ -208,6 +214,22 @@ test('adds cinematic transition and UI sounds for game modes', () => {
   assert.match(runtimeSource, /playUiOneShot\(OPTIONS_CLOSE_SOUND_URL/);
 });
 
+test('offers title and in-game options with music and SFX sliders', () => {
+  assert.match(index, /id="musicVolume"/);
+  assert.match(index, /id="sfxVolume"/);
+  assert.match(index, /Music/);
+  assert.match(index, /Sound effects/);
+  assert.match(index, /type="range"/);
+  assert.match(index, />Continue</);
+  assert.match(index, />Quit to title</);
+  assert.match(styles, /\.options input\[type="range"\]/);
+  assert.match(runtimeSource, /function syncAudioMasterVolumes/);
+  assert.match(runtimeSource, /effects\.musicVolume/);
+  assert.match(runtimeSource, /effects\.sfxVolume/);
+  assert.match(runtimeSource, /state\.musicGain\.gain\.setTargetAtTime/);
+  assert.match(runtimeSource, /state\.sfxGain\.gain\.setTargetAtTime/);
+});
+
 test('crossfades world ambience and ticks down Cut Up scene jumps', () => {
   assert.match(runtimeSource, /ambienceSlots/);
   assert.match(runtimeSource, /function createAmbienceSlot/);
@@ -233,7 +255,7 @@ test('keeps mouse look tied to pointer lock until Escape releases it', () => {
 
 test('offers a quit action in the Escape menu that returns to the title screen', () => {
   assert.match(index, /id="quitGameButton"/);
-  assert.match(index, />Quit game</);
+  assert.match(index, />Quit to title</);
   assert.match(runtimeSource, /const quitGameButton = document\.querySelector\('#quitGameButton'\)/);
   assert.match(runtimeSource, /quitGameButton\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
   assert.match(runtimeSource, /function quitToTitleScreen/);
@@ -569,7 +591,7 @@ test('adds procedural water and drip audio for rainy scenes', () => {
   assert.match(runtimeSource, /RAIN_SPOT_DRIP_SOUND_URL/);
   assert.match(runtimeSource, /rain-spot-drip-8bit\.wav\?v=1/);
   assert.match(runtimeSource, /world\.rain/);
-  assert.match(runtimeSource, /connectSceneAudioNode\(panner,\s*state\.dryGain,\s*state\.reverbInput\)/);
+  assert.match(runtimeSource, /connectSceneAudioNode\(panner,\s*getSfxDryGain\(state\),\s*getSfxReverbInput\(state\)\)/);
 });
 
 test('crossfades walking and sprinting player footstep loops', () => {

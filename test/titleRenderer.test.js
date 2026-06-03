@@ -52,6 +52,7 @@ test('renders title backdrop, logo, buttons, controls, and footer into a canvas 
       freeRoam: true,
       cutUp: false,
       rogue: false,
+      options: false,
     },
   });
 
@@ -77,7 +78,7 @@ test('renders title backdrop, logo, buttons, controls, and footer into a canvas 
     && call[4] === 150
     && call[5] === 32
   ));
-  assert.deepEqual(buttonBackplates.map((call) => call[3]), [264, 310, 356]);
+  assert.deepEqual(buttonBackplates.map((call) => call[3]), [264, 310, 356, 392]);
   assert.ok(context.calls.some((call) => call[0] === 'fillRect' && call[1] === '#b42638'));
   assert.ok(context.calls.some((call) => call[0] === 'fillRect' && call[1] === '#8f8a77'));
   assert.equal(TITLE_LAST_COMMIT_MESSAGE, 'last commit polish scenes and gameplay feedback');
