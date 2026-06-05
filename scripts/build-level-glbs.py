@@ -46,7 +46,6 @@ PALETTE = {
     "reactorGlow": ("#273033", "#121719", "#ff5a38"),
     "moonbeam": ("#8da5cf", "#31415f", "#d9e6ff"),
     "neonTile": ("#151824", "#00d0ff", "#ff2bd6"),
-    "oneBitGrid": ("#050505", "#ffffff", "#777777"),
     "shootingStar": ("#ffda78", "#ff7b38", "#fff7b8"),
     "star": ("#fff0a6", "#ffb044", "#ffffff"),
     "sun": ("#d84a54", "#77284a", "#fff0a6"),

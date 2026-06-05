@@ -10,13 +10,14 @@ import {
 } from '../src/rogueMode.js';
 import { SCENE_DEFINITIONS } from '../src/world.js';
 
-test('Rogue mode starts on level one and advances through all nine scenes', () => {
+test('Rogue mode starts on level one and advances through all active scenes', () => {
   let run = createRogueRun(SCENE_DEFINITIONS);
+  const totalStages = SCENE_DEFINITIONS.length;
 
   assert.equal(run.mode, 'rogue');
   assert.equal(run.stageIndex, 0);
   assert.equal(getRogueSceneId(run, SCENE_DEFINITIONS), SCENE_DEFINITIONS[0].id);
-  assert.equal(getRogueStageLabel(run, SCENE_DEFINITIONS), 'ROGUE 1/9');
+  assert.equal(getRogueStageLabel(run, SCENE_DEFINITIONS), `ROGUE 1/${totalStages}`);
   assert.equal(isRogueComplete(run, SCENE_DEFINITIONS), false);
 
   for (let index = 1; index < SCENE_DEFINITIONS.length; index += 1) {

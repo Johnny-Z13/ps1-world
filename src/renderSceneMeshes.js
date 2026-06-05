@@ -36,6 +36,8 @@ export function createLevelMesh(glContext, scene, indices) {
     addWarpGate(geometry, scene.warpGate, indices);
   }
 
+  addVisualEmitters(geometry, scene.emitters, indices);
+
   return createStaticMeshBuffers(glContext, geometry);
 }
 
@@ -159,6 +161,8 @@ export function createWarehouseMesh(glContext, scene, indices) {
   if (scene.sun) {
     addSun(geometry, scene.sun, indices);
   }
+
+  addVisualEmitters(geometry, scene.emitters, indices);
 
   return createStaticMeshBuffers(glContext, geometry);
 }
@@ -392,6 +396,112 @@ function addRain(geometry, rain, indices) {
       [drop.x - halfWidth, drop.y, drop.z],
     ], 1, 4);
   }
+}
+
+function addVisualEmitters(geometry, emitters = [], indices) {
+  for (const emitter of emitters) {
+    if (isBlackSmokeEmitter(emitter)) {
+      addSmokePlume(geometry, emitter, indices);
+    } else if (isSpecialVfxEmitter(emitter)) {
+      addSpecialVfxParticles(geometry, emitter, indices);
+    }
+  }
+}
+
+function isBlackSmokeEmitter(emitter) {
+  if (!emitter || emitter.enabled === false) return false;
+  return emitter.emitterType === 'black_smoke'
+    || emitter.texture === 'blackSmoke'
+    || emitter.textureId === 'blackSmoke';
+}
+
+function addSmokePlume(geometry, emitter, indices) {
+  const textureId = indices.get(emitter.texture ?? emitter.textureId ?? 'blackSmoke') ?? 0;
+  const motion = motionCode(emitter.motion ?? 'smoke-plume');
+  const radius = Number(emitter.radius ?? 2.4);
+  const height = Number(emitter.height ?? radius * 2.1);
+  const baseY = Number(emitter.y ?? 0);
+  const baseX = Number(emitter.x ?? 0);
+  const baseZ = Number(emitter.z ?? 0);
+  const puffCount = 5;
+
+  for (let index = 0; index < puffCount; index += 1) {
+    const phase = index / Math.max(1, puffCount - 1);
+    const sway = (hashSmokeOffset(baseX, baseZ, index) - 0.5) * radius * 0.5;
+    const cross = (hashSmokeOffset(baseZ, baseX, index + 17) - 0.5) * radius * 0.45;
+    const centerX = baseX + sway;
+    const centerY = baseY + height * (0.16 + phase * 0.78);
+    const centerZ = baseZ + cross;
+    const puffWidth = radius * (0.78 + phase * 0.42);
+    const puffHeight = height * (0.24 + phase * 0.08);
+    const halfWidth = puffWidth / 2;
+    const halfHeight = puffHeight / 2;
+    const shade = 0.62 - phase * 0.16;
+
+    face(geometry, textureId, shade, [
+      [centerX - halfWidth, centerY - halfHeight, centerZ],
+      [centerX + halfWidth, centerY - halfHeight, centerZ],
+      [centerX + halfWidth, centerY + halfHeight, centerZ],
+      [centerX - halfWidth, centerY + halfHeight, centerZ],
+    ], 1, 1, motion);
+    face(geometry, textureId, shade * 0.9, [
+      [centerX, centerY - halfHeight, centerZ - halfWidth],
+      [centerX, centerY - halfHeight, centerZ + halfWidth],
+      [centerX, centerY + halfHeight, centerZ + halfWidth],
+      [centerX, centerY + halfHeight, centerZ - halfWidth],
+    ], 1, 1, motion);
+  }
+}
+
+function isSpecialVfxEmitter(emitter) {
+  if (!emitter || emitter.enabled === false) return false;
+  return emitter.emitterType === 'spark_shower'
+    || emitter.emitterType === 'astral_motes'
+    || emitter.emitterType === 'glitch_static';
+}
+
+function addSpecialVfxParticles(geometry, emitter, indices) {
+  const config = getSpecialVfxConfig(emitter.emitterType);
+  const textureId = indices.get(emitter.texture ?? config.texture) ?? 0;
+  const motion = motionCode(emitter.motion ?? config.motion);
+  const radius = Number(emitter.radius ?? config.radius);
+  const height = Number(emitter.height ?? config.height);
+  const baseX = Number(emitter.x ?? 0);
+  const baseY = Number(emitter.y ?? 0);
+  const baseZ = Number(emitter.z ?? 0);
+
+  for (let index = 0; index < config.count; index += 1) {
+    const angle = hashSmokeOffset(baseX, baseZ, index + 31) * Math.PI * 2;
+    const distance = radius * (0.18 + hashSmokeOffset(baseZ, baseX, index + 41) * 0.82);
+    const phase = hashSmokeOffset(baseX + 3, baseZ - 5, index + 53);
+    const centerX = baseX + Math.cos(angle) * distance;
+    const centerY = baseY + height * phase;
+    const centerZ = baseZ + Math.sin(angle) * distance;
+    const size = config.size * (0.75 + hashSmokeOffset(baseX, baseZ, index + 61) * 0.6);
+    const half = size / 2;
+    const shade = config.shade + hashSmokeOffset(baseZ, baseX, index + 73) * 0.24;
+
+    face(geometry, textureId, shade, [
+      [centerX - half, centerY - half, centerZ],
+      [centerX + half, centerY - half, centerZ],
+      [centerX + half, centerY + half, centerZ],
+      [centerX - half, centerY + half, centerZ],
+    ], 1, 1, motion);
+  }
+}
+
+function getSpecialVfxConfig(emitterType) {
+  if (emitterType === 'spark_shower') {
+    return { texture: 'vfxSpark', motion: 'spark-shower', count: 12, radius: 1.4, height: 3.4, size: 0.34, shade: 1.25 };
+  }
+  if (emitterType === 'astral_motes') {
+    return { texture: 'vfxMote', motion: 'astral-mote', count: 14, radius: 2.4, height: 2.8, size: 0.42, shade: 1.3 };
+  }
+  return { texture: 'vfxStatic', motion: 'glitch-static', count: 10, radius: 1.8, height: 2.4, size: 0.36, shade: 1.18 };
+}
+
+function hashSmokeOffset(x, z, seed) {
+  return Math.abs(Math.sin(x * 12.9898 + z * 78.233 + seed * 37.719) * 43758.5453) % 1;
 }
 
 export function face(geometry, textureId, shade, corners, uRepeat, vRepeat, motion = 0) {

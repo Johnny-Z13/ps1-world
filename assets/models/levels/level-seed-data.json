@@ -72,6 +72,14 @@
         {
           "id": "warpGate",
           "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "vfxSpark",
+          "size": 64
         }
       ],
       "floor": {
@@ -1077,9 +1085,7 @@
           "y": 1.45,
           "z": -10,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         }
       ],
       "healthPotions": [
@@ -1199,6 +1205,14 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "blackSmoke",
           "size": 64
         }
       ],
@@ -2026,9 +2040,7 @@
           "y": 1.45,
           "z": 24,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "alien-landscape molten-sentinel spawner",
@@ -2039,11 +2051,9 @@
           "mesh": "molten-sentinel",
           "x": 18,
           "y": 1.45,
-          "z": 0.88,
+          "z": 1.08,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -2159,6 +2169,14 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "vfxSpark",
           "size": 64
         }
       ],
@@ -2896,9 +2914,7 @@
           "y": 1.45,
           "z": 12,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         }
       ],
       "healthPotions": [
@@ -3013,6 +3029,18 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "blackSmoke",
+          "size": 64
+        },
+        {
+          "id": "vfxMote",
           "size": 64
         }
       ],
@@ -3766,9 +3794,7 @@
           "y": 1.45,
           "z": 3.95,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "neon-backstreets molten-sentinel spawner",
@@ -3777,13 +3803,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": -2,
+          "x": -0.9199999999999999,
           "y": 1.45,
-          "z": -15.12,
+          "z": -16,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -3888,6 +3912,14 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "blackSmoke",
           "size": 64
         }
       ],
@@ -4596,9 +4628,7 @@
           "y": 1.45,
           "z": 18,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "sunken-temple molten-sentinel spawner",
@@ -4607,13 +4637,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 0.88,
+          "x": 1.08,
           "y": 1.45,
           "z": -16,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -4658,1848 +4686,6 @@
           "radius": 0.72
         }
       ],
-      "audio": {
-        "reverb": "stone-vault"
-      }
-    },
-    {
-      "id": "one-bit-cathedral",
-      "label": "1-bit cathedral",
-      "clearColor": [
-        0.075,
-        0.068,
-        0.052,
-        1
-      ],
-      "playerSpawn": {
-        "x": 0,
-        "y": 1.45,
-        "z": 21,
-        "yaw": 3.14
-      },
-      "killY": -8,
-      "textures": [
-        {
-          "id": "oneBitVoid",
-          "size": 128
-        },
-        {
-          "id": "oneBitGrid",
-          "size": 128
-        },
-        {
-          "id": "oneBitCross",
-          "size": 64
-        },
-        {
-          "id": "oneBitStripe",
-          "size": 64
-        },
-        {
-          "id": "oneBitCircuit",
-          "size": 128
-        },
-        {
-          "id": "zombie",
-          "size": 64
-        },
-        {
-          "id": "one-eye-alien",
-          "size": 64
-        },
-        {
-          "id": "molten-sentinel",
-          "size": 64
-        },
-        {
-          "id": "healthPotion",
-          "size": 64
-        },
-        {
-          "id": "warpGate",
-          "size": 64
-        }
-      ],
-      "floor": {
-        "name": "one bit floor",
-        "x": 0,
-        "y": -0.08,
-        "z": 0,
-        "width": 45,
-        "depth": 50,
-        "height": 0.08,
-        "texture": "oneBitGrid",
-        "motion": null,
-        "collider": {
-          "minX": -22.5,
-          "maxX": 22.5,
-          "minY": -0.08,
-          "maxY": 0,
-          "minZ": -25,
-          "maxZ": 25
-        }
-      },
-      "ceiling": null,
-      "walls": [
-        {
-          "name": "outer west raster wall",
-          "x": -22.5,
-          "y": 0,
-          "z": 0,
-          "width": 0.7,
-          "depth": 50,
-          "height": 5.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -22.85,
-            "maxX": -22.15,
-            "minY": 0,
-            "maxY": 5.4,
-            "minZ": -25,
-            "maxZ": 25
-          }
-        },
-        {
-          "name": "outer east raster wall",
-          "x": 22.5,
-          "y": 0,
-          "z": 0,
-          "width": 0.7,
-          "depth": 50,
-          "height": 5.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 22.15,
-            "maxX": 22.85,
-            "minY": 0,
-            "maxY": 5.4,
-            "minZ": -25,
-            "maxZ": 25
-          }
-        },
-        {
-          "name": "outer north lintel",
-          "x": 0,
-          "y": 0,
-          "z": -25.2,
-          "width": 45,
-          "depth": 0.7,
-          "height": 5.8,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -22.5,
-            "maxX": 22.5,
-            "minY": 0,
-            "maxY": 5.8,
-            "minZ": -25.55,
-            "maxZ": -24.849999999999998
-          }
-        },
-        {
-          "name": "outer south threshold",
-          "x": 0,
-          "y": 0,
-          "z": 25.2,
-          "width": 45,
-          "depth": 0.7,
-          "height": 2.2,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": -22.5,
-            "maxX": 22.5,
-            "minY": 0,
-            "maxY": 2.2,
-            "minZ": 24.849999999999998,
-            "maxZ": 25.55
-          }
-        },
-        {
-          "name": "left central pier",
-          "x": -7.2,
-          "y": 0,
-          "z": -5.2,
-          "width": 1,
-          "depth": 26,
-          "height": 8.4,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -7.7,
-            "maxX": -6.7,
-            "minY": 0,
-            "maxY": 8.4,
-            "minZ": -18.2,
-            "maxZ": 7.8
-          }
-        },
-        {
-          "name": "right central pier",
-          "x": 7.2,
-          "y": 0,
-          "z": -5.2,
-          "width": 1,
-          "depth": 26,
-          "height": 8.4,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 6.7,
-            "maxX": 7.7,
-            "minY": 0,
-            "maxY": 8.4,
-            "minZ": -18.2,
-            "maxZ": 7.8
-          }
-        },
-        {
-          "name": "rear tower face",
-          "x": 0,
-          "y": 0,
-          "z": -18.5,
-          "width": 13,
-          "depth": 0.8,
-          "height": 9.2,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -6.5,
-            "maxX": 6.5,
-            "minY": 0,
-            "maxY": 9.2,
-            "minZ": -18.9,
-            "maxZ": -18.1
-          }
-        },
-        {
-          "name": "altar back screen",
-          "x": 0,
-          "y": 0,
-          "z": -8.2,
-          "width": 11,
-          "depth": 0.6,
-          "height": 5.8,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -5.5,
-            "maxX": 5.5,
-            "minY": 0,
-            "maxY": 5.8,
-            "minZ": -8.5,
-            "maxZ": -7.8999999999999995
-          }
-        },
-        {
-          "name": "left altar return",
-          "x": -5.8,
-          "y": 0,
-          "z": -3.6,
-          "width": 0.6,
-          "depth": 9,
-          "height": 5,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": -6.1,
-            "maxX": -5.5,
-            "minY": 0,
-            "maxY": 5,
-            "minZ": -8.1,
-            "maxZ": 0.8999999999999999
-          }
-        },
-        {
-          "name": "right altar return",
-          "x": 5.8,
-          "y": 0,
-          "z": -3.6,
-          "width": 0.6,
-          "depth": 9,
-          "height": 5,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": 5.5,
-            "maxX": 6.1,
-            "minY": 0,
-            "maxY": 5,
-            "minZ": -8.1,
-            "maxZ": 0.8999999999999999
-          }
-        },
-        {
-          "name": "low nave rail left",
-          "x": -4.2,
-          "y": 0,
-          "z": 8,
-          "width": 0.5,
-          "depth": 23,
-          "height": 1.1,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -4.45,
-            "maxX": -3.95,
-            "minY": 0,
-            "maxY": 1.1,
-            "minZ": -3.5,
-            "maxZ": 19.5
-          }
-        },
-        {
-          "name": "low nave rail right",
-          "x": 4.2,
-          "y": 0,
-          "z": 8,
-          "width": 0.5,
-          "depth": 23,
-          "height": 1.1,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": 3.95,
-            "maxX": 4.45,
-            "minY": 0,
-            "maxY": 1.1,
-            "minZ": -3.5,
-            "maxZ": 19.5
-          }
-        },
-        {
-          "name": "west horizontal band 1",
-          "x": -14.2,
-          "y": 0,
-          "z": -18,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 5.4,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -19.799999999999997,
-            "maxX": -8.6,
-            "minY": 0,
-            "maxY": 5.4,
-            "minZ": -18.275,
-            "maxZ": -17.725
-          }
-        },
-        {
-          "name": "east horizontal band 1",
-          "x": 14.2,
-          "y": 0,
-          "z": -18,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 5.4,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": 8.6,
-            "maxX": 19.799999999999997,
-            "minY": 0,
-            "maxY": 5.4,
-            "minZ": -18.275,
-            "maxZ": -17.725
-          }
-        },
-        {
-          "name": "west side spine 1",
-          "x": -18.3,
-          "y": 0,
-          "z": -15.4,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -18.55,
-            "maxX": -18.05,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": -17.5,
-            "maxZ": -13.3
-          }
-        },
-        {
-          "name": "east side spine 1",
-          "x": 18.3,
-          "y": 0,
-          "z": -15.4,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 18.05,
-            "maxX": 18.55,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": -17.5,
-            "maxZ": -13.3
-          }
-        },
-        {
-          "name": "west horizontal band 2",
-          "x": -14.2,
-          "y": 0,
-          "z": -10.8,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 5.1000000000000005,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -19.799999999999997,
-            "maxX": -8.6,
-            "minY": 0,
-            "maxY": 5.1000000000000005,
-            "minZ": -11.075000000000001,
-            "maxZ": -10.525
-          }
-        },
-        {
-          "name": "east horizontal band 2",
-          "x": 14.2,
-          "y": 0,
-          "z": -10.8,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 5.1000000000000005,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": 8.6,
-            "maxX": 19.799999999999997,
-            "minY": 0,
-            "maxY": 5.1000000000000005,
-            "minZ": -11.075000000000001,
-            "maxZ": -10.525
-          }
-        },
-        {
-          "name": "west side spine 2",
-          "x": -18.1,
-          "y": 0,
-          "z": -8.200000000000001,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -18.35,
-            "maxX": -17.85,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": -10.3,
-            "maxZ": -6.100000000000001
-          }
-        },
-        {
-          "name": "east side spine 2",
-          "x": 18.1,
-          "y": 0,
-          "z": -8.200000000000001,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 17.85,
-            "maxX": 18.35,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": -10.3,
-            "maxZ": -6.100000000000001
-          }
-        },
-        {
-          "name": "west horizontal band 3",
-          "x": -14.2,
-          "y": 0,
-          "z": -3.5999999999999996,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 4.800000000000001,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -19.799999999999997,
-            "maxX": -8.6,
-            "minY": 0,
-            "maxY": 4.800000000000001,
-            "minZ": -3.8749999999999996,
-            "maxZ": -3.3249999999999997
-          }
-        },
-        {
-          "name": "east horizontal band 3",
-          "x": 14.2,
-          "y": 0,
-          "z": -3.5999999999999996,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 4.800000000000001,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": 8.6,
-            "maxX": 19.799999999999997,
-            "minY": 0,
-            "maxY": 4.800000000000001,
-            "minZ": -3.8749999999999996,
-            "maxZ": -3.3249999999999997
-          }
-        },
-        {
-          "name": "west side spine 3",
-          "x": -17.900000000000002,
-          "y": 0,
-          "z": -0.9999999999999996,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -18.150000000000002,
-            "maxX": -17.650000000000002,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": -3.0999999999999996,
-            "maxZ": 1.1000000000000005
-          }
-        },
-        {
-          "name": "east side spine 3",
-          "x": 17.900000000000002,
-          "y": 0,
-          "z": -0.9999999999999996,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 17.650000000000002,
-            "maxX": 18.150000000000002,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": -3.0999999999999996,
-            "maxZ": 1.1000000000000005
-          }
-        },
-        {
-          "name": "west horizontal band 4",
-          "x": -14.2,
-          "y": 0,
-          "z": 3.6000000000000014,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 4.5,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -19.799999999999997,
-            "maxX": -8.6,
-            "minY": 0,
-            "maxY": 4.5,
-            "minZ": 3.3250000000000015,
-            "maxZ": 3.8750000000000013
-          }
-        },
-        {
-          "name": "east horizontal band 4",
-          "x": 14.2,
-          "y": 0,
-          "z": 3.6000000000000014,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 4.5,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": 8.6,
-            "maxX": 19.799999999999997,
-            "minY": 0,
-            "maxY": 4.5,
-            "minZ": 3.3250000000000015,
-            "maxZ": 3.8750000000000013
-          }
-        },
-        {
-          "name": "west side spine 4",
-          "x": -17.7,
-          "y": 0,
-          "z": 6.200000000000001,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -17.95,
-            "maxX": -17.45,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": 4.100000000000001,
-            "maxZ": 8.3
-          }
-        },
-        {
-          "name": "east side spine 4",
-          "x": 17.7,
-          "y": 0,
-          "z": 6.200000000000001,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 17.45,
-            "maxX": 17.95,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": 4.100000000000001,
-            "maxZ": 8.3
-          }
-        },
-        {
-          "name": "west horizontal band 5",
-          "x": -14.2,
-          "y": 0,
-          "z": 10.8,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 4.2,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -19.799999999999997,
-            "maxX": -8.6,
-            "minY": 0,
-            "maxY": 4.2,
-            "minZ": 10.525,
-            "maxZ": 11.075000000000001
-          }
-        },
-        {
-          "name": "east horizontal band 5",
-          "x": 14.2,
-          "y": 0,
-          "z": 10.8,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 4.2,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": 8.6,
-            "maxX": 19.799999999999997,
-            "minY": 0,
-            "maxY": 4.2,
-            "minZ": 10.525,
-            "maxZ": 11.075000000000001
-          }
-        },
-        {
-          "name": "west side spine 5",
-          "x": -17.5,
-          "y": 0,
-          "z": 13.4,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -17.75,
-            "maxX": -17.25,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": 11.3,
-            "maxZ": 15.5
-          }
-        },
-        {
-          "name": "east side spine 5",
-          "x": 17.5,
-          "y": 0,
-          "z": 13.4,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 17.25,
-            "maxX": 17.75,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": 11.3,
-            "maxZ": 15.5
-          }
-        },
-        {
-          "name": "west horizontal band 6",
-          "x": -14.2,
-          "y": 0,
-          "z": 18,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 3.9000000000000004,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -19.799999999999997,
-            "maxX": -8.6,
-            "minY": 0,
-            "maxY": 3.9000000000000004,
-            "minZ": 17.725,
-            "maxZ": 18.275
-          }
-        },
-        {
-          "name": "east horizontal band 6",
-          "x": 14.2,
-          "y": 0,
-          "z": 18,
-          "width": 11.2,
-          "depth": 0.55,
-          "height": 3.9000000000000004,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": 8.6,
-            "maxX": 19.799999999999997,
-            "minY": 0,
-            "maxY": 3.9000000000000004,
-            "minZ": 17.725,
-            "maxZ": 18.275
-          }
-        },
-        {
-          "name": "west side spine 6",
-          "x": -17.3,
-          "y": 0,
-          "z": 20.6,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -17.55,
-            "maxX": -17.05,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": 18.5,
-            "maxZ": 22.700000000000003
-          }
-        },
-        {
-          "name": "east side spine 6",
-          "x": 17.3,
-          "y": 0,
-          "z": 20.6,
-          "width": 0.5,
-          "depth": 4.2,
-          "height": 4.4,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 17.05,
-            "maxX": 17.55,
-            "minY": 0,
-            "maxY": 4.4,
-            "minZ": 18.5,
-            "maxZ": 22.700000000000003
-          }
-        },
-        {
-          "name": "left nested arch 1",
-          "x": -10.8,
-          "y": 0,
-          "z": 6,
-          "width": 0.45,
-          "depth": 14,
-          "height": 3.4,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": -11.025,
-            "maxX": -10.575000000000001,
-            "minY": 0,
-            "maxY": 3.4,
-            "minZ": -1,
-            "maxZ": 13
-          }
-        },
-        {
-          "name": "right nested arch 1",
-          "x": 10.8,
-          "y": 0,
-          "z": 6,
-          "width": 0.45,
-          "depth": 14,
-          "height": 3.4,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": 10.575000000000001,
-            "maxX": 11.025,
-            "minY": 0,
-            "maxY": 3.4,
-            "minZ": -1,
-            "maxZ": 13
-          }
-        },
-        {
-          "name": "left nested arch 2",
-          "x": -12.100000000000001,
-          "y": 0,
-          "z": 8.4,
-          "width": 0.45,
-          "depth": 13,
-          "height": 3.85,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": -12.325000000000001,
-            "maxX": -11.875000000000002,
-            "minY": 0,
-            "maxY": 3.85,
-            "minZ": 1.9000000000000004,
-            "maxZ": 14.9
-          }
-        },
-        {
-          "name": "right nested arch 2",
-          "x": 12.100000000000001,
-          "y": 0,
-          "z": 8.4,
-          "width": 0.45,
-          "depth": 13,
-          "height": 3.85,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": 11.875000000000002,
-            "maxX": 12.325000000000001,
-            "minY": 0,
-            "maxY": 3.85,
-            "minZ": 1.9000000000000004,
-            "maxZ": 14.9
-          }
-        },
-        {
-          "name": "left nested arch 3",
-          "x": -13.4,
-          "y": 0,
-          "z": 10.8,
-          "width": 0.45,
-          "depth": 12,
-          "height": 4.3,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": -13.625,
-            "maxX": -13.175,
-            "minY": 0,
-            "maxY": 4.3,
-            "minZ": 4.800000000000001,
-            "maxZ": 16.8
-          }
-        },
-        {
-          "name": "right nested arch 3",
-          "x": 13.4,
-          "y": 0,
-          "z": 10.8,
-          "width": 0.45,
-          "depth": 12,
-          "height": 4.3,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": 13.175,
-            "maxX": 13.625,
-            "minY": 0,
-            "maxY": 4.3,
-            "minZ": 4.800000000000001,
-            "maxZ": 16.8
-          }
-        },
-        {
-          "name": "left nested arch 4",
-          "x": -14.700000000000001,
-          "y": 0,
-          "z": 13.2,
-          "width": 0.45,
-          "depth": 11,
-          "height": 4.75,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": -14.925,
-            "maxX": -14.475000000000001,
-            "minY": 0,
-            "maxY": 4.75,
-            "minZ": 7.699999999999999,
-            "maxZ": 18.7
-          }
-        },
-        {
-          "name": "right nested arch 4",
-          "x": 14.700000000000001,
-          "y": 0,
-          "z": 13.2,
-          "width": 0.45,
-          "depth": 11,
-          "height": 4.75,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": 14.475000000000001,
-            "maxX": 14.925,
-            "minY": 0,
-            "maxY": 4.75,
-            "minZ": 7.699999999999999,
-            "maxZ": 18.7
-          }
-        },
-        {
-          "name": "left nested arch 5",
-          "x": -16,
-          "y": 0,
-          "z": 15.6,
-          "width": 0.45,
-          "depth": 10,
-          "height": 5.2,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": -16.225,
-            "maxX": -15.775,
-            "minY": 0,
-            "maxY": 5.2,
-            "minZ": 10.6,
-            "maxZ": 20.6
-          }
-        },
-        {
-          "name": "right nested arch 5",
-          "x": 16,
-          "y": 0,
-          "z": 15.6,
-          "width": 0.45,
-          "depth": 10,
-          "height": 5.2,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": 15.775,
-            "maxX": 16.225,
-            "minY": 0,
-            "maxY": 5.2,
-            "minZ": 10.6,
-            "maxZ": 20.6
-          }
-        }
-      ],
-      "crates": [
-        {
-          "name": "black altar slab",
-          "x": 0,
-          "y": 0,
-          "z": -2.6,
-          "width": 5.2,
-          "depth": 3.1,
-          "height": 1.2,
-          "texture": "oneBitVoid",
-          "motion": null,
-          "collider": {
-            "minX": -2.6,
-            "maxX": 2.6,
-            "minY": 0,
-            "maxY": 1.2,
-            "minZ": -4.15,
-            "maxZ": -1.05
-          }
-        },
-        {
-          "name": "white altar core",
-          "x": 0,
-          "y": 0,
-          "z": -4.2,
-          "width": 2.2,
-          "depth": 1.7,
-          "height": 3.8,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -1.1,
-            "maxX": 1.1,
-            "minY": 0,
-            "maxY": 3.8,
-            "minZ": -5.05,
-            "maxZ": -3.35
-          }
-        },
-        {
-          "name": "tower crown base",
-          "x": 0,
-          "y": 5.8,
-          "z": -16.2,
-          "width": 7,
-          "depth": 2.2,
-          "height": 2,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -3.5,
-            "maxX": 3.5,
-            "minY": 5.8,
-            "maxY": 7.8,
-            "minZ": -17.3,
-            "maxZ": -15.1
-          }
-        },
-        {
-          "name": "tower crown spike",
-          "x": 0,
-          "y": 7.8,
-          "z": -17.4,
-          "width": 2,
-          "depth": 1.4,
-          "height": 3.7,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -1,
-            "maxX": 1,
-            "minY": 7.8,
-            "maxY": 11.5,
-            "minZ": -18.099999999999998,
-            "maxZ": -16.7
-          }
-        },
-        {
-          "name": "center aisle dark strip",
-          "x": 0,
-          "y": 0,
-          "z": 10.4,
-          "width": 2.1,
-          "depth": 22.4,
-          "height": 0.18,
-          "texture": "oneBitVoid",
-          "motion": null,
-          "collider": null
-        },
-        {
-          "name": "west pixel rib 1",
-          "x": -6,
-          "y": 0,
-          "z": -16,
-          "width": 1,
-          "depth": 1.2,
-          "height": 2.2,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -6.5,
-            "maxX": -5.5,
-            "minY": 0,
-            "maxY": 2.2,
-            "minZ": -16.6,
-            "maxZ": -15.4
-          }
-        },
-        {
-          "name": "east pixel rib 1",
-          "x": 6,
-          "y": 0,
-          "z": -16,
-          "width": 1,
-          "depth": 1.2,
-          "height": 2.2,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 5.5,
-            "maxX": 6.5,
-            "minY": 0,
-            "maxY": 2.2,
-            "minZ": -16.6,
-            "maxZ": -15.4
-          }
-        },
-        {
-          "name": "west pixel rib 2",
-          "x": -6.55,
-          "y": 0,
-          "z": -11.2,
-          "width": 1.35,
-          "depth": 1.2,
-          "height": 2.3800000000000003,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -7.225,
-            "maxX": -5.875,
-            "minY": 0,
-            "maxY": 2.3800000000000003,
-            "minZ": -11.799999999999999,
-            "maxZ": -10.6
-          }
-        },
-        {
-          "name": "east pixel rib 2",
-          "x": 6.55,
-          "y": 0,
-          "z": -11.2,
-          "width": 1.35,
-          "depth": 1.2,
-          "height": 2.3800000000000003,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 5.875,
-            "maxX": 7.225,
-            "minY": 0,
-            "maxY": 2.3800000000000003,
-            "minZ": -11.799999999999999,
-            "maxZ": -10.6
-          }
-        },
-        {
-          "name": "west pixel rib 3",
-          "x": -7.1,
-          "y": 0,
-          "z": -6.4,
-          "width": 1.7,
-          "depth": 1.2,
-          "height": 2.56,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -7.949999999999999,
-            "maxX": -6.25,
-            "minY": 0,
-            "maxY": 2.56,
-            "minZ": -7,
-            "maxZ": -5.800000000000001
-          }
-        },
-        {
-          "name": "east pixel rib 3",
-          "x": 7.1,
-          "y": 0,
-          "z": -6.4,
-          "width": 1.7,
-          "depth": 1.2,
-          "height": 2.56,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 6.25,
-            "maxX": 7.949999999999999,
-            "minY": 0,
-            "maxY": 2.56,
-            "minZ": -7,
-            "maxZ": -5.800000000000001
-          }
-        },
-        {
-          "name": "west pixel rib 4",
-          "x": -7.65,
-          "y": 0,
-          "z": -1.6000000000000014,
-          "width": 1,
-          "depth": 1.2,
-          "height": 2.74,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -8.15,
-            "maxX": -7.15,
-            "minY": 0,
-            "maxY": 2.74,
-            "minZ": -2.2000000000000015,
-            "maxZ": -1.0000000000000013
-          }
-        },
-        {
-          "name": "east pixel rib 4",
-          "x": 7.65,
-          "y": 0,
-          "z": -1.6000000000000014,
-          "width": 1,
-          "depth": 1.2,
-          "height": 2.74,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 7.15,
-            "maxX": 8.15,
-            "minY": 0,
-            "maxY": 2.74,
-            "minZ": -2.2000000000000015,
-            "maxZ": -1.0000000000000013
-          }
-        },
-        {
-          "name": "west pixel rib 5",
-          "x": -8.2,
-          "y": 0,
-          "z": 3.1999999999999993,
-          "width": 1.35,
-          "depth": 1.2,
-          "height": 2.92,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -8.875,
-            "maxX": -7.5249999999999995,
-            "minY": 0,
-            "maxY": 2.92,
-            "minZ": 2.599999999999999,
-            "maxZ": 3.7999999999999994
-          }
-        },
-        {
-          "name": "east pixel rib 5",
-          "x": 8.2,
-          "y": 0,
-          "z": 3.1999999999999993,
-          "width": 1.35,
-          "depth": 1.2,
-          "height": 2.92,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 7.5249999999999995,
-            "maxX": 8.875,
-            "minY": 0,
-            "maxY": 2.92,
-            "minZ": 2.599999999999999,
-            "maxZ": 3.7999999999999994
-          }
-        },
-        {
-          "name": "west pixel rib 6",
-          "x": -8.75,
-          "y": 0,
-          "z": 8,
-          "width": 1.7,
-          "depth": 1.2,
-          "height": 3.1,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -9.6,
-            "maxX": -7.9,
-            "minY": 0,
-            "maxY": 3.1,
-            "minZ": 7.4,
-            "maxZ": 8.6
-          }
-        },
-        {
-          "name": "east pixel rib 6",
-          "x": 8.75,
-          "y": 0,
-          "z": 8,
-          "width": 1.7,
-          "depth": 1.2,
-          "height": 3.1,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 7.9,
-            "maxX": 9.6,
-            "minY": 0,
-            "maxY": 3.1,
-            "minZ": 7.4,
-            "maxZ": 8.6
-          }
-        },
-        {
-          "name": "west pixel rib 7",
-          "x": -9.3,
-          "y": 0,
-          "z": 12.799999999999997,
-          "width": 1,
-          "depth": 1.2,
-          "height": 3.2800000000000002,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -9.8,
-            "maxX": -8.8,
-            "minY": 0,
-            "maxY": 3.2800000000000002,
-            "minZ": 12.199999999999998,
-            "maxZ": 13.399999999999997
-          }
-        },
-        {
-          "name": "east pixel rib 7",
-          "x": 9.3,
-          "y": 0,
-          "z": 12.799999999999997,
-          "width": 1,
-          "depth": 1.2,
-          "height": 3.2800000000000002,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 8.8,
-            "maxX": 9.8,
-            "minY": 0,
-            "maxY": 3.2800000000000002,
-            "minZ": 12.199999999999998,
-            "maxZ": 13.399999999999997
-          }
-        },
-        {
-          "name": "west pixel rib 8",
-          "x": -9.850000000000001,
-          "y": 0,
-          "z": 17.6,
-          "width": 1.35,
-          "depth": 1.2,
-          "height": 3.46,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -10.525000000000002,
-            "maxX": -9.175,
-            "minY": 0,
-            "maxY": 3.46,
-            "minZ": 17,
-            "maxZ": 18.200000000000003
-          }
-        },
-        {
-          "name": "east pixel rib 8",
-          "x": 9.850000000000001,
-          "y": 0,
-          "z": 17.6,
-          "width": 1.35,
-          "depth": 1.2,
-          "height": 3.46,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": 9.175,
-            "maxX": 10.525000000000002,
-            "minY": 0,
-            "maxY": 3.46,
-            "minZ": 17,
-            "maxZ": 18.200000000000003
-          }
-        },
-        {
-          "name": "left circuit plinth 1",
-          "x": -16.8,
-          "y": 0,
-          "z": 16.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.1,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -18.2,
-            "maxX": -15.4,
-            "minY": 0,
-            "maxY": 1.1,
-            "minZ": 16.15,
-            "maxZ": 16.85
-          }
-        },
-        {
-          "name": "right circuit plinth 1",
-          "x": 16.8,
-          "y": 0,
-          "z": 16.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.1,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 15.4,
-            "maxX": 18.2,
-            "minY": 0,
-            "maxY": 1.1,
-            "minZ": 16.15,
-            "maxZ": 16.85
-          }
-        },
-        {
-          "name": "left circuit plinth 2",
-          "x": -16.1,
-          "y": 0,
-          "z": 13.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.28,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -17.5,
-            "maxX": -14.700000000000001,
-            "minY": 0,
-            "maxY": 1.28,
-            "minZ": 13.15,
-            "maxZ": 13.85
-          }
-        },
-        {
-          "name": "right circuit plinth 2",
-          "x": 16.1,
-          "y": 0,
-          "z": 13.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.28,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 14.700000000000001,
-            "maxX": 17.5,
-            "minY": 0,
-            "maxY": 1.28,
-            "minZ": 13.15,
-            "maxZ": 13.85
-          }
-        },
-        {
-          "name": "left circuit plinth 3",
-          "x": -15.4,
-          "y": 0,
-          "z": 10.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.46,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -16.8,
-            "maxX": -14,
-            "minY": 0,
-            "maxY": 1.46,
-            "minZ": 10.15,
-            "maxZ": 10.85
-          }
-        },
-        {
-          "name": "right circuit plinth 3",
-          "x": 15.4,
-          "y": 0,
-          "z": 10.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.46,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 14,
-            "maxX": 16.8,
-            "minY": 0,
-            "maxY": 1.46,
-            "minZ": 10.15,
-            "maxZ": 10.85
-          }
-        },
-        {
-          "name": "left circuit plinth 4",
-          "x": -14.700000000000001,
-          "y": 0,
-          "z": 7.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.6400000000000001,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -16.1,
-            "maxX": -13.3,
-            "minY": 0,
-            "maxY": 1.6400000000000001,
-            "minZ": 7.15,
-            "maxZ": 7.85
-          }
-        },
-        {
-          "name": "right circuit plinth 4",
-          "x": 14.700000000000001,
-          "y": 0,
-          "z": 7.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.6400000000000001,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 13.3,
-            "maxX": 16.1,
-            "minY": 0,
-            "maxY": 1.6400000000000001,
-            "minZ": 7.15,
-            "maxZ": 7.85
-          }
-        },
-        {
-          "name": "left circuit plinth 5",
-          "x": -14,
-          "y": 0,
-          "z": 4.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.82,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -15.4,
-            "maxX": -12.6,
-            "minY": 0,
-            "maxY": 1.82,
-            "minZ": 4.15,
-            "maxZ": 4.85
-          }
-        },
-        {
-          "name": "right circuit plinth 5",
-          "x": 14,
-          "y": 0,
-          "z": 4.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 1.82,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 12.6,
-            "maxX": 15.4,
-            "minY": 0,
-            "maxY": 1.82,
-            "minZ": 4.15,
-            "maxZ": 4.85
-          }
-        },
-        {
-          "name": "left circuit plinth 6",
-          "x": -13.3,
-          "y": 0,
-          "z": 1.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 2,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -14.700000000000001,
-            "maxX": -11.9,
-            "minY": 0,
-            "maxY": 2,
-            "minZ": 1.15,
-            "maxZ": 1.85
-          }
-        },
-        {
-          "name": "right circuit plinth 6",
-          "x": 13.3,
-          "y": 0,
-          "z": 1.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 2,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 11.9,
-            "maxX": 14.700000000000001,
-            "minY": 0,
-            "maxY": 2,
-            "minZ": 1.15,
-            "maxZ": 1.85
-          }
-        },
-        {
-          "name": "left circuit plinth 7",
-          "x": -12.600000000000001,
-          "y": 0,
-          "z": -1.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 2.18,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": -14.000000000000002,
-            "maxX": -11.200000000000001,
-            "minY": 0,
-            "maxY": 2.18,
-            "minZ": -1.85,
-            "maxZ": -1.15
-          }
-        },
-        {
-          "name": "right circuit plinth 7",
-          "x": 12.600000000000001,
-          "y": 0,
-          "z": -1.5,
-          "width": 2.8,
-          "depth": 0.7,
-          "height": 2.18,
-          "texture": "oneBitCircuit",
-          "motion": null,
-          "collider": {
-            "minX": 11.200000000000001,
-            "maxX": 14.000000000000002,
-            "minY": 0,
-            "maxY": 2.18,
-            "minZ": -1.85,
-            "maxZ": -1.15
-          }
-        }
-      ],
-      "platforms": [
-        {
-          "name": "pixel stair low",
-          "x": -3.5,
-          "y": 0,
-          "z": 14,
-          "width": 3,
-          "depth": 2.2,
-          "height": 0.55,
-          "texture": "oneBitStripe",
-          "motion": null,
-          "collider": {
-            "minX": -5,
-            "maxX": -2,
-            "minY": 0,
-            "maxY": 0.55,
-            "minZ": 12.9,
-            "maxZ": 15.1
-          }
-        },
-        {
-          "name": "pixel stair high",
-          "x": 0,
-          "y": 0,
-          "z": 14,
-          "width": 3,
-          "depth": 2.2,
-          "height": 1.1,
-          "texture": "oneBitCross",
-          "motion": null,
-          "collider": {
-            "minX": -1.5,
-            "maxX": 1.5,
-            "minY": 0,
-            "maxY": 1.1,
-            "minZ": 12.9,
-            "maxZ": 15.1
-          }
-        },
-        {
-          "name": "altar side platform",
-          "x": 4.2,
-          "y": 0,
-          "z": -2.6,
-          "width": 2.6,
-          "depth": 3.1,
-          "height": 1.65,
-          "texture": "oneBitGrid",
-          "motion": null,
-          "collider": {
-            "minX": 2.9000000000000004,
-            "maxX": 5.5,
-            "minY": 0,
-            "maxY": 1.65,
-            "minZ": -4.15,
-            "maxZ": -1.05
-          }
-        }
-      ],
-      "mountains": [
-        {
-          "name": "left raster skyline",
-          "x": -18,
-          "y": 0,
-          "z": -31,
-          "width": 14,
-          "depth": 8,
-          "height": 7,
-          "texture": "oneBitCircuit"
-        },
-        {
-          "name": "center raster skyline",
-          "x": 0,
-          "y": 0,
-          "z": -33,
-          "width": 18,
-          "depth": 9,
-          "height": 9,
-          "texture": "oneBitCross"
-        },
-        {
-          "name": "right raster skyline",
-          "x": 18,
-          "y": 0,
-          "z": -31,
-          "width": 14,
-          "depth": 8,
-          "height": 7,
-          "texture": "oneBitCircuit"
-        }
-      ],
-      "sun": null,
-      "lights": [
-        {
-          "x": 0,
-          "y": 8,
-          "z": -14,
-          "color": [
-            1,
-            1,
-            1
-          ]
-        },
-        {
-          "x": -11,
-          "y": 6,
-          "z": 2,
-          "color": [
-            1,
-            1,
-            1
-          ]
-        },
-        {
-          "x": 11,
-          "y": 6,
-          "z": 2,
-          "color": [
-            1,
-            1,
-            1
-          ]
-        },
-        {
-          "x": 0,
-          "y": 4,
-          "z": 18,
-          "color": [
-            1,
-            1,
-            1
-          ]
-        }
-      ],
-      "zombieSpawns": [
-        {
-          "x": -18,
-          "z": 20
-        },
-        {
-          "x": 18,
-          "z": 20
-        },
-        {
-          "x": 0,
-          "z": 12
-        }
-      ],
-      "enemySpawns": [
-        {
-          "name": "one-bit-cathedral one-eye-alien spawner",
-          "role": "enemy",
-          "spawnerType": "enemy",
-          "enemyType": "one-eye-alien",
-          "label": "One-Eyed Alien",
-          "mesh": "one-eye-alien",
-          "x": 19.52,
-          "y": 1.45,
-          "z": 20,
-          "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
-        },
-        {
-          "name": "one-bit-cathedral molten-sentinel spawner",
-          "role": "enemy",
-          "spawnerType": "enemy",
-          "enemyType": "molten-sentinel",
-          "label": "Molten Stone Sentinel",
-          "mesh": "molten-sentinel",
-          "x": -19.408,
-          "y": 1.45,
-          "z": 20,
-          "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
-          "minimumHeadClearance": 4.8
-        }
-      ],
-      "healthPotions": [
-        {
-          "name": "one-bit-cathedral green health potion 1",
-          "x": -14,
-          "y": 1.08,
-          "z": 8,
-          "width": 0.56,
-          "depth": 0.34,
-          "height": 0.72,
-          "texture": "healthPotion",
-          "mesh": "health-flask",
-          "motion": "pickup-bob",
-          "radius": 0.72
-        },
-        {
-          "name": "one-bit-cathedral green health potion 2",
-          "x": 14,
-          "y": 1.08,
-          "z": 8,
-          "width": 0.56,
-          "depth": 0.34,
-          "height": 0.72,
-          "texture": "healthPotion",
-          "mesh": "health-flask",
-          "motion": "pickup-bob",
-          "radius": 0.72
-        },
-        {
-          "name": "one-bit-cathedral green health potion 3",
-          "x": 0,
-          "y": 1.08,
-          "z": -12,
-          "width": 0.56,
-          "depth": 0.34,
-          "height": 0.72,
-          "texture": "healthPotion",
-          "mesh": "health-flask",
-          "motion": "pickup-bob",
-          "radius": 0.72
-        }
-      ],
-      "oneBit": true,
-      "oneBitStyle": "dithered-gradient",
       "audio": {
         "reverb": "stone-vault"
       }
@@ -6591,6 +4777,14 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "blackSmoke",
           "size": 64
         }
       ],
@@ -11278,9 +9472,7 @@
           "y": 1.45,
           "z": 14,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "rotwood-forest molten-sentinel spawner",
@@ -11289,13 +9481,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 3.4080000000000004,
+          "x": 3.08,
           "y": 1.45,
           "z": -22,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -11391,10 +9581,6 @@
           "size": 64
         },
         {
-          "id": "oneBitGrid",
-          "size": 128
-        },
-        {
           "id": "shootingStar",
           "size": 128
         },
@@ -11420,6 +9606,14 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "vfxMote",
           "size": 64
         }
       ],
@@ -11520,14 +9714,14 @@
           }
         },
         {
-          "name": "one-bit rear dais",
+          "name": "rear checker dais",
           "x": 0,
           "y": -0.05,
           "z": -32,
           "width": 18,
           "depth": 11,
           "height": 0.4,
-          "texture": "oneBitGrid",
+          "texture": "astralGrid",
           "motion": null,
           "collider": {
             "minX": -9,
@@ -11779,7 +9973,7 @@
           "width": 2,
           "depth": 4,
           "height": 6.5,
-          "texture": "oneBitGrid",
+          "texture": "astralBlack",
           "motion": null,
           "collider": {
             "minX": -21,
@@ -11798,7 +9992,7 @@
           "width": 2,
           "depth": 4,
           "height": 6.5,
-          "texture": "oneBitGrid",
+          "texture": "astralBlack",
           "motion": null,
           "collider": {
             "minX": 21,
@@ -12214,9 +10408,7 @@
           "y": 1.45,
           "z": -4.05,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "astral-geometry-garden molten-sentinel spawner",
@@ -12225,13 +10417,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 0.88,
+          "x": 1.08,
           "y": 1.45,
           "z": -24,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -12359,6 +10549,14 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
+        },
+        {
+          "id": "blackSmoke",
           "size": 64
         }
       ],
@@ -13426,9 +11624,7 @@
           "y": 1.45,
           "z": -14,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "motel-mirage molten-sentinel spawner",
@@ -13439,11 +11635,9 @@
           "mesh": "molten-sentinel",
           "x": -18,
           "y": 1.45,
-          "z": 14.88,
+          "z": 15.08,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],

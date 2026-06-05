@@ -16,7 +16,6 @@ test('registers the selectable scene options', () => {
       ['derelict-starship', 'Derelict starship'],
       ['neon-backstreets', 'Neon backstreets'],
       ['sunken-temple', 'Sunken temple'],
-      ['one-bit-cathedral', '1-bit cathedral'],
       ['rotwood-forest', 'Polygonal Rotwood Forest'],
       ['astral-geometry-garden', 'Astral Geometry Garden'],
       ['motel-mirage', 'Liminal Motel Mirage'],
@@ -236,27 +235,6 @@ test('keeps Neon Backstreets Rogue route gaps within sprint-jump range', () => {
   assert.ok(gate.z >= bridge.z - bridge.depth / 2 && gate.z <= bridge.z + bridge.depth / 2);
 });
 
-test('builds a 1-bit polygon cathedral with black and white texture mapping', () => {
-  const world = createSceneWorld('one-bit-cathedral');
-  const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
-
-  assert.equal(world.id, 'one-bit-cathedral');
-  assert.equal(world.label, '1-bit cathedral');
-  assert.equal(world.oneBitStyle, 'dithered-gradient');
-  assert.deepEqual(world.skyDome, { mode: 'starry', palette: 'one-bit-night' });
-  assert.ok(world.floor);
-  assert.ok(world.textures.every((texture) => (
-    texture.id.startsWith('oneBit')
-    || ['zombie', 'one-eye-alien', 'molten-sentinel', 'healthPotion', 'warpGate', 'bloodBurst'].includes(texture.id)
-  )));
-  assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
-  assert.ok(world.clearColor[0] > 0);
-  assert.ok(world.walls.length >= 28);
-  assert.ok(world.crates.length >= 18);
-  assert.ok(colliders.length >= 40);
-  assert.ok(world.playerSpawn.z > 15);
-});
-
 test('adds non-colliding rain to the sunken temple scene', () => {
   const world = createSceneWorld('sunken-temple');
   const highestDrop = Math.max(...world.rain.drops.map((drop) => drop.y));
@@ -465,14 +443,73 @@ test('gives every scene a diegetic navigation artifact instead of a clean minima
 
   assert.equal(createSceneWorld('motel-mirage').diegeticMap.artifactType, 'fire-exit-plan');
   assert.equal(createSceneWorld('derelict-starship').diegeticMap.artifactType, 'bulkhead-diagram');
-  assert.equal(createSceneWorld('one-bit-cathedral').diegeticMap.artifactType, 'stained-glass-floor');
 });
 
-test('exposes fallback emitter metadata as an empty authoring surface', () => {
+test('dots open-air fallback scenes with authored black smoke emitters', () => {
+  const smokeSceneIds = [
+    'alien-landscape',
+    'rotwood-forest',
+    'neon-backstreets',
+    'sunken-temple',
+    'motel-mirage',
+  ];
+
   for (const definition of SCENE_DEFINITIONS) {
     const scene = createSceneWorld(definition.id);
 
-    assert.deepEqual(scene.emitters, [], definition.id);
+    assert.ok(Array.isArray(scene.emitters), definition.id);
+
+    if (!smokeSceneIds.includes(definition.id)) {
+      assert.deepEqual(scene.emitters.filter((emitter) => emitter.emitterType === 'black_smoke'), [], definition.id);
+      continue;
+    }
+
+    const smokeEmitters = scene.emitters.filter((emitter) => emitter.emitterType === 'black_smoke');
+
+    assert.ok(smokeEmitters.length >= 2, definition.id);
+    assert.ok(scene.textures.some((texture) => texture.id === 'blackSmoke' && texture.size === 64), definition.id);
+
+    for (const emitter of smokeEmitters) {
+      assert.equal(emitter.texture, 'blackSmoke', emitter.name);
+      assert.equal(emitter.motion, 'smoke-plume', emitter.name);
+      assert.ok(emitter.radius >= 2.2, emitter.name);
+      assert.ok(emitter.height >= 4.5, emitter.name);
+      assert.ok(emitter.rate >= 4, emitter.name);
+    }
+  }
+});
+
+test('adds special-case visual particle emitters to distinctive fallback scenes', () => {
+  const expectedByScene = {
+    dungeon: ['spark_shower'],
+    'derelict-starship': ['spark_shower'],
+    'astral-geometry-garden': ['astral_motes'],
+    'neon-backstreets': ['astral_motes'],
+  };
+  const textureByType = {
+    spark_shower: 'vfxSpark',
+    astral_motes: 'vfxMote',
+    glitch_static: 'vfxStatic',
+  };
+  const motionByType = {
+    spark_shower: 'spark-shower',
+    astral_motes: 'astral-mote',
+    glitch_static: 'glitch-static',
+  };
+
+  for (const [sceneId, emitterTypes] of Object.entries(expectedByScene)) {
+    const scene = createSceneWorld(sceneId);
+
+    for (const emitterType of emitterTypes) {
+      const emitter = scene.emitters.find((candidate) => candidate.emitterType === emitterType);
+      const texture = textureByType[emitterType];
+
+      assert.ok(emitter, `${sceneId} ${emitterType}`);
+      assert.equal(emitter.texture, texture, emitter.name);
+      assert.equal(emitter.motion, motionByType[emitterType], emitter.name);
+      assert.ok(emitter.rate >= 8, emitter.name);
+      assert.ok(scene.textures.some((candidate) => candidate.id === texture && candidate.size === 64), emitter.name);
+    }
   }
 });
 

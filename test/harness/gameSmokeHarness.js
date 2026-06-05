@@ -2,6 +2,7 @@ import { createCutUpState, getCutUpHudText, getCutUpJumpFlash, getNextCutUpScene
 import { createPlayerHealth } from '../../src/playerHealth.js';
 import { applyVideoPreset, createEffectState, getResolutionMode, VIDEO_PRESETS } from '../../src/ps1Display.js';
 import { createRogueRun, getRogueSceneId, getRogueStageLabel, isRogueComplete, stepRogueRun } from '../../src/rogueMode.js';
+import { createRogueStageWorld } from '../../src/rogueWorld.js';
 import { SCENE_DEFINITIONS, createSceneWorld } from '../../src/world.js';
 import { createZombieEnemies } from '../../src/zombies.js';
 
@@ -70,7 +71,7 @@ export function createGameSmokeHarness() {
         mode: 'rogue',
         complete: false,
         state,
-        world: createSceneWorld(getRogueSceneId(state, SCENE_DEFINITIONS)),
+        world: createRogueStageWorld(createSceneWorld(getRogueSceneId(state, SCENE_DEFINITIONS)), state, SCENE_DEFINITIONS),
         label: getRogueStageLabel(state, SCENE_DEFINITIONS),
       };
     },
@@ -84,7 +85,7 @@ export function createGameSmokeHarness() {
         mode: complete ? 'rogue-complete' : 'rogue',
         complete,
         state,
-        world: sceneId ? createSceneWorld(sceneId) : null,
+        world: sceneId ? createRogueStageWorld(createSceneWorld(sceneId), state, SCENE_DEFINITIONS) : null,
         label: getRogueStageLabel(state, SCENE_DEFINITIONS),
       };
     },

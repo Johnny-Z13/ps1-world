@@ -10,7 +10,6 @@ export function drawScenePass(glContext, options) {
     textureCount,
     textureIndices,
     time,
-    oneBit,
     lightningTexture,
     lightningStrength,
     rainTexture,
@@ -31,7 +30,6 @@ export function drawScenePass(glContext, options) {
   glContext.uniform1i(program.uniforms.uAtlas, 0);
   glContext.uniform1f(program.uniforms.uTextureCount, textureCount);
   glContext.uniform1f(program.uniforms.uTime, time);
-  glContext.uniform1f(program.uniforms.uOneBit, oneBit ? 1 : 0);
   glContext.uniform1f(program.uniforms.uLightningTextureId, getTextureIndex(textureIndices, lightningTexture));
   glContext.uniform1f(program.uniforms.uLightningStrength, lightningStrength);
   glContext.uniform1f(program.uniforms.uRainTextureId, getTextureIndex(textureIndices, rainTexture));

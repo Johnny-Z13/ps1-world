@@ -23,10 +23,11 @@ const renderSkyDome = readFileSync(new URL('../src/renderSkyDome.js', import.met
 const renderPostPass = readFileSync(new URL('../src/renderPostPass.js', import.meta.url), 'utf8');
 const renderScenePass = readFileSync(new URL('../src/renderScenePass.js', import.meta.url), 'utf8');
 const debugHud = readFileSync(new URL('../src/debugHud.js', import.meta.url), 'utf8');
+const radarHud = readFileSync(new URL('../src/radarHud.js', import.meta.url), 'utf8');
 const enemyCatalog = readFileSync(new URL('../src/enemyCatalog.js', import.meta.url), 'utf8');
 const generatedTextures = readFileSync(new URL('../src/generatedTextures.js', import.meta.url), 'utf8');
 const renderShaders = readFileSync(new URL('../src/renderShaders.js', import.meta.url), 'utf8');
-const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
+const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, radarHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
 const zombieModel = readFileSync(new URL('../src/zombieModel.js', import.meta.url), 'utf8');
 const enemyAnimation = readFileSync(new URL('../src/enemyAnimation.js', import.meta.url), 'utf8');
 const cutUpMode = readFileSync(new URL('../src/cutUpMode.js', import.meta.url), 'utf8');
@@ -49,6 +50,16 @@ test('offers a small debug HUD with frame and enemy counts', () => {
   assert.match(runtimeSource, /zombies\.length/);
 });
 
+test('renders a toggleable GTA-style radar HUD', () => {
+  assert.match(index, /id="radarHud"/);
+  assert.match(index, /id="radarMapToggle"/);
+  assert.match(index, /Radar map/);
+  assert.match(styles, /\.radar-hud/);
+  assert.match(runtimeSource, /drawRadarHud/);
+  assert.match(runtimeSource, /world\.warpGate/);
+  assert.match(runtimeSource, /effects\.radarMap/);
+});
+
 test('offers a clean test view video preset in the options menu', () => {
   assert.match(runtimeSource, /VIDEO_PRESETS/);
   assert.match(runtimeSource, /applyVideoPreset/);
@@ -59,9 +70,12 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(index, /id="titleScreen"/);
   assert.match(index, /id="titleCanvas"/);
   assert.match(index, /id="startButton"/);
+  assert.match(index, /id="titleOptionsButton"/);
   assert.match(index, /aria-label="Free Roam"/);
+  assert.match(index, /aria-label="Options"/);
   assert.match(styles, /\.title-screen/);
   assert.match(styles, /\.title-canvas/);
+  assert.match(styles, /\.title-options-hitbox/);
   assert.match(styles, /image-rendering:\s*pixelated/);
   assert.match(runtimeSource, /function startRandomScene/);
   assert.match(runtimeSource, /drawBitmapGlyph/);
@@ -73,9 +87,11 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(runtimeSource, /z:/);
   assert.match(runtimeSource, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(runtimeSource, /document\.body\.classList\.remove\('title-active'\)/);
+  assert.match(runtimeSource, /titleOptionsButton\.addEventListener\('click'/);
+  assert.match(runtimeSource, /openOptions\(\{ fromTitle: true \}\)/);
 });
 
-test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
+test('offers a hard Cut Up title mode that cycles all active worlds', () => {
   assert.match(index, /id="cutUpButton"/);
   assert.match(index, /aria-label="Cut Up Mode"/);
   assert.match(index, /id="cutUpHud"/);
@@ -142,7 +158,8 @@ test('keeps title mode buttons compact and vertically separated', () => {
   assert.match(styles, /max-height:\s*32px/);
   assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.29\)/);
   assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.067\)/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 416, 1\.25/);
+  assert.match(runtimeSource, /drawBitmapButton\(context,\s*time,\s*\{ y: 392, label: 'options'/);
+  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 438, 1\.25/);
   assert.match(runtimeSource, /const width = 150/);
   assert.match(runtimeSource, /const height = 32/);
   assert.match(runtimeSource, /const textScale = 1\.5/);
@@ -197,6 +214,22 @@ test('adds cinematic transition and UI sounds for game modes', () => {
   assert.match(runtimeSource, /playUiOneShot\(OPTIONS_CLOSE_SOUND_URL/);
 });
 
+test('offers title and in-game options with music and SFX sliders', () => {
+  assert.match(index, /id="musicVolume"/);
+  assert.match(index, /id="sfxVolume"/);
+  assert.match(index, /Music/);
+  assert.match(index, /Sound effects/);
+  assert.match(index, /type="range"/);
+  assert.match(index, />Continue</);
+  assert.match(index, />Quit to title</);
+  assert.match(styles, /\.options input\[type="range"\]/);
+  assert.match(runtimeSource, /function syncAudioMasterVolumes/);
+  assert.match(runtimeSource, /effects\.musicVolume/);
+  assert.match(runtimeSource, /effects\.sfxVolume/);
+  assert.match(runtimeSource, /state\.musicGain\.gain\.setTargetAtTime/);
+  assert.match(runtimeSource, /state\.sfxGain\.gain\.setTargetAtTime/);
+});
+
 test('crossfades world ambience and ticks down Cut Up scene jumps', () => {
   assert.match(runtimeSource, /ambienceSlots/);
   assert.match(runtimeSource, /function createAmbienceSlot/);
@@ -222,7 +255,7 @@ test('keeps mouse look tied to pointer lock until Escape releases it', () => {
 
 test('offers a quit action in the Escape menu that returns to the title screen', () => {
   assert.match(index, /id="quitGameButton"/);
-  assert.match(index, />Quit game</);
+  assert.match(index, />Quit to title</);
   assert.match(runtimeSource, /const quitGameButton = document\.querySelector\('#quitGameButton'\)/);
   assert.match(runtimeSource, /quitGameButton\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
   assert.match(runtimeSource, /function quitToTitleScreen/);
@@ -230,13 +263,9 @@ test('offers a quit action in the Escape menu that returns to the title screen',
   assert.match(runtimeSource, /titleScreen\.hidden = false/);
 });
 
-test('renders one-bit scenes with ordered dithering instead of hard clipping', () => {
-  assert.match(runtimeSource, /orderedDither/);
-  assert.match(runtimeSource, /oneBitPaper/);
-  assert.match(runtimeSource, /oneBitInk/);
-  assert.match(runtimeSource, /oneBitMid/);
-  assert.match(runtimeSource, /oneBitAccent/);
-  assert.match(runtimeSource, /oneBitDepth/);
+test('does not expose the removed one-bit scene preset in runtime renderer code', () => {
+  assert.doesNotMatch(runtimeSource, /oneBit/);
+  assert.doesNotMatch(runtimeSource, /one-bit-night/);
 });
 
 test('renders scene cards and motion flags for animated preset props', () => {
@@ -533,7 +562,6 @@ test('plays audio assets for lightning and scene ambience', () => {
     'derelict-starship',
     'neon-backstreets',
     'sunken-temple',
-    'one-bit-cathedral',
     'astral-geometry-garden',
     'motel-mirage',
   ]) {
@@ -558,7 +586,7 @@ test('adds procedural water and drip audio for rainy scenes', () => {
   assert.match(runtimeSource, /RAIN_SPOT_DRIP_SOUND_URL/);
   assert.match(runtimeSource, /rain-spot-drip-8bit\.wav\?v=1/);
   assert.match(runtimeSource, /world\.rain/);
-  assert.match(runtimeSource, /connectSceneAudioNode\(panner,\s*state\.dryGain,\s*state\.reverbInput\)/);
+  assert.match(runtimeSource, /connectSceneAudioNode\(panner,\s*getSfxDryGain\(state\),\s*getSfxReverbInput\(state\)\)/);
 });
 
 test('crossfades walking and sprinting player footstep loops', () => {

@@ -8,6 +8,7 @@ import {
   drawZombieModelTexture,
   loadTextureBytesImage,
 } from '../src/renderTextureAtlas.js';
+import { drawGeneratedTexture } from '../src/generatedTextures.js';
 
 function createFakeGl() {
   const calls = [];
@@ -183,4 +184,48 @@ test('draw helpers write material color and character image tiles', () => {
     ['fillRect', 5, 6, 7, 7],
     ['drawImage', image, 8, 9, 10, 10],
   ]);
+});
+
+test('drawGeneratedTexture creates black smoke with transparent cutout cells', () => {
+  const calls = [];
+  const ctx = {
+    set fillStyle(value) {
+      calls.push(['fillStyle', value]);
+    },
+    clearRect(...args) {
+      calls.push(['clearRect', ...args]);
+    },
+    fillRect(...args) {
+      calls.push(['fillRect', ...args]);
+    },
+  };
+
+  drawGeneratedTexture(ctx, 'blackSmoke', 4, 8, 64, 64);
+
+  assert.deepEqual(calls[0], ['clearRect', 4, 8, 64, 64]);
+  assert.ok(calls.some((call) => call[0] === 'fillStyle' && call[1].startsWith('rgba(') && call[1].includes(', 0.')));
+  assert.ok(calls.filter((call) => call[0] === 'fillRect').length >= 20);
+});
+
+test('drawGeneratedTexture creates special VFX particle tiles', () => {
+  for (const textureId of ['vfxSpark', 'vfxMote', 'vfxStatic']) {
+    const calls = [];
+    const ctx = {
+      set fillStyle(value) {
+        calls.push(['fillStyle', value]);
+      },
+      clearRect(...args) {
+        calls.push(['clearRect', ...args]);
+      },
+      fillRect(...args) {
+        calls.push(['fillRect', ...args]);
+      },
+    };
+
+    drawGeneratedTexture(ctx, textureId, 0, 0, 64, 64);
+
+    assert.deepEqual(calls[0], ['clearRect', 0, 0, 64, 64]);
+    assert.ok(calls.filter((call) => call[0] === 'fillRect').length >= 4, textureId);
+    assert.ok(calls.some((call) => call[0] === 'fillStyle' && call[1].startsWith('rgba(')), textureId);
+  }
 });

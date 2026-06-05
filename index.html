@@ -4,17 +4,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PS1 World</title>
-    <link rel="stylesheet" href="./styles.css?v=14">
+    <link rel="stylesheet" href="./styles.css?v=17">
   </head>
   <body class="title-active">
     <canvas id="screen" aria-label="PS1 world renderer"></canvas>
     <div id="reticule" class="reticule" aria-hidden="true"></div>
+    <canvas id="radarHud" class="radar-hud" width="128" height="128" aria-label="Radar map" hidden></canvas>
 
     <main id="titleScreen" class="title-screen">
       <canvas id="titleCanvas" class="title-canvas" width="512" height="480" aria-hidden="true"></canvas>
       <button id="startButton" class="title-start-hitbox" type="button" aria-label="Free Roam"></button>
       <button id="cutUpButton" class="title-cut-up-hitbox" type="button" aria-label="Cut Up Mode"></button>
       <button id="rogueButton" class="title-rogue-hitbox" type="button" aria-label="Rogue"></button>
+      <button id="titleOptionsButton" class="title-options-hitbox" type="button" aria-label="Options"></button>
     </main>
 
     <div id="cutUpHud" class="cut-up-hud" aria-live="polite" hidden></div>
@@ -53,7 +55,7 @@
     <dialog id="options" class="options">
       <form method="dialog">
         <header>
-          <h1>Video</h1>
+          <h1>Options</h1>
           <button value="close" aria-label="Close options">x</button>
         </header>
 
@@ -72,6 +74,16 @@
           <select id="resolution"></select>
         </label>
 
+        <label class="range-option">
+          <span>Music</span>
+          <input id="musicVolume" type="range" min="0" max="1" step="0.01" value="0.72">
+        </label>
+
+        <label class="range-option">
+          <span>Sound effects</span>
+          <input id="sfxVolume" type="range" min="0" max="1" step="0.01" value="0.82">
+        </label>
+
         <label><input id="scanlines" type="checkbox" checked> Scan lines</label>
         <label><input id="crtDistortion" type="checkbox" checked> CRT distortion</label>
         <label><input id="dither" type="checkbox" checked> Dither</label>
@@ -80,6 +92,7 @@
         <label><input id="noise" type="checkbox" checked> RF noise</label>
         <label><input id="playerTorch" type="checkbox" checked> Player torch</label>
         <label><input id="zombies" type="checkbox" checked> Zombies</label>
+        <label><input id="radarMapToggle" type="checkbox" checked> Radar map</label>
         <label><input id="debugHudToggle" type="checkbox"> Debug HUD</label>
         <label><input id="showReticule" type="checkbox" checked> Reticule</label>
 
@@ -91,12 +104,12 @@
         <label><input id="invertY" type="checkbox"> Invert Y</label>
 
         <footer>
-          <button id="quitGameButton" class="danger" type="button">Quit game</button>
-          <button value="close">Resume</button>
+          <button id="quitGameButton" class="danger" type="button">Quit to title</button>
+          <button value="close">Continue</button>
         </footer>
       </form>
     </dialog>
 
-    <script type="module" src="./src/app.js?v=148"></script>
+    <script type="module" src="./src/app.js?v=154"></script>
   </body>
 </html>

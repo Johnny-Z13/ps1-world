@@ -14,6 +14,10 @@ export const MOTION_CODES = Object.freeze({
     'torch-flame': 13,
     'pickup-bob': 14,
     'warp-gate': 15,
+    'smoke-plume': 16,
+    'spark-shower': 17,
+    'astral-mote': 18,
+    'glitch-static': 19,
 });
 
 export function motionCode(name) {
@@ -101,13 +105,28 @@ export function drawGeneratedTexture(ctx, id, x, y, tile, sourceSize) {
     return;
   }
 
-  if (id.startsWith('neon') || id === 'lightning') {
-    drawNeonTexture(ctx, id, x, y, tile, sourceSize);
+  if (id === 'blackSmoke') {
+    drawBlackSmokeTexture(ctx, x, y, tile);
     return;
   }
 
-  if (id.startsWith('oneBit')) {
-    drawOneBitTexture(ctx, id, x, y, tile, sourceSize);
+  if (id === 'vfxSpark') {
+    drawSparkVfxTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'vfxMote') {
+    drawMoteVfxTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id === 'vfxStatic') {
+    drawStaticVfxTexture(ctx, x, y, tile);
+    return;
+  }
+
+  if (id.startsWith('neon') || id === 'lightning') {
+    drawNeonTexture(ctx, id, x, y, tile, sourceSize);
     return;
   }
 
@@ -204,6 +223,78 @@ function drawBloodBurstTexture(ctx, x, y, tile) {
     ctx.beginPath();
     ctx.arc(x + tile * cx, y + tile * cy, tile * radius, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+function drawBlackSmokeTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const cell = tile / 16;
+  for (let row = 0; row < 16; row += 1) {
+    for (let col = 0; col < 16; col += 1) {
+      const nx = (col + 0.5) / 16 - 0.5;
+      const ny = (row + 0.5) / 16 - 0.5;
+      const body = Math.hypot(nx * 1.05, (ny + 0.05) * 0.8);
+      const shoulder = Math.hypot((nx + 0.2) * 1.35, (ny - 0.12) * 1.1);
+      const crown = Math.hypot((nx - 0.18) * 1.35, (ny + 0.18) * 1.25);
+      const density = Math.max(
+        0,
+        0.76 - body,
+        0.52 - shoulder,
+        0.48 - crown,
+      );
+      const noise = hash(col, row, 91);
+      const edgeCut = hash(col + 17, row + 11, 93);
+      if (density <= 0 || noise * 0.72 > density || (density < 0.18 && edgeCut > 0.42)) continue;
+
+      const alpha = Math.min(0.82, 0.12 + density * 1.05 + noise * 0.18);
+      const shade = 8 + Math.floor(noise * 34);
+      ctx.fillStyle = `rgba(${shade}, ${shade}, ${shade + 2}, ${alpha.toFixed(2)})`;
+      ctx.fillRect(x + col * cell, y + row * cell, Math.ceil(cell), Math.ceil(cell));
+    }
+  }
+
+  ctx.fillStyle = 'rgba(3, 3, 4, 0.55)';
+  ctx.fillRect(x + tile * 0.42, y + tile * 0.72, tile * 0.18, tile * 0.18);
+}
+
+function drawSparkVfxTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const cells = [
+    [0.48, 0.1, 0.16, 'rgba(255, 248, 160, 0.92)'],
+    [0.42, 0.24, 0.22, 'rgba(255, 145, 44, 0.78)'],
+    [0.55, 0.34, 0.2, 'rgba(216, 46, 22, 0.64)'],
+    [0.35, 0.48, 0.14, 'rgba(255, 216, 80, 0.72)'],
+    [0.62, 0.56, 0.12, 'rgba(255, 88, 28, 0.58)'],
+    [0.5, 0.72, 0.1, 'rgba(102, 22, 10, 0.45)'],
+  ];
+
+  for (const [cx, cy, size, color] of cells) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x + tile * cx - tile * size * 0.5, y + tile * cy - tile * size * 0.5, tile * size, tile * size);
+  }
+}
+
+function drawMoteVfxTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  ctx.fillStyle = 'rgba(34, 255, 238, 0.82)';
+  ctx.fillRect(x + tile * 0.38, y + tile * 0.32, tile * 0.2, tile * 0.2);
+  ctx.fillStyle = 'rgba(255, 58, 216, 0.7)';
+  ctx.fillRect(x + tile * 0.52, y + tile * 0.42, tile * 0.18, tile * 0.18);
+  ctx.fillStyle = 'rgba(255, 246, 92, 0.64)';
+  ctx.fillRect(x + tile * 0.28, y + tile * 0.55, tile * 0.16, tile * 0.16);
+  ctx.fillStyle = 'rgba(170, 255, 255, 0.34)';
+  ctx.fillRect(x + tile * 0.25, y + tile * 0.25, tile * 0.5, tile * 0.5);
+}
+
+function drawStaticVfxTexture(ctx, x, y, tile) {
+  ctx.clearRect(x, y, tile, tile);
+  const cell = tile / 8;
+  for (let index = 0; index < 18; index += 1) {
+    const px = Math.floor(hash(index, 2, 101) * 8);
+    const py = Math.floor(hash(index, 3, 102) * 8);
+    const white = hash(index, 4, 103) > 0.45;
+    ctx.fillStyle = white ? 'rgba(245, 240, 210, 0.86)' : 'rgba(18, 14, 10, 0.78)';
+    ctx.fillRect(x + px * cell, y + py * cell, cell, cell);
   }
 }
 
@@ -379,37 +470,6 @@ function drawNeonTexture(ctx, id, x, y, tile, sourceSize) {
   }
 }
 
-function drawOneBitTexture(ctx, id, x, y, tile, sourceSize) {
-  const oneBitPaper = '#d8d0aa';
-  const oneBitInk = '#17130e';
-  const cells = sourceSize === 64 ? 8 : 16;
-  const cell = tile / cells;
-  ctx.fillStyle = id === 'oneBitVoid' ? oneBitInk : oneBitPaper;
-  ctx.fillRect(x, y, tile, tile);
-
-  for (let row = 0; row < cells; row += 1) {
-    for (let col = 0; col < cells; col += 1) {
-      const center = Math.abs(col - (cells - 1) / 2);
-      const verticalShade = row / Math.max(cells - 1, 1);
-      const n = hash(col, row, id.length);
-      const stripe = row % 4 === 0 || col % 4 === 0;
-      const checker = (row + col) % 2 === 0;
-      const circuit = stripe || (row % 3 === 1 && col % 5 < 2) || (col % 6 === 3 && row % 5 > 1);
-      const cross = center < 1 || Math.abs(row - (cells - 1) / 2) < 1 || checker;
-      let density = 0.35 + verticalShade * 0.2;
-
-      if (id === 'oneBitVoid') density = 0.82;
-      if (id === 'oneBitGrid') density = checker ? 0.32 : 0.52;
-      if (id === 'oneBitCross') density = cross ? 0.18 : 0.62;
-      if (id === 'oneBitStripe') density = row % 3 === 1 ? 0.24 : 0.68;
-      if (id === 'oneBitCircuit') density = circuit ? 0.2 : 0.58;
-
-      ctx.fillStyle = n < density ? oneBitInk : oneBitPaper;
-      ctx.fillRect(x + col * cell, y + row * cell, cell, cell);
-    }
-  }
-}
-
 function palette(id, n) {
   const palettes = {
     concrete: ['#585650', '#69655c', '#4c4b47', '#777062'],
@@ -459,11 +519,6 @@ function palette(id, n) {
     mossStone: ['#36523e', '#4d6843', '#2d3a31', '#71805b'],
     water: ['#14383d', '#1d535a', '#243f58', '#0f272d'],
     rain: ['#0c2025', '#b9ffff', '#6ccdd5', '#183940'],
-    oneBitVoid: ['#17130e', '#211b13', '#0e0b08', '#2a2218'],
-    oneBitGrid: ['#d8d0aa', '#17130e', '#b8ad88', '#352a1b'],
-    oneBitCross: ['#d8d0aa', '#211b13', '#c6bd98', '#17130e'],
-    oneBitStripe: ['#d8d0aa', '#17130e', '#a79d78', '#2a2218'],
-    oneBitCircuit: ['#d8d0aa', '#17130e', '#c0b890', '#302617'],
   };
   const list = palettes[id] ?? palettes.concrete;
   return list[Math.floor(n * list.length) % list.length];

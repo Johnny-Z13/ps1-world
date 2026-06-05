@@ -87,7 +87,7 @@ Implemented:
 2. A scene-id to GLB URL map:
    - `dungeon` -> `./assets/models/levels/dungeon.glb`
    - `alien-landscape` -> `./assets/models/levels/alien-landscape.glb`
-   - all nine scenes are registered with cache-busting.
+   - all active scenes are registered with cache-busting.
 3. Visible render buffers are built from `ART_*` nodes.
 4. Collision arrays are built from `COLLISION_*` nodes.
 5. Walkable-surface queries are built from `WALKABLE_*` nodes.
@@ -97,7 +97,7 @@ Implemented:
 
 Next expansions:
 
-- Bind parsed surface metadata to footsteps, splashes, damage feedback, and friction behavior when those gameplay systems are ready.
+- Continue tuning parsed surface metadata for footsteps, splashes, damage feedback, and friction behavior. The browser runtime now has a first behavior-binding pass for surface profiles and authored sound/emitter/encounter/objective contracts.
 - Add a Blender export helper that bumps the level GLB cache-busting version after asset changes.
 
 ## Runtime Contract

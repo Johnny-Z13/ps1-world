@@ -56,7 +56,6 @@ export const SCENE_AMBIENCE_URLS = Object.freeze({
   'derelict-starship': './assets/audio/ambience/derelict-starship-8bit-loop.mp3?v=1',
   'neon-backstreets': './assets/audio/ambience/neon-backstreets-8bit-loop.mp3?v=1',
   'sunken-temple': './assets/audio/ambience/sunken-temple-8bit-loop.mp3?v=1',
-  'one-bit-cathedral': './assets/audio/ambience/one-bit-cathedral-8bit-loop.mp3?v=1',
   'rotwood-forest': './assets/audio/ambience/rotwood-forest-storm-wind-leaves-loop.wav?v=1',
   'astral-geometry-garden': './assets/audio/ambience/astral-geometry-garden-8bit-loop.mp3?v=1',
   'motel-mirage': './assets/audio/ambience/motel-mirage-8bit-loop.mp3?v=1',
