@@ -63,7 +63,7 @@ test('maps every selectable scene to a Blender-authored GLB', () => {
     Object.keys(LEVEL_GLB_URLS),
     SCENE_DEFINITIONS.map((scene) => scene.id),
   );
-  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=11');
+  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=12');
 });
 
 test('parses level GLB art, collision, walkable, and marker roles', () => {
@@ -77,6 +77,8 @@ test('parses level GLB art, collision, walkable, and marker roles', () => {
   assert.equal(level.healthPotions.length, 3);
   assert.equal(level.collectibles.length, 1);
   assert.equal(level.collectibles[0].label, 'You found the goblet.');
+  assert.equal(level.collectibles[0].x, 2);
+  assert.equal(level.collectibles[0].z, 1.5);
   assert.equal(level.damageZones.length, 1);
   assert.equal(level.lights.length, 4);
   assert.equal(level.torchLights.length, 3);
@@ -621,6 +623,20 @@ test('art mesh metadata preserves texture ids and animation motion', () => {
   assert.ok(motel.artMeshes.some((mesh) => mesh.textureId === 'motelWindow' && mesh.motion === 'window-pulse'));
 });
 
+test('dungeon goblet collectible is large and centered in open floor space', () => {
+  const dungeon = readLevel('dungeon');
+  const goblet = dungeon.collectibles.find((item) => item.collectibleId === 'dungeon-golden-goblet');
+  const gobletMesh = dungeon.artMeshes.find((mesh) => mesh.collectibleId === 'dungeon-golden-goblet');
+  const bounds = meshBounds(gobletMesh);
+
+  assert.ok(goblet, 'dungeon exports the golden goblet pickup marker');
+  assert.ok(gobletMesh, 'dungeon exports the golden goblet render mesh');
+  assert.ok(clearanceFromColliders(goblet, dungeon.collision) > 2.5);
+  assert.ok(bounds.minY >= 0);
+  assert.ok(bounds.maxY - bounds.minY > 2.2);
+  assert.ok(bounds.maxX - bounds.minX > 2.3);
+});
+
 test('large exported level surfaces keep world-scale texture repeats', () => {
   for (const definition of SCENE_DEFINITIONS) {
     const level = readLevel(definition.id);
@@ -846,6 +862,14 @@ function uvBounds(mesh) {
     minV: Infinity,
     maxV: -Infinity,
   });
+}
+
+function clearanceFromColliders(point, colliders) {
+  return colliders.reduce((min, collider) => {
+    const dx = Math.max(collider.minX - point.x, 0, point.x - collider.maxX);
+    const dz = Math.max(collider.minZ - point.z, 0, point.z - collider.maxZ);
+    return Math.min(min, Math.hypot(dx, dz));
+  }, Infinity);
 }
 
 function round(value) {

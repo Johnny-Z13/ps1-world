@@ -6,8 +6,8 @@ import bpy
 
 SCENE_ID = "dungeon"
 COLLECTIBLE_ID = "dungeon-golden-goblet"
-GOBLET_POSITION = {"x": -6.8, "y": 0.15, "z": 6.6}
-GOBLET_SCALE = 0.85
+GOBLET_POSITION = {"x": 2.0, "y": 1.17, "z": 1.5}
+GOBLET_SCALE = 1.275
 LOW_POLY_TARGET_TRIANGLES = 850
 TEXTURE_SIZE = 64
 
@@ -121,8 +121,8 @@ def add_marker(collection):
     obj["collectibleId"] = COLLECTIBLE_ID
     obj["collectibleType"] = "goblet"
     obj["label"] = "You found the goblet."
-    obj["radius"] = 0.82
-    obj["height"] = 1.2
+    obj["radius"] = 1.15
+    obj["height"] = 2.4
     link_to_collection(obj, collection)
 
 

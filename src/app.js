@@ -8,6 +8,11 @@ import {
   VIDEO_PRESETS,
   applyVideoPreset,
 } from './ps1Display.js';
+import {
+  loadSavedOptions,
+  saveOptions,
+  syncAudioMasterVolumes,
+} from './optionsSettings.js';
 import { cameraView } from './cameraMath.js';
 import {
   PLAYER_EYE_HEIGHT,
@@ -133,7 +138,6 @@ import {
 } from './audioConfig.js';
 import {
   applySceneReverb,
-  connectSceneAudioNode,
   createAudioRuntimeState,
   ensureLoopSource,
   ensureMusicLoop,
@@ -233,6 +237,7 @@ const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
 const cutUpButton = document.querySelector('#cutUpButton');
 const rogueButton = document.querySelector('#rogueButton');
+const titleOptionsButton = document.querySelector('#titleOptionsButton');
 const cutUpHud = document.querySelector('#cutUpHud');
 const rogueWinScreen = document.querySelector('#rogueWinScreen');
 const rogueReturnButton = document.querySelector('#rogueReturnButton');
@@ -254,7 +259,7 @@ if (!gl) {
   throw new Error('WebGL is required for this prototype.');
 }
 
-const effects = createEffectState();
+const effects = createEffectState(loadSavedOptions());
 effects.sceneId = 'dungeon';
 const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS.length;
 const BOSS_IMPACT_SHAKE_DURATION_MS = 360;
@@ -321,6 +326,7 @@ let titleActive = true;
 const titleButtonState = { active: false };
 const cutUpButtonState = { active: false };
 const rogueButtonState = { active: false };
+const titleOptionsButtonState = { active: false };
 const gameState = { mode: 'normal' };
 const cutUpState = createCutUpState(CUT_UP_SCENE_COUNT);
 let rogueRun = null;
@@ -352,6 +358,19 @@ let viewport = { x: 0, y: 0, width: 1, height: 1 };
 const debugHud = {
   fps: 0,
 };
+const OPTION_CHECKBOX_BINDINGS = Object.freeze([
+  Object.freeze(['invertY', 'invertY']),
+  Object.freeze(['showReticule', 'showReticule']),
+  Object.freeze(['scanlines', 'scanlines']),
+  Object.freeze(['crtDistortion', 'crtDistortion']),
+  Object.freeze(['dither', 'dither']),
+  Object.freeze(['warping', 'warping']),
+  Object.freeze(['colorBleed', 'colorBleed']),
+  Object.freeze(['noise', 'noise']),
+  Object.freeze(['playerTorch', 'playerTorch']),
+  Object.freeze(['zombies', 'zombies']),
+  Object.freeze(['debugHudToggle', 'debugHud']),
+]);
 
 function frame(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
@@ -541,6 +560,7 @@ function ensureAudioState() {
       sceneId: world.id,
     });
     applySceneReverb(audioState, world.audio.reverb);
+    syncAudioMasterVolumes(audioState, effects);
   }
 
   if (audioState.context.state === 'suspended') {
@@ -726,6 +746,7 @@ function updateSceneAudio(time, lightningStrength) {
 
   updateAudioListener(audioState.context.listener, player, audioState.context.currentTime);
   applySceneReverb(audioState, world.audio.reverb);
+  syncAudioMasterVolumes(audioState, effects);
   ensureSceneAmbienceLoop(audioState, world.id, SCENE_AMBIENCE_URLS, { isCurrent: isCurrentSceneAudioState });
   ensurePlayerFootstepLoopSources(audioState, { isCurrent: isCurrentAudioState });
   ensureLowHealthBreathingLoopSource(audioState);
@@ -1381,14 +1402,11 @@ function handlePointerLockChange() {
 }
 
 function setupOptions() {
-  startButton.addEventListener('click', () => {
-    startRandomScene();
-  });
-  cutUpButton.addEventListener('click', () => {
-    startCutUpMode();
-  });
-  rogueButton.addEventListener('click', () => {
-    startRogueMode();
+  bindTitleButton(startButton, titleButtonState, () => startRandomScene());
+  bindTitleButton(cutUpButton, cutUpButtonState, () => startCutUpMode());
+  bindTitleButton(rogueButton, rogueButtonState, () => startRogueMode());
+  bindTitleButton(titleOptionsButton, titleOptionsButtonState, () => {
+    openOptions({ releasePointerLock: false });
   });
   quitGameButton.addEventListener('click', () => {
     playUiSelectSound();
@@ -1398,63 +1416,8 @@ function setupOptions() {
     playUiSelectSound();
     quitToTitleScreen();
   });
-  startButton.addEventListener('pointerenter', () => {
-    titleButtonState.active = true;
-    playUiHoverSound();
-  });
-  startButton.addEventListener('pointerleave', () => {
-    titleButtonState.active = false;
-  });
-  startButton.addEventListener('focus', () => {
-    titleButtonState.active = true;
-    playUiHoverSound();
-  });
-  startButton.addEventListener('blur', () => {
-    titleButtonState.active = false;
-  });
-  cutUpButton.addEventListener('pointerenter', () => {
-    cutUpButtonState.active = true;
-    playUiHoverSound();
-  });
-  cutUpButton.addEventListener('pointerleave', () => {
-    cutUpButtonState.active = false;
-  });
-  cutUpButton.addEventListener('focus', () => {
-    cutUpButtonState.active = true;
-    playUiHoverSound();
-  });
-  cutUpButton.addEventListener('blur', () => {
-    cutUpButtonState.active = false;
-  });
-  rogueButton.addEventListener('pointerenter', () => {
-    rogueButtonState.active = true;
-    playUiHoverSound();
-  });
-  rogueButton.addEventListener('pointerleave', () => {
-    rogueButtonState.active = false;
-  });
-  rogueButton.addEventListener('focus', () => {
-    rogueButtonState.active = true;
-    playUiHoverSound();
-  });
-  rogueButton.addEventListener('blur', () => {
-    rogueButtonState.active = false;
-  });
 
-  const bindings = [
-    ['invertY', 'invertY'],
-    ['showReticule', 'showReticule'],
-    ['scanlines', 'scanlines'],
-    ['crtDistortion', 'crtDistortion'],
-    ['dither', 'dither'],
-    ['warping', 'warping'],
-    ['colorBleed', 'colorBleed'],
-    ['noise', 'noise'],
-    ['playerTorch', 'playerTorch'],
-    ['zombies', 'zombies'],
-    ['debugHudToggle', 'debugHud'],
-  ];
-  for (const [id, key] of bindings) {
+  for (const [id, key] of OPTION_CHECKBOX_BINDINGS) {
     const input = document.querySelector(`#${id}`);
     input.checked = Boolean(effects[key]);
     input.addEventListener('change', () => {
@@ -1462,6 +1425,7 @@ function setupOptions() {
       effects[key] = input.checked;
       if (key === 'showReticule') syncReticule();
       if (key === 'debugHud') updateDebugHud(0);
+      saveOptions(effects);
     });
   }
   syncReticule();
@@ -1479,6 +1443,7 @@ function setupOptions() {
     Object.assign(effects, applyVideoPreset(effects, preset.value));
     setRenderResolution(effects.resolutionId);
     syncOptionsControls();
+    saveOptions(effects);
   });
 
   const scene = document.querySelector('#scene');
@@ -1510,6 +1475,7 @@ function setupOptions() {
   resolution.addEventListener('change', () => {
     playUiSelectSound();
     setRenderResolution(resolution.value);
+    saveOptions(effects);
   });
 
   const pixelScale = document.querySelector('#pixelScale');
@@ -1519,6 +1485,23 @@ function setupOptions() {
     effects.pixelScale = normalizePixelScale(pixelScale.value);
     pixelScale.value = String(effects.pixelScale);
     canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
+    saveOptions(effects);
+  });
+
+  const musicVolume = document.querySelector('#musicVolume');
+  musicVolume.value = String(effects.musicVolume);
+  musicVolume.addEventListener('input', () => {
+    effects.musicVolume = clamp(Number(musicVolume.value), 0, 1);
+    syncAudioMasterVolumes(audioState, effects);
+    saveOptions(effects);
+  });
+
+  const sfxVolume = document.querySelector('#sfxVolume');
+  sfxVolume.value = String(effects.sfxVolume);
+  sfxVolume.addEventListener('input', () => {
+    effects.sfxVolume = clamp(Number(sfxVolume.value), 0, 1);
+    syncAudioMasterVolumes(audioState, effects);
+    saveOptions(effects);
   });
 
   optionsDialog.addEventListener('close', () => {
@@ -1535,21 +1518,26 @@ function setupOptions() {
   });
 }
 
+function bindTitleButton(button, buttonState, onClick) {
+  button.addEventListener('click', onClick);
+  button.addEventListener('pointerenter', () => {
+    buttonState.active = true;
+    playUiHoverSound();
+  });
+  button.addEventListener('pointerleave', () => {
+    buttonState.active = false;
+  });
+  button.addEventListener('focus', () => {
+    buttonState.active = true;
+    playUiHoverSound();
+  });
+  button.addEventListener('blur', () => {
+    buttonState.active = false;
+  });
+}
+
 function syncOptionsControls() {
-  const bindings = [
-    ['invertY', 'invertY'],
-    ['showReticule', 'showReticule'],
-    ['scanlines', 'scanlines'],
-    ['crtDistortion', 'crtDistortion'],
-    ['dither', 'dither'],
-    ['warping', 'warping'],
-    ['colorBleed', 'colorBleed'],
-    ['noise', 'noise'],
-    ['playerTorch', 'playerTorch'],
-    ['zombies', 'zombies'],
-    ['debugHudToggle', 'debugHud'],
-  ];
-  for (const [id, key] of bindings) {
+  for (const [id, key] of OPTION_CHECKBOX_BINDINGS) {
     const input = document.querySelector(`#${id}`);
     if (input) input.checked = Boolean(effects[key]);
   }
@@ -1563,10 +1551,18 @@ function syncOptionsControls() {
   const pixelScale = document.querySelector('#pixelScale');
   if (pixelScale) pixelScale.value = String(effects.pixelScale);
 
+  const musicVolume = document.querySelector('#musicVolume');
+  if (musicVolume) musicVolume.value = String(effects.musicVolume);
+
+  const sfxVolume = document.querySelector('#sfxVolume');
+  if (sfxVolume) sfxVolume.value = String(effects.sfxVolume);
+
   canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
+  syncAudioMasterVolumes(audioState, effects);
   syncReticule();
   updateDebugHud(0);
 }
+
 
 function startRandomScene() {
   if (!titleActive) return;
@@ -1717,6 +1713,7 @@ function renderTitleScreen(time) {
       freeRoam: titleButtonState.active,
       cutUp: cutUpButtonState.active,
       rogue: rogueButtonState.active,
+      options: titleOptionsButtonState.active,
     },
   });
 }

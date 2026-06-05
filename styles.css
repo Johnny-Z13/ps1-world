@@ -113,7 +113,8 @@ body.game-active * {
 
 .title-start-hitbox,
 .title-cut-up-hitbox,
-.title-rogue-hitbox {
+.title-rogue-hitbox,
+.title-options-hitbox {
   position: absolute;
   left: 50%;
   width: var(--title-button-width);
@@ -140,9 +141,14 @@ body.game-active * {
   top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.775);
 }
 
+.title-options-hitbox {
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.85);
+}
+
 .title-start-hitbox:focus-visible,
 .title-cut-up-hitbox:focus-visible,
-.title-rogue-hitbox:focus-visible {
+.title-rogue-hitbox:focus-visible,
+.title-options-hitbox:focus-visible {
   outline: 0;
 }
 
@@ -433,15 +439,22 @@ body.options-open .touch-jump {
   justify-content: flex-start;
 }
 
+.options .range-option {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+}
+
 .options button,
 .options select,
-.options input[type="number"] {
+.options input[type="number"],
+.options input[type="range"] {
   accent-color: #c5a25a;
 }
 
 .options button,
 .options select,
-.options input[type="number"] {
+.options input[type="number"],
+.options input[type="range"] {
   border: 1px solid #6f654f;
   border-radius: 3px;
   background: #2a251b;
@@ -453,6 +466,12 @@ body.options-open .touch-jump {
 .options input[type="number"] {
   width: 58px;
   padding: 3px 6px;
+}
+
+.options input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  padding: 0 4px;
 }
 
 .options button {

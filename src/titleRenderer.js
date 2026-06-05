@@ -1,6 +1,12 @@
 export const TITLE_WIDTH = 512;
 export const TITLE_HEIGHT = 480;
 export const TITLE_LAST_COMMIT_MESSAGE = 'last commit polish scenes and gameplay feedback';
+export const TITLE_BUTTON_LAYOUT = Object.freeze([
+  Object.freeze({ key: 'freeRoam', y: 264, label: 'free roam' }),
+  Object.freeze({ key: 'cutUp', y: 310, label: 'cut-up mode' }),
+  Object.freeze({ key: 'rogue', y: 356, label: 'rogue' }),
+  Object.freeze({ key: 'options', y: 392, label: 'options' }),
+]);
 
 const TITLE_FONT = Object.freeze({
   ' ': ['0', '0', '0', '0', '0', '0', '0'],
@@ -47,10 +53,15 @@ export function renderTitleScreen(context, time, options = {}) {
   drawCenteredBitmapText(context, 'ps1-world', 146, 7, '#f3dc92', time);
   drawBloodWarningText(context, time);
   const titleButtonBlink = getTitleButtonBlink(time);
-  drawBitmapButton(context, time, { y: 264, label: 'free roam', active: buttons.freeRoam, blink: titleButtonBlink });
-  drawBitmapButton(context, time, { y: 310, label: 'cut-up mode', active: buttons.cutUp, blink: titleButtonBlink });
-  drawBitmapButton(context, time, { y: 356, label: 'rogue', active: buttons.rogue, blink: titleButtonBlink });
-  drawCenteredBitmapText(context, 'wasd+mouse or gamepad', 416, 1.25, '#cfc7aa', time);
+  for (const button of TITLE_BUTTON_LAYOUT) {
+    drawBitmapButton(context, time, {
+      y: button.y,
+      label: button.label,
+      active: buttons[button.key],
+      blink: titleButtonBlink,
+    });
+  }
+  drawCenteredBitmapText(context, 'wasd+mouse or gamepad', 438, 1.25, '#cfc7aa', time);
   drawCenteredBitmapText(context, footerMessage, 462, 1, '#8f8a77', time);
 }
 

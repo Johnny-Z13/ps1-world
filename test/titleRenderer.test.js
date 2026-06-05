@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   TITLE_HEIGHT,
+  TITLE_BUTTON_LAYOUT,
   TITLE_LAST_COMMIT_MESSAGE,
   TITLE_WIDTH,
   getTitleButtonBlink,
@@ -44,6 +45,15 @@ test('blinks title buttons only on the upper sine pulse', () => {
   assert.equal(getTitleButtonBlink(Math.asin(0.8) / 5), true);
 });
 
+test('defines title button layout as named positions', () => {
+  assert.deepEqual(TITLE_BUTTON_LAYOUT.map((button) => [button.key, button.y, button.label]), [
+    ['freeRoam', 264, 'free roam'],
+    ['cutUp', 310, 'cut-up mode'],
+    ['rogue', 356, 'rogue'],
+    ['options', 392, 'options'],
+  ]);
+});
+
 test('renders title backdrop, logo, buttons, controls, and footer into a canvas context', () => {
   const context = createRecordingContext();
 
@@ -52,6 +62,7 @@ test('renders title backdrop, logo, buttons, controls, and footer into a canvas 
       freeRoam: true,
       cutUp: false,
       rogue: false,
+      options: false,
     },
   });
 
@@ -77,7 +88,7 @@ test('renders title backdrop, logo, buttons, controls, and footer into a canvas 
     && call[4] === 150
     && call[5] === 32
   ));
-  assert.deepEqual(buttonBackplates.map((call) => call[3]), [264, 310, 356]);
+  assert.deepEqual(buttonBackplates.map((call) => call[3]), [264, 310, 356, 392]);
   assert.ok(context.calls.some((call) => call[0] === 'fillRect' && call[1] === '#b42638'));
   assert.ok(context.calls.some((call) => call[0] === 'fillRect' && call[1] === '#8f8a77'));
   assert.equal(TITLE_LAST_COMMIT_MESSAGE, 'last commit polish scenes and gameplay feedback');

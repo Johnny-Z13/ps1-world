@@ -9,6 +9,7 @@ const sceneRuntime = readFileSync(new URL('../src/sceneRuntime.js', import.meta.
 const titleRenderer = readFileSync(new URL('../src/titleRenderer.js', import.meta.url), 'utf8');
 const audioConfig = readFileSync(new URL('../src/audioConfig.js', import.meta.url), 'utf8');
 const audioRuntime = readFileSync(new URL('../src/audioRuntime.js', import.meta.url), 'utf8');
+const optionsSettings = readFileSync(new URL('../src/optionsSettings.js', import.meta.url), 'utf8');
 const playerFeedback = readFileSync(new URL('../src/playerFeedback.js', import.meta.url), 'utf8');
 const inputRuntime = readFileSync(new URL('../src/inputRuntime.js', import.meta.url), 'utf8');
 const sceneEffects = readFileSync(new URL('../src/sceneEffects.js', import.meta.url), 'utf8');
@@ -26,7 +27,7 @@ const debugHud = readFileSync(new URL('../src/debugHud.js', import.meta.url), 'u
 const enemyCatalog = readFileSync(new URL('../src/enemyCatalog.js', import.meta.url), 'utf8');
 const generatedTextures = readFileSync(new URL('../src/generatedTextures.js', import.meta.url), 'utf8');
 const renderShaders = readFileSync(new URL('../src/renderShaders.js', import.meta.url), 'utf8');
-const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
+const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, optionsSettings, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
 const zombieModel = readFileSync(new URL('../src/zombieModel.js', import.meta.url), 'utf8');
 const enemyAnimation = readFileSync(new URL('../src/enemyAnimation.js', import.meta.url), 'utf8');
 const cutUpMode = readFileSync(new URL('../src/cutUpMode.js', import.meta.url), 'utf8');
@@ -59,9 +60,12 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(index, /id="titleScreen"/);
   assert.match(index, /id="titleCanvas"/);
   assert.match(index, /id="startButton"/);
+  assert.match(index, /id="titleOptionsButton"/);
   assert.match(index, /aria-label="Free Roam"/);
+  assert.match(index, /aria-label="Options"/);
   assert.match(styles, /\.title-screen/);
   assert.match(styles, /\.title-canvas/);
+  assert.match(styles, /\.title-options-hitbox/);
   assert.match(styles, /image-rendering:\s*pixelated/);
   assert.match(runtimeSource, /function startRandomScene/);
   assert.match(runtimeSource, /drawBitmapGlyph/);
@@ -73,6 +77,7 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(runtimeSource, /z:/);
   assert.match(runtimeSource, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(runtimeSource, /document\.body\.classList\.remove\('title-active'\)/);
+  assert.match(runtimeSource, /bindTitleButton\(titleOptionsButton,\s*titleOptionsButtonState/);
 });
 
 test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
@@ -142,7 +147,9 @@ test('keeps title mode buttons compact and vertically separated', () => {
   assert.match(styles, /max-height:\s*32px/);
   assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.29\)/);
   assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.067\)/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 416, 1\.25/);
+  assert.match(runtimeSource, /TITLE_BUTTON_LAYOUT/);
+  assert.match(runtimeSource, /key: 'options', y: 392, label: 'options'/);
+  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 438, 1\.25/);
   assert.match(runtimeSource, /const width = 150/);
   assert.match(runtimeSource, /const height = 32/);
   assert.match(runtimeSource, /const textScale = 1\.5/);
@@ -195,6 +202,24 @@ test('adds cinematic transition and UI sounds for game modes', () => {
   assert.match(runtimeSource, /playTransitionOneShot\(CUT_UP_SCENE_SLICE_SOUND_URL/);
   assert.match(runtimeSource, /playUiOneShot\(OPTIONS_OPEN_SOUND_URL/);
   assert.match(runtimeSource, /playUiOneShot\(OPTIONS_CLOSE_SOUND_URL/);
+});
+
+test('offers title and in-game options with persisted music and SFX sliders', () => {
+  assert.match(index, /<h1>Options<\/h1>/);
+  assert.match(index, /id="musicVolume"/);
+  assert.match(index, /id="sfxVolume"/);
+  assert.match(index, /Music/);
+  assert.match(index, /Sound effects/);
+  assert.match(index, /type="range"/);
+  assert.match(styles, /\.options input\[type="range"\]/);
+  assert.match(runtimeSource, /OPTIONS_STORAGE_KEY/);
+  assert.match(runtimeSource, /loadSavedOptions/);
+  assert.match(runtimeSource, /saveOptions/);
+  assert.match(runtimeSource, /function syncAudioMasterVolumes/);
+  assert.match(runtimeSource, /effects\.musicVolume/);
+  assert.match(runtimeSource, /effects\.sfxVolume/);
+  assert.match(runtimeSource, /state\.musicGain\.gain\.setTargetAtTime/);
+  assert.match(runtimeSource, /state\.sfxGain\.gain\.setTargetAtTime/);
 });
 
 test('crossfades world ambience and ticks down Cut Up scene jumps', () => {
@@ -558,7 +583,7 @@ test('adds procedural water and drip audio for rainy scenes', () => {
   assert.match(runtimeSource, /RAIN_SPOT_DRIP_SOUND_URL/);
   assert.match(runtimeSource, /rain-spot-drip-8bit\.wav\?v=1/);
   assert.match(runtimeSource, /world\.rain/);
-  assert.match(runtimeSource, /connectSceneAudioNode\(panner,\s*state\.dryGain,\s*state\.reverbInput\)/);
+  assert.match(runtimeSource, /connectSceneAudioNode\(panner,\s*getSfxDryGain\(state\),\s*getSfxReverbInput\(state\)\)/);
 });
 
 test('crossfades walking and sprinting player footstep loops', () => {
