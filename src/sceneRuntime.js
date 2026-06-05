@@ -51,6 +51,7 @@ export function createWorldFromLevelAsset(fallback, levelAsset) {
     healthPotions: levelAsset.healthPotions.length
       ? mergeLevelHealthPotions(levelAsset.healthPotions, fallback.healthPotions)
       : fallback.healthPotions,
+    collectibles: levelAsset.collectibles?.length ? levelAsset.collectibles : fallback.collectibles ?? [],
     damageZones: levelAsset.damageZones.length ? levelAsset.damageZones : fallback.damageZones ?? [],
     hordeTriggers: levelAsset.hordeTriggers.length ? levelAsset.hordeTriggers : fallback.hordeTriggers ?? [],
     encounterTriggers: levelAsset.encounterTriggers.length

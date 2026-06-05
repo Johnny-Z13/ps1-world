@@ -10,6 +10,8 @@ This browser repo is the lead project. A downstream Unity version may consume or
 - Runtime exports: `assets/models/levels/<scene-id>.glb`
 - Current seed metadata: `assets/models/levels/level-seed-data.json`
 - Rebuild helper: `scripts/build-level-glbs.py`
+- Meshy prop helper: `scripts/generate-meshy-prop.mjs`
+- Meshy dungeon import helper: `scripts/import-meshy-goblet-prop.py`
 
 The seed GLBs were generated from the current `src/world.js` scene definitions so the first Blender-authored pass starts from the existing game layout.
 
@@ -35,6 +37,18 @@ blender -b assets/models/levels/ps1-world-levels.blend --python scripts/reexport
 
 After any exported GLB changes, bump `LEVEL_GLB_URLS` cache busting in `src/levelGlb.js`.
 
+Generate a low-poly Meshy prop source GLB:
+
+```bash
+npm run meshy:prop -- --output assets/models/props/meshy-golden-goblet.glb
+```
+
+Import the Meshy golden goblet into the dungeon source file, decimated to 850 triangles with packed 64x64 textures:
+
+```powershell
+& 'C:\Program Files\Blender Foundation\Blender 4.3\blender.exe' -b assets\models\levels\ps1-world-levels.blend --python scripts\import-meshy-goblet-prop.py -- assets\models\props\meshy-golden-goblet.glb assets\models\levels\ps1-world-levels.blend
+```
+
 To regenerate the authoring file and all runtime GLBs from the seed data:
 
 ```powershell
@@ -58,6 +72,7 @@ Each `LEVEL_<scene-id>` collection is an artist-facing container with named chil
 - `MARKER_<scene-id>_ZOMBIE_SPAWN_<name>`: standard zombie spawn points.
 - `MARKER_<scene-id>_ENEMY_SPAWN_<name>`: typed enemy spawners. The runtime reads custom properties such as `role: enemy`, `spawnerType: enemy`, `enemyType`, `mesh`, `radius`, `speed`, and `damage`. This is the portable metadata contract for browser and Unity importers.
 - `MARKER_<scene-id>_PICKUP_HEALTH_<name>`: health pickup spawn points.
+- `MARKER_<scene-id>_PICKUP_COLLECTIBLE_<name>`: authored collectible pickup points. The runtime reads `collectibleId`, `collectibleType`, `label`, `radius`, and `height`; matching visible art should use the same `collectibleId` custom property so it can be hidden after pickup.
 - `MARKER_<scene-id>_OBJECTIVE_<name>`: objective ritual marker for strange per-scene goals such as impossible-object collection, TV activation, torch extinguishing, alien beacon tuning, or gate feeding. The runtime reads `objectiveId`, `objectiveType`, `label`, `targetId`, `countRequired`, `requiredInRogue`, and `enabled` from custom properties. `objectiveType` defaults to `ritual`, and `requiredInRogue` defaults to `true`.
 - `MARKER_<scene-id>_EMITTER_<index>_<name>`: visual or audio emitter anchor for authored drips, sparks, radio hiss, lure noises, particles, and one-off weirdness. The runtime reads `emitterId`, `emitterType`, `targetId`, `textureId`, `soundId`, `targetBus`, `gain`, `radius`, `rate`, and `enabled` from custom properties. `emitterType` defaults to `ambient`.
 - `MARKER_<scene-id>_LIGHT_<name>` and `MARKER_<scene-id>_TORCH_LIGHT_<name>`: gameplay/render light markers.
@@ -127,6 +142,7 @@ If a GLB fails to load, `src/world.js` remains the fallback source for scene lay
 - Use `TRIGGER_*_ENCOUNTER_TRIGGER_*` objects for generic authored set pieces. Put behavior identifiers such as `encounterType`, `targetId`, and `soundId` in custom properties so browser and downstream importers share one contract.
 - Use `TRIGGER_*_SOUND_ZONE_*` objects for spatial audio beats. Put sound IDs, gain, target bus, and zone type in custom properties.
 - Use `MARKER_*_OBJECTIVE_*` or `TRIGGER_*_OBJECTIVE_TRIGGER_*` objects for per-scene ritual goals. Put `objectiveId`, `objectiveType`, `label`, `targetId`, `countRequired`, and `requiredInRogue` in custom properties rather than hard-coding objective behavior into scene ids.
+- Use `MARKER_*_PICKUP_COLLECTIBLE_*` objects for collectible items such as keys, diamonds, trophies, and artifacts. Put pickup text in `label`; tag the rendered mesh with the same `collectibleId` so the runtime removes it when collected.
 - Use `MARKER_*_EMITTER_*` objects for point-based audio or visual emitters. Put `emitterId`, `emitterType`, `targetId`, `textureId`, `soundId`, `targetBus`, `gain`, `radius`, and `rate` in custom properties rather than encoding behavior in object names.
 - Use material custom properties for surface metadata. Prefer `surfaceType` for the canonical type, or `level_surface` when matching Blender-side naming; put sound and physics hints in `footstepSoundId`, `splashSoundId`, `damagePerSecond`, `friction`, and `wet`.
 - To add new gameplay concepts, use explicit prefixes and metadata rather than relying on material names alone:

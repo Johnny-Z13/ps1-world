@@ -30,6 +30,10 @@ import {
   getSceneWalkableSurfaces,
 } from './sceneRuntime.js';
 import {
+  createSceneCollectibles,
+  updateCollectibles,
+} from './collectibleRuntime.js';
+import {
   createHordeState,
   createZombieEnemies,
   getTouchingEnemy,
@@ -266,6 +270,8 @@ let zombies = createZombieEnemies(world);
 let hordeState = createHordeState(world);
 let bloodBursts = [];
 let healthPotions = createSceneHealthPotions(world);
+let collectibles = createSceneCollectibles(world);
+let collectedCollectibleIds = new Set();
 let damageZones = createSceneDamageZones(world);
 let playerHealth = createPlayerHealth();
 let lastZombieBiteAt = -Infinity;
@@ -274,6 +280,8 @@ let healthPickupFlashStartedAt = -Infinity;
 let lastDamageFlashStartedAt = -Infinity;
 let damageScratchOffset = { x: 0, y: 0 };
 let damageScratchRotation = 0;
+let gameplayNoticeText = '';
+let gameplayNoticeStartedAt = -Infinity;
 let lowHealthNoticeStartedAt = -Infinity;
 let bossImpactShakeStartedAt = -Infinity;
 let bossImpactShakeStrength = 0;
@@ -421,6 +429,7 @@ function updatePlayer(dt, now) {
   if (deathState.active) return;
 
   updateHealthPotions(now);
+  updateSceneCollectibles(now);
 
   if (effects.zombies) {
     const previousEnemies = zombies;
@@ -1904,6 +1913,20 @@ function updateHealthPotions(now) {
   rebuildWarehouseMesh();
 }
 
+function updateSceneCollectibles(now) {
+  const result = updateCollectibles(world, collectibles, player);
+  if (!result.picked.length) return;
+
+  collectibles = result.remaining;
+  for (const id of result.collectedIds) {
+    collectedCollectibleIds.add(id);
+  }
+  if (result.noticeText) showGameplayNotice(result.noticeText, now);
+  healthPickupFlashStartedAt = now;
+  playPlayerOneShot(HEALTH_PICKUP_SOUND_URL, HEALTH_PICKUP_SOUND_GAIN * 0.85);
+  rebuildWarehouseMesh();
+}
+
 function getHealthEffectStrength(now) {
   return getHealthEffectStrengthAmount({
     playerHealth,
@@ -1934,13 +1957,29 @@ function getDamageFlash(now) {
 function updateLowHealthNotice(now) {
   if (!lowHealthNotice) return;
 
+  const gameplayElapsed = now - gameplayNoticeStartedAt;
+  const gameplayVisible = !titleActive
+    && !optionsDialog.open
+    && !deathState.active
+    && gameplayElapsed >= 0
+    && gameplayElapsed <= LOW_HEALTH_NOTICE_DURATION_MS;
   const elapsed = now - lowHealthNoticeStartedAt;
-  const visible = !titleActive
+  const lowHealthVisible = !titleActive
     && !optionsDialog.open
     && !deathState.active
     && elapsed >= 0
     && elapsed <= LOW_HEALTH_NOTICE_DURATION_MS;
-  lowHealthNotice.hidden = !visible;
+  lowHealthNotice.hidden = !gameplayVisible && !lowHealthVisible;
+  if (gameplayVisible) {
+    lowHealthNotice.textContent = gameplayNoticeText;
+  } else if (lowHealthVisible) {
+    lowHealthNotice.textContent = 'Low health';
+  }
+}
+
+function showGameplayNotice(text, now) {
+  gameplayNoticeText = text;
+  gameplayNoticeStartedAt = now;
 }
 
 function startDeathSequence(now, options = {}) {
@@ -2052,6 +2091,8 @@ function captureCutUpSceneState() {
     player: { ...player },
     playerHealth: { ...playerHealth },
     healthPotions: healthPotions.map((potion) => ({ ...potion })),
+    collectibles: collectibles.map((item) => ({ ...item })),
+    collectedCollectibleIds: [...collectedCollectibleIds],
     zombies: zombies.map((zombie) => ({ ...zombie })),
     lastZombieBiteAt,
     healthPickupFlashStartedAt,
@@ -2065,6 +2106,8 @@ function restoreCutUpSceneState(sceneId) {
   Object.assign(player, state.player);
   playerHealth = createPlayerHealth(state.playerHealth.value);
   healthPotions = state.healthPotions.map((potion) => ({ ...potion }));
+  collectibles = state.collectibles.map((item) => ({ ...item }));
+  collectedCollectibleIds = new Set(state.collectedCollectibleIds);
   zombies = state.zombies.map((zombie) => ({ ...zombie }));
   lastZombieBiteAt = state.lastZombieBiteAt;
   healthPickupFlashStartedAt = state.healthPickupFlashStartedAt;
@@ -2118,13 +2161,15 @@ async function setScene(id) {
   colliders = getSceneColliders(world);
   walkableSurfaces = getSceneWalkableSurfaces(world);
   healthPotions = createSceneHealthPotions(world);
+  collectibles = createSceneCollectibles(world);
+  collectedCollectibleIds = new Set();
   damageZones = createSceneDamageZones(world);
   resetPlayerToSpawn();
 
   deleteMeshBuffers(gl, warehouseMesh);
   deleteMeshBuffers(gl, zombieMesh);
   gl.deleteTexture(atlasTexture);
-  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
+  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions, collectedCollectibleIds }, textureIndices);
   zombieMesh = createZombieMesh(gl);
   atlasTexture = await createSceneTextureAtlas(gl, world, characterTextureImages);
   if (audioState) ensureSceneAudio();
@@ -2153,6 +2198,8 @@ function resetPlayerToSpawn() {
   damageScratchOffset = { x: 0, y: 0 };
   damageScratchRotation = 0;
   lowHealthNoticeStartedAt = -Infinity;
+  gameplayNoticeStartedAt = -Infinity;
+  gameplayNoticeText = '';
   lastDamageZoneSoundAt = -Infinity;
   if (lowHealthNotice) lowHealthNotice.hidden = true;
   lastZombieBiteAt = -Infinity;
@@ -2161,7 +2208,7 @@ function resetPlayerToSpawn() {
 
 function rebuildWarehouseMesh() {
   deleteMeshBuffers(gl, warehouseMesh);
-  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
+  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions, collectedCollectibleIds }, textureIndices);
 }
 
 function drawSkyDome(time, now) {
@@ -2184,9 +2231,11 @@ async function start() {
   colliders = getSceneColliders(world);
   walkableSurfaces = getSceneWalkableSurfaces(world);
   healthPotions = createSceneHealthPotions(world);
+  collectibles = createSceneCollectibles(world);
+  collectedCollectibleIds = new Set();
   damageZones = createSceneDamageZones(world);
   resetPlayerToSpawn();
-  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions }, textureIndices);
+  warehouseMesh = createSceneMesh(gl, { ...world, healthPotions, collectedCollectibleIds }, textureIndices);
   skyDomeMesh = createSkyDomeMesh(gl);
   zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);

@@ -3,7 +3,7 @@ import { SCENE_DEFINITIONS } from './world.js';
 export const LEVEL_GLB_URLS = Object.freeze(Object.fromEntries(
   SCENE_DEFINITIONS.map((scene) => [
     scene.id,
-    `./assets/models/levels/${scene.id}.glb?v=10`,
+    `./assets/models/levels/${scene.id}.glb?v=11`,
   ]),
 ));
 
@@ -56,6 +56,7 @@ export function parseLevelGlb(arrayBuffer, expectedId = null) {
     zombieSpawns: [],
     enemySpawns: [],
     healthPotions: [],
+    collectibles: [],
     damageZones: [],
     hordeTriggers: [],
     encounterTriggers: [],
@@ -146,6 +147,10 @@ function applyMarker(level, role, name, position, extras) {
     level.healthPotions.push({ ...parseMarkerExtras(extras), ...marker });
     return;
   }
+  if (role === 'PICKUP_COLLECTIBLE' || role.startsWith('PICKUP_COLLECTIBLE_')) {
+    level.collectibles.push({ ...parseMarkerExtras(extras), ...marker });
+    return;
+  }
   if (role === 'DAMAGE_ZONE') {
     level.damageZones.push({ ...marker, ...parseMarkerExtras(extras) });
     return;
@@ -232,6 +237,7 @@ function readMeshPrimitives(json, bin, meshIndex, matrix, nodeName, extras, mate
       material: primitive.material ?? 0,
       textureId: parseJsonString(extras.texture_id) ?? material?.textureId ?? null,
       motion: parseJsonString(extras.motion) ?? null,
+      collectibleId: parseJsonString(extras.collectibleId) ?? parseJsonString(extras.collectible_id) ?? null,
       vertices,
       vertexCount: vertices.length,
     };

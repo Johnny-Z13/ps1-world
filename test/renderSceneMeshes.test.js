@@ -119,6 +119,44 @@ test('createSceneMesh builds GLB level art plus health and warp geometry into st
   assert.ok(textureIds.includes(4));
 });
 
+test('createSceneMesh skips collected GLB collectible art meshes', () => {
+  const { gl, calls } = createFakeGl();
+  const indices = new Map([
+    ['stone', 2],
+    ['gold', 5],
+  ]);
+  const scene = {
+    levelAsset: {
+      artMeshes: [
+        {
+          textureId: 'stone',
+          vertices: [
+            { x: 0, y: 0, z: 0, u: 0, v: 0 },
+            { x: 1, y: 0, z: 0, u: 1, v: 0 },
+            { x: 0, y: 0, z: 1, u: 0, v: 1 },
+          ],
+        },
+        {
+          collectibleId: 'dungeon-golden-goblet',
+          textureId: 'gold',
+          vertices: [
+            { x: 2, y: 0, z: 0, u: 0, v: 0 },
+            { x: 3, y: 0, z: 0, u: 1, v: 0 },
+            { x: 2, y: 0, z: 1, u: 0, v: 1 },
+          ],
+        },
+      ],
+    },
+    collectedCollectibleIds: new Set(['dungeon-golden-goblet']),
+  };
+
+  const mesh = createSceneMesh(gl, scene, indices);
+  const [, , textureIds] = getBufferPayloads(calls);
+
+  assert.equal(mesh.count, 3);
+  assert.deepEqual(textureIds, [2, 2, 2]);
+});
+
 test('createSceneMesh builds fallback world boxes and billboards into static buffers', () => {
   const { gl, calls } = createFakeGl();
   const indices = new Map([

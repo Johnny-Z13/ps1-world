@@ -18,6 +18,7 @@ const fallbackScene = {
     { x: 4, y: 0, z: 0, enemyType: 'molten-sentinel', minimumHeadClearance: 2 },
   ],
   healthPotions: [{ x: 1, y: 0.2, z: 1, radius: 0.3 }],
+  collectibles: [{ collectibleId: 'fallback-goblet', x: 0, y: 0.5, z: 0 }],
   damageZones: [{ id: 'fallback-lava' }],
   hordeTriggers: [],
   encounterTriggers: [],
@@ -45,6 +46,7 @@ const levelAsset = {
     { x: -3, y: 1, z: 1, enemyType: 'molten-sentinel', minimumHeadClearance: 5 },
   ],
   healthPotions: [{ x: 2, y: 0.5, z: 2 }],
+  collectibles: [{ collectibleId: 'level-goblet', x: -2, y: 0.5, z: 2 }],
   damageZones: [{ id: 'level-lava' }],
   hordeTriggers: [{ id: 'level-horde', triggerType: 'awaken-horde' }],
   encounterTriggers: [{ id: 'closet-a', encounterType: 'monster_closet' }],
@@ -79,6 +81,7 @@ test('assembles Blender level assets into runtime scene metadata', () => {
   assert.equal(world.enemySpawns.length, 2);
   assert.equal(world.healthPotions[0].radius, 0.3);
   assert.equal(world.healthPotions[0].x, 2);
+  assert.deepEqual(world.collectibles, levelAsset.collectibles);
   assert.deepEqual(world.textures.map((texture) => texture.id), ['floor', 'level-wall']);
 });
 

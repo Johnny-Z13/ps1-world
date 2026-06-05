@@ -6,8 +6,12 @@
   "scripts": {
     "start": "node scripts/dev-server.mjs",
     "dev": "node scripts/dev-server.mjs",
+    "meshy:prop": "node scripts/generate-meshy-prop.mjs",
     "cache:check": "node scripts/check-cache-busting.mjs",
     "smoke:browser": "node scripts/browser-smoke.mjs",
     "test": "node --test"
+  },
+  "devDependencies": {
+    "playwright": "^1.60.0"
   }
 }

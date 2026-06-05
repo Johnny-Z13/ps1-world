@@ -10,8 +10,11 @@ export function createSceneMesh(glContext, scene, indices) {
 
 export function createLevelMesh(glContext, scene, indices) {
   const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+  const collectedCollectibleIds = scene.collectedCollectibleIds ?? new Set();
 
   for (const mesh of scene.levelAsset.artMeshes) {
+    if (mesh.collectibleId && hasCollectedCollectible(collectedCollectibleIds, mesh.collectibleId)) continue;
+
     const textureId = indices.get(mesh.textureId) ?? 0;
     const motion = motionCode(mesh.motion);
     for (let index = 0; index < mesh.vertices.length; index += 3) {
@@ -37,6 +40,12 @@ export function createLevelMesh(glContext, scene, indices) {
   }
 
   return createStaticMeshBuffers(glContext, geometry);
+}
+
+function hasCollectedCollectible(collectedCollectibleIds, collectibleId) {
+  return typeof collectedCollectibleIds.has === 'function'
+    ? collectedCollectibleIds.has(collectibleId)
+    : collectedCollectibleIds.includes(collectibleId);
 }
 
 export function levelTriangleShade(mesh, vertexIndex) {

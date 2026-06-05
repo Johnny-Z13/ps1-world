@@ -63,7 +63,7 @@ test('maps every selectable scene to a Blender-authored GLB', () => {
     Object.keys(LEVEL_GLB_URLS),
     SCENE_DEFINITIONS.map((scene) => scene.id),
   );
-  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=10');
+  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=11');
 });
 
 test('parses level GLB art, collision, walkable, and marker roles', () => {
@@ -75,6 +75,8 @@ test('parses level GLB art, collision, walkable, and marker roles', () => {
   assert.ok(level.walkableSurfaces.length >= 30);
   assert.equal(level.zombieSpawns.length, 3);
   assert.equal(level.healthPotions.length, 3);
+  assert.equal(level.collectibles.length, 1);
+  assert.equal(level.collectibles[0].label, 'You found the goblet.');
   assert.equal(level.damageZones.length, 1);
   assert.equal(level.lights.length, 4);
   assert.equal(level.torchLights.length, 3);
@@ -148,6 +150,52 @@ test('health pickup markers keep render dimensions and pickup motion', () => {
       assert.ok(potion.radius > 0, `${definition.id} health potion radius`);
     }
   }
+});
+
+test('collectible pickup markers and art meshes keep authored metadata', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([
+    {
+      name: 'MARKER_dungeon_PICKUP_COLLECTIBLE_1_golden_goblet',
+      translation: [1.25, 0.75, -2.5],
+      extras: {
+        scene_id: 'dungeon',
+        collectibleId: 'dungeon-golden-goblet',
+        collectibleType: 'goblet',
+        label: 'You found the goblet.',
+        radius: '0.75',
+        height: '1.2',
+      },
+    },
+    {
+      name: 'ART_dungeon_golden_goblet',
+      mesh: 0,
+      extras: {
+        level_role: 'art',
+        scene_id: 'dungeon',
+        texture_id: 'gold',
+        motion: 'pickup-bob',
+        collectibleId: 'dungeon-golden-goblet',
+      },
+    },
+  ], {
+    meshes: [{
+      primitives: [{}],
+    }],
+  }), 'dungeon');
+
+  assert.deepEqual(level.collectibles, [{
+    name: 'MARKER_dungeon_PICKUP_COLLECTIBLE_1_golden_goblet',
+    x: 1.25,
+    y: 0.75,
+    z: 2.5,
+    collectibleId: 'dungeon-golden-goblet',
+    collectibleType: 'goblet',
+    label: 'You found the goblet.',
+    radius: 0.75,
+    height: 1.2,
+  }]);
+  assert.equal(level.artMeshes[0].collectibleId, 'dungeon-golden-goblet');
+  assert.equal(level.artMeshes[0].motion, 'pickup-bob');
 });
 
 test('damage zone markers keep lava material gameplay metadata', () => {
@@ -563,6 +611,12 @@ test('art mesh metadata preserves texture ids and animation motion', () => {
   const motel = readLevel('motel-mirage');
 
   assert.ok(dungeon.artMeshes.some((mesh) => mesh.textureId === 'torchFlame' && mesh.motion === 'torch-flame'));
+  assert.ok(dungeon.artMeshes.some((mesh) => (
+    mesh.collectibleId === 'dungeon-golden-goblet'
+    && mesh.textureId === 'meshyGoldGoblet'
+    && mesh.motion === 'pickup-bob'
+    && mesh.vertexCount / 3 <= 850
+  )));
   assert.ok(rotwood.artMeshes.some((mesh) => mesh.textureId === 'fallingLeaf' && mesh.motion === 'falling-leaf'));
   assert.ok(motel.artMeshes.some((mesh) => mesh.textureId === 'motelWindow' && mesh.motion === 'window-pulse'));
 });
