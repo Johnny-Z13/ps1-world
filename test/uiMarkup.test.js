@@ -24,10 +24,11 @@ const renderSkyDome = readFileSync(new URL('../src/renderSkyDome.js', import.met
 const renderPostPass = readFileSync(new URL('../src/renderPostPass.js', import.meta.url), 'utf8');
 const renderScenePass = readFileSync(new URL('../src/renderScenePass.js', import.meta.url), 'utf8');
 const debugHud = readFileSync(new URL('../src/debugHud.js', import.meta.url), 'utf8');
+const radarHud = readFileSync(new URL('../src/radarHud.js', import.meta.url), 'utf8');
 const enemyCatalog = readFileSync(new URL('../src/enemyCatalog.js', import.meta.url), 'utf8');
 const generatedTextures = readFileSync(new URL('../src/generatedTextures.js', import.meta.url), 'utf8');
 const renderShaders = readFileSync(new URL('../src/renderShaders.js', import.meta.url), 'utf8');
-const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, optionsSettings, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
+const runtimeSource = [app, sceneRuntime, titleRenderer, audioConfig, audioRuntime, optionsSettings, playerFeedback, inputRuntime, sceneEffects, renderMath, webglResources, webglPrograms, renderMeshes, renderSceneMeshes, renderEnemyMeshes, renderTextureAtlas, renderSkyDome, renderPostPass, renderScenePass, debugHud, radarHud, enemyCatalog, generatedTextures, renderShaders].join('\n');
 const zombieModel = readFileSync(new URL('../src/zombieModel.js', import.meta.url), 'utf8');
 const enemyAnimation = readFileSync(new URL('../src/enemyAnimation.js', import.meta.url), 'utf8');
 const cutUpMode = readFileSync(new URL('../src/cutUpMode.js', import.meta.url), 'utf8');
@@ -48,6 +49,16 @@ test('offers a small debug HUD with frame and enemy counts', () => {
   assert.match(runtimeSource, /function applyDebugHudSnapshot/);
   assert.match(runtimeSource, /world\.label/);
   assert.match(runtimeSource, /zombies\.length/);
+});
+
+test('renders a toggleable GTA-style radar HUD', () => {
+  assert.match(index, /id="radarHud"/);
+  assert.match(index, /id="radarMapToggle"/);
+  assert.match(index, /Radar map/);
+  assert.match(styles, /\.radar-hud/);
+  assert.match(runtimeSource, /drawRadarHud/);
+  assert.match(runtimeSource, /world\.warpGate/);
+  assert.match(runtimeSource, /effects\.radarMap/);
 });
 
 test('offers a clean test view video preset in the options menu', () => {
@@ -78,6 +89,27 @@ test('starts on a PS1-style title screen before random scene play', () => {
   assert.match(runtimeSource, /Math\.random\(\) \* SCENE_DEFINITIONS\.length/);
   assert.match(runtimeSource, /document\.body\.classList\.remove\('title-active'\)/);
   assert.match(runtimeSource, /bindTitleButton\(titleOptionsButton,\s*titleOptionsButtonState/);
+});
+
+test('shows a VHS-style photosensitivity warning before the title screen', () => {
+  assert.match(index, /class="boot-warning-active title-active"/);
+  assert.match(index, /id="bootWarning"/);
+  assert.match(index, />Warning</);
+  assert.match(index, /flashing lights/);
+  assert.match(index, /photosensitive players/);
+  assert.match(index, /Viewer discretion is advised/);
+  assert.match(styles, /\.boot-warning/);
+  assert.match(styles, /body\.boot-warning-active\s+\.title-screen/);
+  assert.match(styles, /bootWarningTapeWobble/);
+  assert.match(styles, /bootWarningScan/);
+  assert.match(styles, /bootWarningTextWobble/);
+  assert.match(runtimeSource, /const BOOT_WARNING_DURATION_MS = 2000/);
+  assert.match(runtimeSource, /let bootWarningActive = true/);
+  assert.match(runtimeSource, /function startBootWarningTimer/);
+  assert.match(runtimeSource, /bootWarning\.hidden = true/);
+  assert.match(runtimeSource, /document\.body\.classList\.remove\('boot-warning-active'\)/);
+  assert.match(index, /styles\.css\?v=17/);
+  assert.match(index, /src\/app\.js\?v=153/);
 });
 
 test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
@@ -271,6 +303,8 @@ test('renders scene cards and motion flags for animated preset props', () => {
   assert.match(runtimeSource, /scene\.movingBillboards/);
   assert.match(runtimeSource, /function motionCode/);
   assert.match(runtimeSource, /attribute float aMotion/);
+  assert.match(runtimeSource, /attribute float aWarping/);
+  assert.match(runtimeSource, /uWarping \* aWarping/);
 });
 
 test('renders camera-centered sky domes instead of flat star planes', () => {

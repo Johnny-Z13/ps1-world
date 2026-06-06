@@ -118,6 +118,7 @@ attribute vec2 aUv;
 attribute float aTextureId;
 attribute float aShade;
 attribute float aMotion;
+attribute float aWarping;
 
 uniform mat4 uViewProjection;
 uniform float uTime;
@@ -174,7 +175,7 @@ void main() {
   warped.y += floor(mod(uTime * 14.0 + aPosition.x * 3.0, 2.0)) * 0.08 * torchFlameMask;
   warped.y += (sin(uTime * 3.6 + aPosition.x * 1.7) * 0.12 + 0.12) * pickupMask;
   float wobble = sin((aPosition.x + aPosition.z) * 8.0 + uTime * 6.0) * 0.006;
-  warped.xz += vec2(wobble, -wobble) * uWarping;
+  warped.xz += vec2(wobble, -wobble) * uWarping * aWarping;
 
   vec4 clip = uViewProjection * vec4(warped, 1.0);
   vec2 snapped = floor((clip.xy / clip.w) * vec2(160.0, 120.0)) / vec2(160.0, 120.0);

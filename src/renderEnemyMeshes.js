@@ -16,6 +16,7 @@ export function createZombieMesh(glContext) {
     textureId: createDynamicBuffer(glContext),
     shade: createDynamicBuffer(glContext),
     motion: createDynamicBuffer(glContext),
+    warping: createDynamicBuffer(glContext),
   };
 }
 
@@ -30,7 +31,7 @@ export function updateZombieMesh(
   bursts = [],
   fallbackModel = null,
 ) {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [], warpings: [] };
   for (const zombie of zombieList) {
     const model = models.get(zombie.enemyType ?? 'zombie') ?? fallbackModel;
     const animationName = selectEnemyAnimation(zombie, model, time);
@@ -53,6 +54,7 @@ export function updateZombieMesh(
   updateBuffer(glContext, mesh.textureId, new Float32Array(geometry.textureIds));
   updateBuffer(glContext, mesh.shade, new Float32Array(geometry.shades));
   updateBuffer(glContext, mesh.motion, new Float32Array(geometry.motions));
+  updateBuffer(glContext, mesh.warping, new Float32Array(geometry.warpings));
 }
 
 function selectEnemyAnimation(enemy, model, time) {
@@ -85,6 +87,7 @@ function addZombieModel(geometry, zombie, vertices, indices, now = 0) {
     geometry.textureIds.push(textureId);
     geometry.shades.push(deathRender.shade);
     geometry.motions.push(motion);
+    geometry.warpings.push(1);
   }
 }
 

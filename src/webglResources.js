@@ -5,6 +5,7 @@ export function deleteMeshBuffers(glContext, mesh) {
   glContext.deleteBuffer(mesh.textureId);
   glContext.deleteBuffer(mesh.shade);
   glContext.deleteBuffer(mesh.motion);
+  glContext.deleteBuffer(mesh.warping);
 }
 
 export function createRenderTarget(glContext, width, height) {

@@ -3,7 +3,7 @@ import { SCENE_DEFINITIONS } from './world.js';
 export const LEVEL_GLB_URLS = Object.freeze(Object.fromEntries(
   SCENE_DEFINITIONS.map((scene) => [
     scene.id,
-    `./assets/models/levels/${scene.id}.glb?v=12`,
+    `./assets/models/levels/${scene.id}.glb?v=14`,
   ]),
 ));
 
@@ -227,6 +227,18 @@ function parseJsonString(value) {
   }
 }
 
+function parseBoolean(value, fallback = true) {
+  const parsed = parseJsonString(value);
+  if (typeof parsed === 'boolean') return parsed;
+  if (typeof parsed === 'number') return parsed !== 0;
+  if (typeof parsed === 'string') {
+    const normalized = parsed.trim().toLowerCase();
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+  }
+  return fallback;
+}
+
 function readMeshPrimitives(json, bin, meshIndex, matrix, nodeName, extras, materials) {
   const mesh = json.meshes[meshIndex];
   return (mesh?.primitives ?? []).map((primitive, primitiveIndex) => {
@@ -237,6 +249,7 @@ function readMeshPrimitives(json, bin, meshIndex, matrix, nodeName, extras, mate
       material: primitive.material ?? 0,
       textureId: parseJsonString(extras.texture_id) ?? material?.textureId ?? null,
       motion: parseJsonString(extras.motion) ?? null,
+      warping: parseBoolean(extras.warping ?? extras.wobble, true),
       collectibleId: parseJsonString(extras.collectibleId) ?? parseJsonString(extras.collectible_id) ?? null,
       vertices,
       vertexCount: vertices.length,

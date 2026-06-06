@@ -34,21 +34,22 @@ function getBufferPayloads(calls) {
     .map(([, , data]) => Array.from(data));
 }
 
-test('face writes two triangles with matching uv, texture, shade, and motion streams', () => {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+test('face writes two triangles with matching uv, texture, shade, motion, and warping streams', () => {
+  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [], warpings: [] };
 
   face(geometry, 4, 0.75, [
     [0, 0, 0],
     [2, 0, 0],
     [2, 3, 0],
     [0, 3, 0],
-  ], 2, 3, 9);
+  ], 2, 3, 9, 0);
 
   assert.equal(geometry.positions.length, 18);
   assert.deepEqual(geometry.uvs, [0, 3, 2, 3, 2, 0, 0, 3, 2, 0, 0, 0]);
   assert.deepEqual(geometry.textureIds, [4, 4, 4, 4, 4, 4]);
   assert.deepEqual(geometry.shades, [0.75, 0.75, 0.75, 0.75, 0.75, 0.75]);
   assert.deepEqual(geometry.motions, [9, 9, 9, 9, 9, 9]);
+  assert.deepEqual(geometry.warpings, [0, 0, 0, 0, 0, 0]);
 });
 
 test('levelTriangleShade keeps bright level textures emissive and shades triangles by normal', () => {
@@ -76,6 +77,7 @@ test('createSceneMesh builds GLB level art plus health and warp geometry into st
       artMeshes: [{
         textureId: 'stone',
         motion: 'none',
+        warping: false,
         vertices: [
           { x: 0, y: 0, z: 0, u: 0, v: 0 },
           { x: 1, y: 0, z: 0, u: 1, v: 0 },
@@ -106,14 +108,17 @@ test('createSceneMesh builds GLB level art plus health and warp geometry into st
   };
 
   const mesh = createSceneMesh(gl, scene, indices);
-  const [positions, uvs, textureIds, shades, motions] = getBufferPayloads(calls);
+  const [positions, uvs, textureIds, shades, motions, warpings] = getBufferPayloads(calls);
 
   assert.equal(mesh.count, positions.length / 3);
-  assert.equal(calls.filter(([name]) => name === 'bufferData').length, 5);
+  assert.equal(calls.filter(([name]) => name === 'bufferData').length, 6);
   assert.equal(uvs.length, mesh.count * 2);
   assert.equal(textureIds.length, mesh.count);
   assert.equal(shades.length, mesh.count);
   assert.equal(motions.length, mesh.count);
+  assert.equal(warpings.length, mesh.count);
+  assert.deepEqual(warpings.slice(0, 3), [0, 0, 0]);
+  assert.ok(warpings.slice(3).every((value) => value === 1));
   assert.ok(textureIds.includes(2));
   assert.ok(textureIds.includes(3));
   assert.ok(textureIds.includes(4));

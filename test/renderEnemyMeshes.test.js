@@ -33,14 +33,15 @@ function getDynamicPayloads(calls) {
     .map(([, , data]) => Array.from(data));
 }
 
-test('createZombieMesh creates five empty dynamic vertex streams', () => {
+test('createZombieMesh creates six empty dynamic vertex streams', () => {
   const { gl, calls } = createFakeGl();
 
   const mesh = createZombieMesh(gl);
 
   assert.equal(mesh.count, 0);
-  assert.equal(calls.filter(([name]) => name === 'createBuffer').length, 5);
+  assert.equal(calls.filter(([name]) => name === 'createBuffer').length, 6);
   assert.deepEqual(calls.filter(([name]) => name === 'bufferData'), [
+    ['bufferData', 'ARRAY_BUFFER', 0, 'DYNAMIC_DRAW'],
     ['bufferData', 'ARRAY_BUFFER', 0, 'DYNAMIC_DRAW'],
     ['bufferData', 'ARRAY_BUFFER', 0, 'DYNAMIC_DRAW'],
     ['bufferData', 'ARRAY_BUFFER', 0, 'DYNAMIC_DRAW'],
@@ -64,13 +65,15 @@ test('updateZombieMesh builds fallback zombie card geometry when no model is ava
     yaw: 0,
   }], indices, new Map(), 0, 1000, [], null);
 
-  const [positions, uvs, textureIds, shades, motions] = getDynamicPayloads(calls);
+  const [positions, uvs, textureIds, shades, motions, warpings] = getDynamicPayloads(calls);
   assert.equal(mesh.count, 12);
   assert.equal(positions.length, mesh.count * 3);
   assert.equal(uvs.length, mesh.count * 2);
   assert.deepEqual(new Set(textureIds), new Set([7]));
   assert.equal(shades.length, mesh.count);
   assert.equal(motions.length, mesh.count);
+  assert.equal(warpings.length, mesh.count);
+  assert.ok(warpings.every((value) => value === 1));
 });
 
 test('updateZombieMesh uses animated model vertices when a matching model exists', () => {

@@ -27,15 +27,22 @@ body.title-active #screen {
 
 body.title-active #screen,
 body.title-active .reticule,
+body.title-active .radar-hud,
 body.title-active .hud,
 body.title-active .debug-hud {
   cursor: default;
 }
 
 body.title-active .reticule,
+body.title-active .radar-hud,
 body.title-active .hud,
 body.title-active .debug-hud {
   display: none;
+}
+
+body.boot-warning-active .title-screen {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 body.options-open #screen {
@@ -51,6 +58,86 @@ body.options-open #screen {
 body.game-active,
 body.game-active * {
   cursor: none !important;
+}
+
+.boot-warning {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #030303;
+  color: #ece9df;
+  pointer-events: auto;
+  font-family: "Courier New", Courier, monospace;
+  text-align: center;
+  animation: bootWarningTapeWobble 0.42s steps(2, end) infinite;
+}
+
+.boot-warning::before,
+.boot-warning::after {
+  content: "";
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+}
+
+.boot-warning::before {
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 5px),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.035), transparent 18%, rgba(0, 180, 255, 0.035) 82%, transparent);
+  mix-blend-mode: screen;
+  opacity: 0.46;
+  animation: bootWarningScan 0.16s linear infinite;
+}
+
+.boot-warning::after {
+  background:
+    radial-gradient(circle at 50% 48%, transparent 0 38%, rgba(0, 0, 0, 0.24) 68%, rgba(0, 0, 0, 0.62) 100%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 11px);
+  opacity: 0.85;
+  animation: bootWarningDrift 1.3s steps(3, end) infinite;
+}
+
+.boot-warning-card {
+  position: relative;
+  z-index: 1;
+  width: min(980px, calc(100vw - 44px));
+  padding: 0 18px;
+  filter: blur(0.25px);
+  text-shadow:
+    2px 0 rgba(180, 38, 56, 0.32),
+    -2px 0 rgba(28, 166, 165, 0.28),
+    0 0 10px rgba(255, 255, 255, 0.12);
+  animation: bootWarningTextWobble 0.74s steps(2, end) infinite;
+}
+
+.boot-warning h1 {
+  margin: 0 0 34px;
+  color: #d62230;
+  font-size: clamp(28px, 5vw, 48px);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.boot-warning p {
+  max-width: 920px;
+  margin: 0 auto 18px;
+  color: #f2f0ea;
+  font-size: clamp(18px, 3.2vw, 32px);
+  font-weight: 700;
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+
+.boot-warning-advice {
+  margin-top: 42px !important;
+}
+
+.boot-warning[hidden] {
+  display: none;
 }
 
 .reticule {
@@ -83,6 +170,26 @@ body.game-active * {
 .reticule::after {
   width: 2px;
   height: 18px;
+}
+
+.radar-hud {
+  position: fixed;
+  left: max(14px, env(safe-area-inset-left));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 3;
+  width: 128px;
+  height: 128px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  pointer-events: none;
+  opacity: 0.92;
+  border: 1px solid rgba(112, 255, 145, 0.42);
+  border-radius: 50%;
+  background: rgba(2, 15, 7, 0.34);
+  filter: saturate(0.88) contrast(1.12);
+  box-shadow:
+    0 0 0 2px rgba(2, 7, 4, 0.7),
+    0 0 26px rgba(26, 255, 117, 0.12);
 }
 
 [hidden] {
@@ -237,8 +344,8 @@ body.game-active * {
 
 .hud {
   position: fixed;
-  left: 16px;
-  bottom: 14px;
+  left: max(156px, calc(env(safe-area-inset-left) + 156px));
+  bottom: max(18px, env(safe-area-inset-bottom));
   display: flex;
   gap: 10px;
   align-items: center;
@@ -374,9 +481,66 @@ body.options-open .touch-jump {
   display: none;
 }
 
+@keyframes bootWarningTapeWobble {
+  0%,
+  100% {
+    transform: translateX(0) skewX(0deg);
+    filter: contrast(1.08) brightness(0.94);
+  }
+
+  45% {
+    transform: translateX(-1px) skewX(-0.08deg);
+    filter: contrast(1.18) brightness(0.88);
+  }
+
+  72% {
+    transform: translateX(1px) skewX(0.1deg);
+    filter: contrast(1.02) brightness(0.98);
+  }
+}
+
+@keyframes bootWarningScan {
+  from {
+    transform: translateY(-8px);
+  }
+
+  to {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes bootWarningDrift {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.78;
+  }
+
+  40% {
+    transform: translateX(5px);
+    opacity: 0.92;
+  }
+
+  70% {
+    transform: translateX(-3px);
+    opacity: 0.82;
+  }
+}
+
+@keyframes bootWarningTextWobble {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  48% {
+    transform: translate(1px, -1px);
+  }
+}
+
 @media (pointer: coarse) {
   .hud {
-    left: 10px;
+    left: max(148px, calc(env(safe-area-inset-left) + 148px));
     right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     flex-wrap: wrap;
@@ -386,6 +550,13 @@ body.options-open .touch-jump {
 
   .hud div {
     padding: 4px 5px;
+  }
+
+  .radar-hud {
+    left: max(8px, env(safe-area-inset-left));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: 120px;
+    height: 120px;
   }
 
   body.game-active .touch-jump {

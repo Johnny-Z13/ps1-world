@@ -16,6 +16,7 @@ test('loads only supported saved options and normalizes numeric ranges', () => {
       sfxVolume: -1,
       pixelScale: 99,
       invertY: true,
+      radarMap: false,
       unknown: 'ignored',
     }),
   });
@@ -25,6 +26,7 @@ test('loads only supported saved options and normalizes numeric ranges', () => {
     sfxVolume: 0,
     pixelScale: 6,
     invertY: true,
+    radarMap: false,
   });
 });
 
@@ -35,11 +37,13 @@ test('saves only supported options', () => {
     musicVolume: 0.4,
     sfxVolume: 0.7,
     showReticule: false,
+    radarMap: false,
     sceneId: 'dungeon',
   }, storage);
 
   assert.deepEqual(JSON.parse(storage.getItem(OPTIONS_STORAGE_KEY)), {
     showReticule: false,
+    radarMap: false,
     musicVolume: 0.4,
     sfxVolume: 0.7,
   });

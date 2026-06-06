@@ -49,6 +49,7 @@ test('drawMesh binds all scene mesh attributes before drawing triangles', () => 
       aTextureId: 2,
       aShade: 3,
       aMotion: 4,
+      aWarping: 5,
     },
   };
   const mesh = {
@@ -58,6 +59,7 @@ test('drawMesh binds all scene mesh attributes before drawing triangles', () => 
     textureId: { id: 'textureId' },
     shade: { id: 'shade' },
     motion: { id: 'motion' },
+    warping: { id: 'warping' },
   };
 
   drawMesh(gl, program, mesh);
@@ -68,6 +70,7 @@ test('drawMesh binds all scene mesh attributes before drawing triangles', () => 
     ['vertexAttribPointer', 2, 1, 'FLOAT', false, 0, 0],
     ['vertexAttribPointer', 3, 1, 'FLOAT', false, 0, 0],
     ['vertexAttribPointer', 4, 1, 'FLOAT', false, 0, 0],
+    ['vertexAttribPointer', 5, 1, 'FLOAT', false, 0, 0],
   ]);
   assert.deepEqual(calls.at(-1), ['drawArrays', 'TRIANGLES', 0, 12]);
 });

@@ -224,9 +224,12 @@ import {
   applyDebugHudSnapshot,
   createDebugHudSnapshot,
 } from './debugHud.js';
+import { drawRadarHud } from './radarHud.js';
 
 const canvas = document.querySelector('#screen');
+const bootWarning = document.querySelector('#bootWarning');
 const reticule = document.querySelector('#reticule');
+const radarHudCanvas = document.querySelector('#radarHud');
 const debugHudPanel = document.querySelector('#debugHud');
 const debugFps = document.querySelector('#debugFps');
 const debugScene = document.querySelector('#debugScene');
@@ -247,6 +250,7 @@ const quitGameButton = document.querySelector('#quitGameButton');
 const touchMove = document.querySelector('#touchMove');
 const touchMoveStick = document.querySelector('#touchMoveStick');
 const touchJump = document.querySelector('#touchJump');
+const radarHudContext = radarHudCanvas.getContext('2d');
 const titleContext = titleCanvas.getContext('2d');
 const gl = canvas.getContext('webgl', {
   antialias: false,
@@ -261,6 +265,7 @@ if (!gl) {
 
 const effects = createEffectState(loadSavedOptions());
 effects.sceneId = 'dungeon';
+const BOOT_WARNING_DURATION_MS = 2000;
 const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS.length;
 const BOSS_IMPACT_SHAKE_DURATION_MS = 360;
 const BOSS_IMPACT_SHAKE_DISTANCE = 10;
@@ -322,6 +327,7 @@ const gamepadInput = {
   previousButtons: new Set(),
 };
 let touchJumpActive = false;
+let bootWarningActive = true;
 let titleActive = true;
 const titleButtonState = { active: false };
 const cutUpButtonState = { active: false };
@@ -369,6 +375,7 @@ const OPTION_CHECKBOX_BINDINGS = Object.freeze([
   Object.freeze(['noise', 'noise']),
   Object.freeze(['playerTorch', 'playerTorch']),
   Object.freeze(['zombies', 'zombies']),
+  Object.freeze(['radarMapToggle', 'radarMap']),
   Object.freeze(['debugHudToggle', 'debugHud']),
 ]);
 
@@ -547,6 +554,7 @@ function render(time, now = performance.now()) {
     renderTitleScreen(time);
   }
   updateLowHealthNotice(now);
+  updateRadarHud();
 }
 
 function ensureAudioState() {
@@ -1076,6 +1084,11 @@ function resize() {
 function setupInput() {
   window.addEventListener('resize', resize);
   document.addEventListener('keydown', (event) => {
+    if (bootWarningActive) {
+      event.preventDefault();
+      return;
+    }
+
     if (titleActive) {
       ensureSceneAudio();
       if (event.code === 'Enter' || event.code === 'Space') {
@@ -1259,6 +1272,10 @@ function updateGamepadInput() {
   const snapshot = createGamepadSnapshot(gamepad, gamepadInput.previousButtons);
 
   if (titleActive) {
+    if (bootWarningActive) {
+      gamepadInput.previousButtons = snapshot.pressedButtons;
+      return;
+    }
     if (snapshot.startPressed) startRandomScene();
     gamepadInput.previousButtons = snapshot.pressedButtons;
     return;
@@ -1424,6 +1441,7 @@ function setupOptions() {
       playUiToggleSound();
       effects[key] = input.checked;
       if (key === 'showReticule') syncReticule();
+      if (key === 'radarMap') updateRadarHud();
       if (key === 'debugHud') updateDebugHud(0);
       saveOptions(effects);
     });
@@ -1560,6 +1578,7 @@ function syncOptionsControls() {
   canvas.style.imageRendering = effects.pixelScale <= 1 ? 'auto' : 'pixelated';
   syncAudioMasterVolumes(audioState, effects);
   syncReticule();
+  updateRadarHud();
   updateDebugHud(0);
 }
 
@@ -1974,6 +1993,25 @@ function updateLowHealthNotice(now) {
   }
 }
 
+function updateRadarHud() {
+  const visible = effects.radarMap
+    && !titleActive
+    && !optionsDialog.open
+    && !deathState.active
+    && rogueWinScreen.hidden;
+  radarHudCanvas.hidden = !visible;
+  if (!visible) {
+    radarHudContext.clearRect(0, 0, radarHudCanvas.width, radarHudCanvas.height);
+    return;
+  }
+
+  drawRadarHud(radarHudContext, {
+    player,
+    enemies: effects.zombies ? zombies : [],
+    portal: world.warpGate,
+  });
+}
+
 function showGameplayNotice(text, now) {
   gameplayNoticeText = text;
   gameplayNoticeStartedAt = now;
@@ -2243,6 +2281,7 @@ async function start() {
   setupInput();
   resize();
   renderTitleScreen(0);
+  startBootWarningTimer();
   loadAllCharacterModels().then(async () => {
     if (characterTextureImages.size > 0) {
       gl.deleteTexture(atlasTexture);
@@ -2250,6 +2289,19 @@ async function start() {
     }
   });
   requestAnimationFrame(frame);
+}
+
+function startBootWarningTimer() {
+  if (!bootWarning) {
+    bootWarningActive = false;
+    document.body.classList.remove('boot-warning-active');
+    return;
+  }
+  window.setTimeout(() => {
+    bootWarningActive = false;
+    bootWarning.hidden = true;
+    document.body.classList.remove('boot-warning-active');
+  }, BOOT_WARNING_DURATION_MS);
 }
 
 async function loadAllCharacterModels() {

@@ -63,7 +63,7 @@ test('maps every selectable scene to a Blender-authored GLB', () => {
     Object.keys(LEVEL_GLB_URLS),
     SCENE_DEFINITIONS.map((scene) => scene.id),
   );
-  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=12');
+  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=14');
 });
 
 test('parses level GLB art, collision, walkable, and marker roles', () => {
@@ -79,6 +79,11 @@ test('parses level GLB art, collision, walkable, and marker roles', () => {
   assert.equal(level.collectibles[0].label, 'You found the goblet.');
   assert.equal(level.collectibles[0].x, 2);
   assert.equal(level.collectibles[0].z, 1.5);
+  assert.ok(level.artMeshes.some((mesh) => (
+    mesh.collectibleId === 'dungeon-golden-goblet'
+      && mesh.motion === 'pickup-bob'
+      && mesh.warping === false
+  )));
   assert.equal(level.damageZones.length, 1);
   assert.equal(level.lights.length, 4);
   assert.equal(level.torchLights.length, 3);
@@ -176,6 +181,7 @@ test('collectible pickup markers and art meshes keep authored metadata', () => {
         scene_id: 'dungeon',
         texture_id: 'gold',
         motion: 'pickup-bob',
+        warping: 'false',
         collectibleId: 'dungeon-golden-goblet',
       },
     },
@@ -198,6 +204,7 @@ test('collectible pickup markers and art meshes keep authored metadata', () => {
   }]);
   assert.equal(level.artMeshes[0].collectibleId, 'dungeon-golden-goblet');
   assert.equal(level.artMeshes[0].motion, 'pickup-bob');
+  assert.equal(level.artMeshes[0].warping, false);
 });
 
 test('damage zone markers keep lava material gameplay metadata', () => {
@@ -623,7 +630,7 @@ test('art mesh metadata preserves texture ids and animation motion', () => {
   assert.ok(motel.artMeshes.some((mesh) => mesh.textureId === 'motelWindow' && mesh.motion === 'window-pulse'));
 });
 
-test('dungeon goblet collectible is large and centered in open floor space', () => {
+test('dungeon goblet collectible is visible and centered in open floor space', () => {
   const dungeon = readLevel('dungeon');
   const goblet = dungeon.collectibles.find((item) => item.collectibleId === 'dungeon-golden-goblet');
   const gobletMesh = dungeon.artMeshes.find((mesh) => mesh.collectibleId === 'dungeon-golden-goblet');
@@ -633,8 +640,10 @@ test('dungeon goblet collectible is large and centered in open floor space', () 
   assert.ok(gobletMesh, 'dungeon exports the golden goblet render mesh');
   assert.ok(clearanceFromColliders(goblet, dungeon.collision) > 2.5);
   assert.ok(bounds.minY >= 0);
-  assert.ok(bounds.maxY - bounds.minY > 2.2);
-  assert.ok(bounds.maxX - bounds.minX > 2.3);
+  assert.ok(bounds.maxY - bounds.minY > 1.3);
+  assert.ok(bounds.maxX - bounds.minX > 1.35);
+  assert.equal(goblet.radius, 0.69);
+  assert.equal(goblet.height, 1.44);
 });
 
 test('large exported level surfaces keep world-scale texture repeats', () => {

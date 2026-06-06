@@ -9,7 +9,7 @@ export function createSceneMesh(glContext, scene, indices) {
 }
 
 export function createLevelMesh(glContext, scene, indices) {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+  const geometry = createGeometryStreams();
   const collectedCollectibleIds = scene.collectedCollectibleIds ?? new Set();
 
   for (const mesh of scene.levelAsset.artMeshes) {
@@ -17,6 +17,7 @@ export function createLevelMesh(glContext, scene, indices) {
 
     const textureId = indices.get(mesh.textureId) ?? 0;
     const motion = motionCode(mesh.motion);
+    const warping = mesh.warping === false ? 0 : 1;
     for (let index = 0; index < mesh.vertices.length; index += 3) {
       const shade = levelTriangleShade(mesh, index);
       for (const vertex of mesh.vertices.slice(index, index + 3)) {
@@ -25,6 +26,7 @@ export function createLevelMesh(glContext, scene, indices) {
         geometry.textureIds.push(textureId);
         geometry.shades.push(shade);
         geometry.motions.push(motion);
+        geometry.warpings.push(warping);
       }
     }
   }
@@ -96,7 +98,7 @@ function triangleNormal(a, b, c) {
 }
 
 export function createWarehouseMesh(glContext, scene, indices) {
-  const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [] };
+  const geometry = createGeometryStreams();
   const floorPieces = scene.floorPieces ?? [scene.floor];
   for (const floorPiece of floorPieces) {
     addBox(geometry, floorPiece, indices, { floor: true, shade: 0.72, uvScale: 2.5, motion: motionCode(floorPiece.motion) });
@@ -180,7 +182,12 @@ function createStaticMeshBuffers(glContext, geometry) {
     textureId: createBuffer(glContext, new Float32Array(geometry.textureIds)),
     shade: createBuffer(glContext, new Float32Array(geometry.shades)),
     motion: createBuffer(glContext, new Float32Array(geometry.motions)),
+    warping: createBuffer(glContext, new Float32Array(geometry.warpings)),
   };
+}
+
+function createGeometryStreams() {
+  return { positions: [], uvs: [], textureIds: [], shades: [], motions: [], warpings: [] };
 }
 
 function addBox(geometry, item, indices, options = {}) {
@@ -194,22 +201,23 @@ function addBox(geometry, item, indices, options = {}) {
   const shade = options.shade ?? 0.85;
   const uvScale = options.uvScale ?? 1;
   const motion = options.motion ?? 0;
+  const warping = options.warping ?? 1;
 
   face(geometry, textureId, shade * 0.92, [
     [minX, minY, maxZ], [maxX, minY, maxZ], [maxX, maxY, maxZ], [minX, maxY, maxZ],
-  ], item.width / uvScale, item.height / uvScale, motion);
+  ], item.width / uvScale, item.height / uvScale, motion, warping);
   face(geometry, textureId, shade * 0.72, [
     [maxX, minY, minZ], [minX, minY, minZ], [minX, maxY, minZ], [maxX, maxY, minZ],
-  ], item.width / uvScale, item.height / uvScale, motion);
+  ], item.width / uvScale, item.height / uvScale, motion, warping);
   face(geometry, textureId, shade * 0.82, [
     [minX, minY, minZ], [minX, minY, maxZ], [minX, maxY, maxZ], [minX, maxY, minZ],
-  ], item.depth / uvScale, item.height / uvScale, motion);
+  ], item.depth / uvScale, item.height / uvScale, motion, warping);
   face(geometry, textureId, shade, [
     [maxX, minY, maxZ], [maxX, minY, minZ], [maxX, maxY, minZ], [maxX, maxY, maxZ],
-  ], item.depth / uvScale, item.height / uvScale, motion);
+  ], item.depth / uvScale, item.height / uvScale, motion, warping);
   face(geometry, textureId, shade * 1.08, [
     [minX, maxY, maxZ], [maxX, maxY, maxZ], [maxX, maxY, minZ], [minX, maxY, minZ],
-  ], item.width / uvScale, item.depth / uvScale, motion);
+  ], item.width / uvScale, item.depth / uvScale, motion, warping);
 }
 
 function addMountain(geometry, item, indices) {
@@ -403,7 +411,7 @@ function addRain(geometry, rain, indices) {
   }
 }
 
-export function face(geometry, textureId, shade, corners, uRepeat, vRepeat, motion = 0) {
+export function face(geometry, textureId, shade, corners, uRepeat, vRepeat, motion = 0, warping = 1) {
   const uv = [[0, vRepeat], [uRepeat, vRepeat], [uRepeat, 0], [0, 0]];
   const order = [0, 1, 2, 0, 2, 3];
 
@@ -413,10 +421,11 @@ export function face(geometry, textureId, shade, corners, uRepeat, vRepeat, moti
     geometry.textureIds.push(textureId);
     geometry.shades.push(shade);
     geometry.motions.push(motion);
+    geometry.warpings.push(warping);
   }
 }
 
-function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat, motion = 0) {
+function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat, motion = 0, warping = 1) {
   const corners = [a, b, c];
   const uv = [[0, vRepeat], [uRepeat, vRepeat], [uRepeat * 0.5, 0]];
 
@@ -426,5 +435,6 @@ function triangle(geometry, textureId, shade, a, b, c, uRepeat, vRepeat, motion 
     geometry.textureIds.push(textureId);
     geometry.shades.push(shade);
     geometry.motions.push(motion);
+    geometry.warpings.push(warping);
   }
 }

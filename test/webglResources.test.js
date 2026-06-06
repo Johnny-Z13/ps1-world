@@ -181,6 +181,7 @@ test('deletes mesh buffers and ignores missing resources', () => {
     textureId: { id: 'textureId' },
     shade: { id: 'shade' },
     motion: { id: 'motion' },
+    warping: { id: 'warping' },
   };
 
   deleteMeshBuffers(gl, null);
@@ -192,5 +193,6 @@ test('deletes mesh buffers and ignores missing resources', () => {
     ['deleteBuffer', mesh.textureId],
     ['deleteBuffer', mesh.shade],
     ['deleteBuffer', mesh.motion],
+    ['deleteBuffer', mesh.warping],
   ]);
 });

@@ -17,6 +17,7 @@ export const SAVED_OPTION_KEYS = Object.freeze([
   'noise',
   'playerTorch',
   'zombies',
+  'radarMap',
   'debugHud',
   'musicVolume',
   'sfxVolume',

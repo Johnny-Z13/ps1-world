@@ -7,7 +7,9 @@ import bpy
 SCENE_ID = "dungeon"
 COLLECTIBLE_ID = "dungeon-golden-goblet"
 GOBLET_POSITION = {"x": 2.0, "y": 1.17, "z": 1.5}
-GOBLET_SCALE = 1.275
+GOBLET_SCALE = 0.765
+GOBLET_PICKUP_RADIUS = 0.69
+GOBLET_PICKUP_HEIGHT = 1.44
 LOW_POLY_TARGET_TRIANGLES = 850
 TEXTURE_SIZE = 64
 
@@ -41,6 +43,7 @@ def main():
         obj["level_role"] = "art"
         obj["scene_id"] = SCENE_ID
         obj["motion"] = "pickup-bob"
+        obj["warping"] = False
         obj["collectibleId"] = COLLECTIBLE_ID
         obj["texture_id"] = material_texture_id(obj)
         link_to_collection(obj, art_collection)
@@ -121,8 +124,8 @@ def add_marker(collection):
     obj["collectibleId"] = COLLECTIBLE_ID
     obj["collectibleType"] = "goblet"
     obj["label"] = "You found the goblet."
-    obj["radius"] = 1.15
-    obj["height"] = 2.4
+    obj["radius"] = GOBLET_PICKUP_RADIUS
+    obj["height"] = GOBLET_PICKUP_HEIGHT
     link_to_collection(obj, collection)
 
 

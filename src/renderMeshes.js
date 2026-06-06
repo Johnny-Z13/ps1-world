@@ -8,6 +8,7 @@ export function drawMesh(glContext, program, mesh) {
   bindAttribute(glContext, program.attributes.aTextureId, mesh.textureId, 1);
   bindAttribute(glContext, program.attributes.aShade, mesh.shade, 1);
   bindAttribute(glContext, program.attributes.aMotion, mesh.motion, 1);
+  bindAttribute(glContext, program.attributes.aWarping, mesh.warping, 1);
   glContext.drawArrays(glContext.TRIANGLES, 0, mesh.count);
 }
 
