@@ -30,6 +30,7 @@ export function updateZombieMesh(
   now = 0,
   bursts = [],
   fallbackModel = null,
+  debugPlayerMarker = null,
 ) {
   const geometry = { positions: [], uvs: [], textureIds: [], shades: [], motions: [], warpings: [] };
   for (const zombie of zombieList) {
@@ -46,6 +47,9 @@ export function updateZombieMesh(
   }
   for (const burst of bursts) {
     addBloodBurstCards(geometry, burst, indices, now);
+  }
+  if (debugPlayerMarker) {
+    addDebugPlayerCapsule(geometry, debugPlayerMarker, indices);
   }
 
   mesh.count = geometry.positions.length / 3;
@@ -110,6 +114,45 @@ function addBloodBurstCards(geometry, burst, indices, now) {
       [x, y - half, z - half], [x, y - half, z + half], [x, y + half, z + half], [x, y + half, z - half],
     ], 1, 1);
   }
+}
+
+function addDebugPlayerCapsule(geometry, marker, indices) {
+  const textureId = indices.get(marker.texture ?? 'healthPotion')
+    ?? indices.get('healthPotion')
+    ?? indices.get('zombie')
+    ?? 0;
+  const radius = marker.radius ?? 0.34;
+  const height = marker.height ?? 1.72;
+  const feetY = marker.y - PLAYER_EYE_HEIGHT;
+  const minY = feetY;
+  const maxY = feetY + height;
+  const capRadius = radius * 1.08;
+  const motion = marker.motion ? motionCode(marker.motion) : 0;
+
+  face(geometry, textureId, 1.22, [
+    [marker.x - radius, minY, marker.z],
+    [marker.x + radius, minY, marker.z],
+    [marker.x + radius, maxY, marker.z],
+    [marker.x - radius, maxY, marker.z],
+  ], 1, 1, motion);
+  face(geometry, textureId, 1.06, [
+    [marker.x, minY, marker.z - radius],
+    [marker.x, minY, marker.z + radius],
+    [marker.x, maxY, marker.z + radius],
+    [marker.x, maxY, marker.z - radius],
+  ], 1, 1, motion);
+  face(geometry, textureId, 1.35, [
+    [marker.x - capRadius, maxY, marker.z - capRadius],
+    [marker.x + capRadius, maxY, marker.z - capRadius],
+    [marker.x + capRadius, maxY, marker.z + capRadius],
+    [marker.x - capRadius, maxY, marker.z + capRadius],
+  ], 1, 1, motion);
+  face(geometry, textureId, 0.82, [
+    [marker.x - capRadius, minY, marker.z - capRadius],
+    [marker.x + capRadius, minY, marker.z - capRadius],
+    [marker.x + capRadius, minY, marker.z + capRadius],
+    [marker.x - capRadius, minY, marker.z + capRadius],
+  ], 1, 1, motion);
 }
 
 function rotateZombieLocalVertex(x, y, z, yaw) {

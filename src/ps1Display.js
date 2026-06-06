@@ -33,6 +33,7 @@ export const DEFAULT_EFFECTS = Object.freeze({
   musicVolume: 0.72,
   sfxVolume: 0.82,
   debugHud: false,
+  debugFreeCam: false,
 });
 
 export const CRT_PRESETS = Object.freeze({
@@ -79,6 +80,7 @@ const PORTABLE_TV_EFFECTS = Object.freeze({
   musicVolume: 0.72,
   sfxVolume: 0.82,
   debugHud: false,
+  debugFreeCam: false,
   brightness: 1.05,
   contrast: 1.08,
   saturation: 0.82,
@@ -104,6 +106,7 @@ const CLEAN_RGB_EFFECTS = Object.freeze({
   musicVolume: 0.72,
   sfxVolume: 0.82,
   debugHud: false,
+  debugFreeCam: false,
   brightness: 1.04,
   contrast: 1.02,
   saturation: 0.92,
@@ -129,6 +132,7 @@ const CLEAN_TEST_VIEW_EFFECTS = Object.freeze({
   musicVolume: 0.72,
   sfxVolume: 0.82,
   debugHud: false,
+  debugFreeCam: false,
   brightness: 1,
   contrast: 1,
   saturation: 1,

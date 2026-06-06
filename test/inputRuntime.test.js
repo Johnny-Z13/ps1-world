@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   GAMEPAD_DEADZONE,
+  createDebugFreeCameraMovement,
   createGamepadSnapshot,
   createSoftMouseEdgeTurn,
   createTouchJoystickState,
@@ -73,6 +74,29 @@ test('creates a normalized gamepad snapshot with menu and start edge flags', () 
   assert.equal(snapshot.menuPressed, true);
   assert.equal(snapshot.startPressed, false);
   assert.deepEqual([...snapshot.pressedButtons], [0, 4, 9]);
+});
+
+test('moves a debug free camera through yaw, pitch, and vertical inputs', () => {
+  const camera = {
+    x: 0,
+    y: 2,
+    z: 0,
+    yaw: Math.PI / 2,
+    pitch: Math.PI / 6,
+  };
+
+  const moved = createDebugFreeCameraMovement(camera, {
+    local: { x: 0, z: 1 },
+    up: true,
+    sprint: true,
+    dt: 0.5,
+  });
+
+  assert.ok(moved.x > 0);
+  assert.ok(moved.y > camera.y);
+  assert.ok(Math.abs(moved.z) < 0.000001);
+  assert.equal(moved.yaw, camera.yaw);
+  assert.equal(moved.pitch, camera.pitch);
 });
 
 test('creates clamped touch joystick movement from origin and pointer position', () => {

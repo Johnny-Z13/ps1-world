@@ -5,6 +5,7 @@ import {
   createZombieMesh,
   updateZombieMesh,
 } from '../src/renderEnemyMeshes.js';
+import { PLAYER_EYE_HEIGHT } from '../src/playerPhysics.js';
 
 function createFakeGl() {
   const calls = [];
@@ -128,4 +129,33 @@ test('updateZombieMesh appends blood burst cards after enemies', () => {
   assert.equal(positions.length, mesh.count * 3);
   assert.deepEqual(new Set(textureIds), new Set([9]));
   assert.ok(shades.every((shade) => shade > 0));
+});
+
+test('updateZombieMesh appends a debug player capsule marker', () => {
+  const { gl, calls } = createFakeGl();
+  const mesh = createZombieMesh(gl);
+  const indices = new Map([['healthPotion', 5], ['zombie', 7]]);
+  calls.length = 0;
+
+  updateZombieMesh(gl, mesh, [], indices, new Map(), 0, 1000, [], null, {
+    x: 2,
+    y: PLAYER_EYE_HEIGHT,
+    z: 3,
+    yaw: 0,
+    texture: 'healthPotion',
+  });
+
+  const [positions, uvs, textureIds, shades, motions, warpings] = getDynamicPayloads(calls);
+  const yPositions = positions.filter((_, index) => index % 3 === 1);
+
+  assert.equal(mesh.count, 24);
+  assert.equal(positions.length, mesh.count * 3);
+  assert.equal(uvs.length, mesh.count * 2);
+  assert.deepEqual(new Set(textureIds), new Set([5]));
+  assert.equal(shades.length, mesh.count);
+  assert.equal(motions.length, mesh.count);
+  assert.equal(warpings.length, mesh.count);
+  assert.ok(warpings.every((value) => value === 1));
+  assert.ok(Math.min(...yPositions) <= 0.05);
+  assert.ok(Math.max(...yPositions) >= 1.7);
 });

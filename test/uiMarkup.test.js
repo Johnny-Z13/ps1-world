@@ -51,6 +51,19 @@ test('offers a small debug HUD with frame and enemy counts', () => {
   assert.match(runtimeSource, /zombies\.length/);
 });
 
+test('offers a persisted debug free cam option for flying through scenes', () => {
+  assert.match(index, /id="debugFreeCamToggle"/);
+  assert.match(index, /Debug free cam/);
+  assert.match(runtimeSource, /'debugFreeCam'/);
+  assert.match(runtimeSource, /createDebugFreeCameraMovement/);
+  assert.match(runtimeSource, /function updateDebugFreeCamera/);
+  assert.match(runtimeSource, /function getGameplayCamera/);
+  assert.match(runtimeSource, /function getDebugPlayerMarker/);
+  assert.match(runtimeSource, /effects\.debugFreeCam/);
+  assert.match(runtimeSource, /debugPlayerMarker/);
+  assert.match(runtimeSource, /debugFreeCamToggle/);
+});
+
 test('renders a toggleable GTA-style radar HUD', () => {
   assert.match(index, /id="radarHud"/);
   assert.match(index, /id="radarMapToggle"/);
@@ -59,6 +72,7 @@ test('renders a toggleable GTA-style radar HUD', () => {
   assert.match(runtimeSource, /drawRadarHud/);
   assert.match(runtimeSource, /world\.warpGate/);
   assert.match(runtimeSource, /effects\.radarMap/);
+  assert.match(runtimeSource, /player:\s*getGameplayCamera\(now\)/);
 });
 
 test('offers a clean test view video preset in the options menu', () => {
@@ -109,7 +123,7 @@ test('shows a VHS-style photosensitivity warning before the title screen', () =>
   assert.match(runtimeSource, /bootWarning\.hidden = true/);
   assert.match(runtimeSource, /document\.body\.classList\.remove\('boot-warning-active'\)/);
   assert.match(index, /styles\.css\?v=17/);
-  assert.match(index, /src\/app\.js\?v=153/);
+  assert.match(index, /src\/app\.js\?v=154/);
 });
 
 test('offers a hard Cut Up title mode that cycles all nine worlds', () => {

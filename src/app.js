@@ -188,6 +188,7 @@ import {
 } from './playerFeedback.js';
 import {
   createGamepadSnapshot,
+  createDebugFreeCameraMovement,
   createSoftMouseEdgeTurn,
   createTouchJoystickState,
 } from './inputRuntime.js';
@@ -305,6 +306,13 @@ const player = {
   grounded: true,
   groundY: world.playerSpawn.y,
 };
+const debugFreeCamera = {
+  x: player.x,
+  y: player.y,
+  z: player.z,
+  yaw: player.yaw,
+  pitch: player.pitch,
+};
 
 const keys = new Set();
 const deathState = {
@@ -377,6 +385,7 @@ const OPTION_CHECKBOX_BINDINGS = Object.freeze([
   Object.freeze(['zombies', 'zombies']),
   Object.freeze(['radarMapToggle', 'radarMap']),
   Object.freeze(['debugHudToggle', 'debugHud']),
+  Object.freeze(['debugFreeCamToggle', 'debugFreeCam']),
 ]);
 
 function frame(now) {
@@ -412,6 +421,11 @@ function updatePlayer(dt, now) {
   local.z = Math.abs(touchMovement.z) > 0.12 ? touchMovement.z : local.z;
   local.x = Math.abs(gamepadInput.x) > 0 ? gamepadInput.x : local.x;
   local.z = Math.abs(gamepadInput.z) > 0 ? gamepadInput.z : local.z;
+  if (effects.debugFreeCam) {
+    updateDebugFreeCamera(local, dt);
+    return;
+  }
+
   const speed = keys.has('ShiftLeft') || gamepadInput.sprint ? 4.4 : 2.8;
   const movement = createMovementDelta(local, player.yaw, speed, dt);
   const next = resolveMovement(
@@ -482,6 +496,17 @@ function updatePlayer(dt, now) {
   }
 }
 
+function updateDebugFreeCamera(local, dt) {
+  const nextCamera = createDebugFreeCameraMovement(debugFreeCamera, {
+    local,
+    up: keys.has('Space') || gamepadInput.jump,
+    down: keys.has('ControlLeft') || keys.has('ControlRight'),
+    sprint: keys.has('ShiftLeft') || gamepadInput.sprint,
+    dt,
+  });
+  Object.assign(debugFreeCamera, nextCamera);
+}
+
 function render(time, now = performance.now()) {
   const lightningStrength = getLightningStrength(time, world.lightning);
   const healthEffect = getHealthEffectStrength(now);
@@ -496,9 +521,21 @@ function render(time, now = performance.now()) {
 
   drawSkyDome(time, now);
 
-  const dynamicEnemyMesh = effects.zombies ? zombieMesh : null;
-  if (effects.zombies) {
-    updateZombieMesh(gl, zombieMesh, zombies, textureIndices, characterModels, time, now, bloodBursts, zombieModel);
+  const debugPlayerMarker = effects.debugFreeCam && !deathState.active ? getDebugPlayerMarker() : null;
+  const dynamicEnemyMesh = effects.zombies || debugPlayerMarker ? zombieMesh : null;
+  if (dynamicEnemyMesh) {
+    updateZombieMesh(
+      gl,
+      zombieMesh,
+      effects.zombies ? zombies : [],
+      textureIndices,
+      characterModels,
+      time,
+      now,
+      effects.zombies ? bloodBursts : [],
+      zombieModel,
+      debugPlayerMarker,
+    );
   }
   drawScenePass(gl, {
     program: sceneProgram,
@@ -554,7 +591,7 @@ function render(time, now = performance.now()) {
     renderTitleScreen(time);
   }
   updateLowHealthNotice(now);
-  updateRadarHud();
+  updateRadarHud(now);
 }
 
 function ensureAudioState() {
@@ -752,7 +789,7 @@ function syncWorldStingerAudio(state) {
 function updateSceneAudio(time, lightningStrength) {
   if (!audioState) return;
 
-  updateAudioListener(audioState.context.listener, player, audioState.context.currentTime);
+  updateAudioListener(audioState.context.listener, getGameplayCamera(performance.now()), audioState.context.currentTime);
   applySceneReverb(audioState, world.audio.reverb);
   syncAudioMasterVolumes(audioState, effects);
   ensureSceneAmbienceLoop(audioState, world.id, SCENE_AMBIENCE_URLS, { isCurrent: isCurrentSceneAudioState });
@@ -791,6 +828,8 @@ function syncPlayerFootstepAudio(state) {
 }
 
 function getPlayerFootstepGains() {
+  if (effects.debugFreeCam) return { walk: 0, sprint: 0 };
+
   const moving = keys.has('KeyW')
     || keys.has('KeyA')
     || keys.has('KeyS')
@@ -1036,13 +1075,29 @@ function isZombieAudioOccluded(zombie) {
 
 function createViewProjection(now = performance.now()) {
   const projection = perspective(Math.PI / 3.2, PS1_RENDER_TARGET.aspect, 0.08, 80);
-  const view = cameraView(getActiveCamera(now));
+  const view = cameraView(getGameplayCamera(now));
   return multiplyMat4(projection, view);
 }
 
 function getActiveCamera(now) {
   if (deathState.active) return getDeathSceneCamera(deathState, player, now);
   return getBossImpactCamera(now);
+}
+
+function getGameplayCamera(now = performance.now()) {
+  if (effects.debugFreeCam && !deathState.active) return debugFreeCamera;
+  return getActiveCamera(now);
+}
+
+function getDebugPlayerMarker() {
+  return {
+    x: player.x,
+    y: player.y,
+    z: player.z,
+    radius: 0.34,
+    height: 1.72,
+    texture: 'healthPotion',
+  };
 }
 
 function getBossImpactCamera(now) {
@@ -1153,9 +1208,10 @@ function setupInput() {
     if (!hasActiveMouseCapture()) return;
     const delta = createMouseLookDelta(event, lastMousePosition);
     lastMousePosition = delta.position;
-    const look = applyMouseLook(player, delta, { invertY: effects.invertY });
-    player.yaw = look.yaw;
-    player.pitch = look.pitch;
+    const lookTarget = getMouseLookTarget();
+    const look = applyMouseLook(lookTarget, delta, { invertY: effects.invertY });
+    lookTarget.yaw = look.yaw;
+    lookTarget.pitch = look.pitch;
     updateSoftMouseEdgeTurn(event);
   });
   setupTouchControls();
@@ -1234,14 +1290,15 @@ function updateTouchLook(event) {
     movementX: event.clientX - touchLook.x,
     movementY: event.clientY - touchLook.y,
   };
-  const look = applyMouseLook(player, delta, {
+  const lookTarget = getMouseLookTarget();
+  const look = applyMouseLook(lookTarget, delta, {
     invertY: effects.invertY,
     yawSensitivity: 0.0042,
     pitchSensitivity: 0.0032,
   });
 
-  player.yaw = look.yaw;
-  player.pitch = look.pitch;
+  lookTarget.yaw = look.yaw;
+  lookTarget.pitch = look.pitch;
   touchLook.x = event.clientX;
   touchLook.y = event.clientY;
 }
@@ -1300,13 +1357,14 @@ function applyGamepadLook(dt) {
   if (titleActive || optionsDialog.open || deathState.active) return;
   if (Math.abs(gamepadInput.lookX) <= 0 && Math.abs(gamepadInput.lookY) <= 0) return;
 
-  const look = applyMouseLook(player, {
+  const lookTarget = getMouseLookTarget();
+  const look = applyMouseLook(lookTarget, {
     movementX: gamepadInput.lookX * dt * 920,
     movementY: gamepadInput.lookY * dt * 760,
   }, { invertY: effects.invertY });
 
-  player.yaw = look.yaw;
-  player.pitch = look.pitch;
+  lookTarget.yaw = look.yaw;
+  lookTarget.pitch = look.pitch;
 }
 
 function getPrimaryGamepad() {
@@ -1384,8 +1442,21 @@ function updateSoftMouseEdgeTurn(event) {
 function updateContinuousMouseLook(dt) {
   if (!softMouseLockActive || optionsDialog.open) return;
 
-  player.yaw += softMouseEdgeTurn.yaw * dt;
-  player.pitch = clamp(player.pitch + softMouseEdgeTurn.pitch * dt, -0.92, 0.92);
+  const lookTarget = getMouseLookTarget();
+  lookTarget.yaw += softMouseEdgeTurn.yaw * dt;
+  lookTarget.pitch = clamp(lookTarget.pitch + softMouseEdgeTurn.pitch * dt, -0.92, 0.92);
+}
+
+function getMouseLookTarget() {
+  return effects.debugFreeCam ? debugFreeCamera : player;
+}
+
+function syncDebugFreeCameraToPlayer() {
+  debugFreeCamera.x = player.x;
+  debugFreeCamera.y = player.y;
+  debugFreeCamera.z = player.z;
+  debugFreeCamera.yaw = player.yaw;
+  debugFreeCamera.pitch = player.pitch;
 }
 
 function resetSoftMouseEdgeTurn() {
@@ -1443,6 +1514,7 @@ function setupOptions() {
       if (key === 'showReticule') syncReticule();
       if (key === 'radarMap') updateRadarHud();
       if (key === 'debugHud') updateDebugHud(0);
+      if (key === 'debugFreeCam' && input.checked) syncDebugFreeCameraToPlayer();
       saveOptions(effects);
     });
   }
@@ -1993,7 +2065,7 @@ function updateLowHealthNotice(now) {
   }
 }
 
-function updateRadarHud() {
+function updateRadarHud(now = performance.now()) {
   const visible = effects.radarMap
     && !titleActive
     && !optionsDialog.open
@@ -2006,7 +2078,7 @@ function updateRadarHud() {
   }
 
   drawRadarHud(radarHudContext, {
-    player,
+    player: getGameplayCamera(now),
     enemies: effects.zombies ? zombies : [],
     portal: world.warpGate,
   });
@@ -2227,6 +2299,7 @@ function resetPlayerToSpawn() {
   player.velocityY = 0;
   player.grounded = true;
   player.groundY = getGroundYAt(player, walkableSurfaces) ?? world.playerSpawn.y;
+  syncDebugFreeCameraToPlayer();
   playerHealth = createPlayerHealth();
   healthPickupFlashStartedAt = -Infinity;
   lastDamageFlashStartedAt = -Infinity;
@@ -2252,7 +2325,7 @@ function drawSkyDome(time, now) {
     program: skyProgram,
     mesh: skyDomeMesh,
     time,
-    camera: getActiveCamera(now),
+    camera: getGameplayCamera(now),
     viewProjection: createViewProjection(now),
   });
 }

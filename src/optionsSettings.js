@@ -19,6 +19,7 @@ export const SAVED_OPTION_KEYS = Object.freeze([
   'zombies',
   'radarMap',
   'debugHud',
+  'debugFreeCam',
   'musicVolume',
   'sfxVolume',
 ]);

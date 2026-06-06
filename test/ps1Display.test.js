@@ -34,6 +34,7 @@ test('starts with PS1/CRT effects enabled and adjustable', () => {
   assert.equal(DEFAULT_EFFECTS.musicVolume, 0.72);
   assert.equal(DEFAULT_EFFECTS.sfxVolume, 0.82);
   assert.equal(DEFAULT_EFFECTS.debugHud, false);
+  assert.equal(DEFAULT_EFFECTS.debugFreeCam, false);
 });
 
 test('includes a stronger portable CRT preset for 1999 TV feel', () => {
@@ -63,6 +64,7 @@ test('video presets are complete whole-option profiles', () => {
     'musicVolume',
     'sfxVolume',
     'debugHud',
+    'debugFreeCam',
     'brightness',
     'contrast',
     'saturation',
@@ -95,6 +97,7 @@ test('portable TV preset restores the full crunchy PS1 profile', () => {
   assert.equal(portable.musicVolume, 0.72);
   assert.equal(portable.sfxVolume, 0.82);
   assert.equal(portable.debugHud, false);
+  assert.equal(portable.debugFreeCam, false);
 });
 
 test('includes a clean test view preset matching the 1024 art-check settings', () => {
@@ -117,6 +120,7 @@ test('includes a clean test view preset matching the 1024 art-check settings', (
   assert.equal(effects.sfxVolume, 0.82);
   assert.equal(effects.showReticule, true);
   assert.equal(effects.debugHud, false);
+  assert.equal(effects.debugFreeCam, false);
 });
 
 test('offers the requested PlayStation resolution modes', () => {

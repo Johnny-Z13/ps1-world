@@ -1,5 +1,7 @@
 export const GAMEPAD_DEADZONE = 0.18;
 export const TOUCH_JOYSTICK_MAX_DISTANCE = 48;
+export const DEBUG_FREE_CAMERA_WALK_SPEED = 5.6;
+export const DEBUG_FREE_CAMERA_SPRINT_SPEED = 13.5;
 
 export function normalizeGamepadAxis(value, deadzone = GAMEPAD_DEADZONE) {
   if (Math.abs(value) < deadzone) return 0;
@@ -62,6 +64,34 @@ export function createTouchJoystickState({
     stickY: roundInputValue(stickY),
     x: roundInputValue(stickX / maxDistance),
     z: roundInputValue(-stickY / maxDistance),
+  };
+}
+
+export function createDebugFreeCameraMovement(camera, {
+  local = { x: 0, z: 0 },
+  up = false,
+  down = false,
+  sprint = false,
+  dt = 0,
+} = {}) {
+  const speed = sprint ? DEBUG_FREE_CAMERA_SPRINT_SPEED : DEBUG_FREE_CAMERA_WALK_SPEED;
+  const step = speed * dt;
+  const cosYaw = Math.cos(camera.yaw);
+  const sinYaw = Math.sin(camera.yaw);
+  const cosPitch = Math.cos(camera.pitch);
+  const sinPitch = Math.sin(camera.pitch);
+  const forwardX = sinYaw * cosPitch;
+  const forwardY = sinPitch;
+  const forwardZ = cosYaw * cosPitch;
+  const rightX = cosYaw;
+  const rightZ = -sinYaw;
+  const vertical = (up ? 1 : 0) - (down ? 1 : 0);
+
+  return {
+    ...camera,
+    x: roundInputValue(camera.x + (forwardX * local.z + rightX * local.x) * step),
+    y: roundInputValue(camera.y + (forwardY * local.z + vertical) * step),
+    z: roundInputValue(camera.z + (forwardZ * local.z + rightZ * local.x) * step),
   };
 }
 
