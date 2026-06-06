@@ -17,6 +17,16 @@ export function createGameSmokeHarness() {
       };
     },
 
+    startGeometryGarden() {
+      const world = createSceneWorld('astral-geometry-garden');
+      return {
+        mode: 'geometry-garden',
+        world,
+        playerHealth: createPlayerHealth(),
+        zombies: [],
+      };
+    },
+
     applyAllVideoPresets() {
       return VIDEO_PRESETS.map((preset) => {
         const effects = applyVideoPreset(createEffectState(), preset.id);

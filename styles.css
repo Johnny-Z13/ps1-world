@@ -219,6 +219,7 @@ body.game-active * {
 }
 
 .title-start-hitbox,
+.title-geometry-garden-hitbox,
 .title-cut-up-hitbox,
 .title-rogue-hitbox,
 .title-options-hitbox {
@@ -237,22 +238,27 @@ body.game-active * {
 }
 
 .title-start-hitbox {
-  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.583);
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.542);
+}
+
+.title-geometry-garden-hitbox {
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.629);
 }
 
 .title-cut-up-hitbox {
-  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.679);
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.717);
 }
 
 .title-rogue-hitbox {
-  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.775);
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.804);
 }
 
 .title-options-hitbox {
-  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.85);
+  top: calc(50% - var(--title-height) / 2 + var(--title-height) * 0.892);
 }
 
 .title-start-hitbox:focus-visible,
+.title-geometry-garden-hitbox:focus-visible,
 .title-cut-up-hitbox:focus-visible,
 .title-rogue-hitbox:focus-visible,
 .title-options-hitbox:focus-visible {

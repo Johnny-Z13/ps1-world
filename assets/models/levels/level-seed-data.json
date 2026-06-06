@@ -54,6 +54,10 @@
           "size": 64
         },
         {
+          "id": "meshyGoldGoblet",
+          "size": 64
+        },
+        {
           "id": "zombie",
           "size": 64
         },
@@ -71,6 +75,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -1077,9 +1085,7 @@
           "y": 1.45,
           "z": -10,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         }
       ],
       "healthPotions": [
@@ -1121,6 +1127,24 @@
           "mesh": "health-flask",
           "motion": "pickup-bob",
           "radius": 0.72
+        }
+      ],
+      "collectibles": [
+        {
+          "name": "golden goblet",
+          "x": 2,
+          "y": 1.17,
+          "z": 1.5,
+          "width": 1.48,
+          "depth": 0.96,
+          "height": 1.44,
+          "texture": "meshyGoldGoblet",
+          "motion": "pickup-bob",
+          "warping": false,
+          "collectibleId": "dungeon-golden-goblet",
+          "collectibleType": "goblet",
+          "label": "You found the goblet.",
+          "radius": 0.69
         }
       ],
       "damageZones": [
@@ -1199,6 +1223,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -2026,9 +2054,7 @@
           "y": 1.45,
           "z": 24,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "alien-landscape molten-sentinel spawner",
@@ -2039,11 +2065,9 @@
           "mesh": "molten-sentinel",
           "x": 18,
           "y": 1.45,
-          "z": 0.88,
+          "z": 1.08,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -2159,6 +2183,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -2896,9 +2924,7 @@
           "y": 1.45,
           "z": 12,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         }
       ],
       "healthPotions": [
@@ -3013,6 +3039,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -3766,9 +3796,7 @@
           "y": 1.45,
           "z": 3.95,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "neon-backstreets molten-sentinel spawner",
@@ -3777,13 +3805,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": -2,
+          "x": -0.9199999999999999,
           "y": 1.45,
-          "z": -15.12,
+          "z": -16,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -3888,6 +3914,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -4596,9 +4626,7 @@
           "y": 1.45,
           "z": 18,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "sunken-temple molten-sentinel spawner",
@@ -4607,13 +4635,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 0.88,
+          "x": 1.08,
           "y": 1.45,
           "z": -16,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -4717,6 +4743,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -6436,9 +6466,7 @@
           "y": 1.45,
           "z": 20,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "one-bit-cathedral molten-sentinel spawner",
@@ -6447,13 +6475,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": -19.408,
+          "x": 1.08,
           "y": 1.45,
-          "z": 20,
+          "z": 12,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -6591,6 +6617,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -11278,9 +11308,7 @@
           "y": 1.45,
           "z": 14,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "rotwood-forest molten-sentinel spawner",
@@ -11289,13 +11317,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 3.4080000000000004,
+          "x": 3.08,
           "y": 1.45,
           "z": -22,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -11391,6 +11417,26 @@
           "size": 64
         },
         {
+          "id": "neonTile",
+          "size": 128
+        },
+        {
+          "id": "neonGlass",
+          "size": 64
+        },
+        {
+          "id": "neonCloud",
+          "size": 64
+        },
+        {
+          "id": "neonLeaf",
+          "size": 64
+        },
+        {
+          "id": "neonBark",
+          "size": 64
+        },
+        {
           "id": "oneBitGrid",
           "size": 128
         },
@@ -11421,25 +11467,29 @@
         {
           "id": "warpGate",
           "size": 64
+        },
+        {
+          "id": "bloodBurst",
+          "size": 64
         }
       ],
       "floor": {
         "name": "central checker platform",
         "x": 0,
         "y": -0.1,
-        "z": 0,
-        "width": 18,
-        "depth": 18,
+        "z": 5,
+        "width": 24,
+        "depth": 24,
         "height": 0.45,
         "texture": "astralGrid",
         "motion": null,
         "collider": {
-          "minX": -9,
-          "maxX": 9,
+          "minX": -12,
+          "maxX": 12,
           "minY": -0.1,
           "maxY": 0.35,
-          "minZ": -9,
-          "maxZ": 9
+          "minZ": -7,
+          "maxZ": 17
         }
       },
       "floorPieces": [
@@ -11447,28 +11497,28 @@
           "name": "central checker platform",
           "x": 0,
           "y": -0.1,
-          "z": 0,
-          "width": 18,
-          "depth": 18,
+          "z": 5,
+          "width": 24,
+          "depth": 24,
           "height": 0.45,
           "texture": "astralGrid",
           "motion": null,
           "collider": {
-            "minX": -9,
-            "maxX": 9,
+            "minX": -12,
+            "maxX": 12,
             "minY": -0.1,
             "maxY": 0.35,
-            "minZ": -9,
-            "maxZ": 9
+            "minZ": -7,
+            "maxZ": 17
           }
         },
         {
           "name": "cyan bridge north",
           "x": 0,
           "y": -0.08,
-          "z": -17,
+          "z": -13,
           "width": 5,
-          "depth": 16,
+          "depth": 20,
           "height": 0.35,
           "texture": "astralCyan",
           "motion": null,
@@ -11477,84 +11527,198 @@
             "maxX": 2.5,
             "minY": -0.08,
             "maxY": 0.26999999999999996,
-            "minZ": -25,
-            "maxZ": -9
+            "minZ": -23,
+            "maxZ": -3
           }
         },
         {
           "name": "yellow left platform",
-          "x": -17,
+          "x": -18,
           "y": -0.06,
-          "z": -19,
-          "width": 15,
-          "depth": 13,
+          "z": -24,
+          "width": 16,
+          "depth": 14,
           "height": 0.38,
           "texture": "astralYellow",
           "motion": null,
           "collider": {
-            "minX": -24.5,
-            "maxX": -9.5,
+            "minX": -26,
+            "maxX": -10,
             "minY": -0.06,
             "maxY": 0.32,
-            "minZ": -25.5,
-            "maxZ": -12.5
+            "minZ": -31,
+            "maxZ": -17
           }
         },
         {
           "name": "magenta right platform",
           "x": 18,
           "y": -0.06,
-          "z": -17,
-          "width": 15,
-          "depth": 15,
+          "z": -22,
+          "width": 16,
+          "depth": 16,
           "height": 0.38,
           "texture": "astralMagenta",
           "motion": null,
           "collider": {
-            "minX": 10.5,
-            "maxX": 25.5,
+            "minX": 10,
+            "maxX": 26,
             "minY": -0.06,
             "maxY": 0.32,
-            "minZ": -24.5,
-            "maxZ": -9.5
+            "minZ": -30,
+            "maxZ": -14
           }
         },
         {
           "name": "one-bit rear dais",
           "x": 0,
           "y": -0.05,
-          "z": -32,
-          "width": 18,
-          "depth": 11,
+          "z": -40,
+          "width": 20,
+          "depth": 12,
           "height": 0.4,
           "texture": "oneBitGrid",
           "motion": null,
           "collider": {
-            "minX": -9,
-            "maxX": 9,
+            "minX": -10,
+            "maxX": 10,
             "minY": -0.05,
             "maxY": 0.35000000000000003,
-            "minZ": -37.5,
-            "maxZ": -26.5
+            "minZ": -46,
+            "maxZ": -34
           }
         },
         {
           "name": "black bridge east",
-          "x": 11,
+          "x": 14,
           "y": -0.05,
-          "z": 0,
-          "width": 12,
-          "depth": 4.2,
+          "z": -4,
+          "width": 18,
+          "depth": 4.4,
           "height": 0.33,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
             "minX": 5,
-            "maxX": 17,
+            "maxX": 23,
             "minY": -0.05,
             "maxY": 0.28,
-            "minZ": -2.1,
-            "maxZ": 2.1
+            "minZ": -6.2,
+            "maxZ": -1.7999999999999998
+          }
+        },
+        {
+          "name": "dogleg east skyblock plaza",
+          "x": 36,
+          "y": -0.05,
+          "z": -16,
+          "width": 18,
+          "depth": 12,
+          "height": 0.36,
+          "texture": "neonTile",
+          "motion": null,
+          "collider": {
+            "minX": 27,
+            "maxX": 45,
+            "minY": -0.05,
+            "maxY": 0.31,
+            "minZ": -22,
+            "maxZ": -10
+          }
+        },
+        {
+          "name": "dogleg vertical neon bridge",
+          "x": 36,
+          "y": -0.04,
+          "z": -32,
+          "width": 5,
+          "depth": 22,
+          "height": 0.34,
+          "texture": "astralCyan",
+          "motion": null,
+          "collider": {
+            "minX": 33.5,
+            "maxX": 38.5,
+            "minY": -0.04,
+            "maxY": 0.30000000000000004,
+            "minZ": -43,
+            "maxZ": -21
+          }
+        },
+        {
+          "name": "dogleg north observation slab",
+          "x": 36,
+          "y": -0.05,
+          "z": -50,
+          "width": 18,
+          "depth": 14,
+          "height": 0.36,
+          "texture": "astralMagenta",
+          "motion": null,
+          "collider": {
+            "minX": 27,
+            "maxX": 45,
+            "minY": -0.05,
+            "maxY": 0.31,
+            "minZ": -57,
+            "maxZ": -43
+          }
+        },
+        {
+          "name": "dogleg west cross span",
+          "x": 13,
+          "y": -0.04,
+          "z": -58,
+          "width": 42,
+          "depth": 4.4,
+          "height": 0.34,
+          "texture": "astralYellow",
+          "motion": null,
+          "collider": {
+            "minX": -8,
+            "maxX": 34,
+            "minY": -0.04,
+            "maxY": 0.30000000000000004,
+            "minZ": -60.2,
+            "maxZ": -55.8
+          }
+        },
+        {
+          "name": "skyblock left garden shelf",
+          "x": -34,
+          "y": -0.05,
+          "z": -58,
+          "width": 18,
+          "depth": 15,
+          "height": 0.36,
+          "texture": "neonTile",
+          "motion": null,
+          "collider": {
+            "minX": -43,
+            "maxX": -25,
+            "minY": -0.05,
+            "maxY": 0.31,
+            "minZ": -65.5,
+            "maxZ": -50.5
+          }
+        },
+        {
+          "name": "skyblock far blue cul-de-sac",
+          "x": -38,
+          "y": -0.05,
+          "z": -38,
+          "width": 12,
+          "depth": 14,
+          "height": 0.36,
+          "texture": "astralCyan",
+          "motion": null,
+          "collider": {
+            "minX": -44,
+            "maxX": -32,
+            "minY": -0.05,
+            "maxY": 0.31,
+            "minZ": -45,
+            "maxZ": -31
           }
         }
       ],
@@ -11562,116 +11726,192 @@
       "walls": [
         {
           "name": "west void lip",
-          "x": -28,
+          "x": -49,
           "y": 0,
-          "z": -12,
+          "z": -25,
           "width": 0.6,
-          "depth": 52,
+          "depth": 90,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": -28.3,
-            "maxX": -27.7,
+            "minX": -49.3,
+            "maxX": -48.7,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": -38,
-            "maxZ": 14
+            "minZ": -70,
+            "maxZ": 20
           }
         },
         {
           "name": "east void lip",
-          "x": 29,
+          "x": 50,
           "y": 0,
-          "z": -12,
+          "z": -25,
           "width": 0.6,
-          "depth": 52,
+          "depth": 90,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": 28.7,
-            "maxX": 29.3,
+            "minX": 49.7,
+            "maxX": 50.3,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": -38,
-            "maxZ": 14
+            "minZ": -70,
+            "maxZ": 20
           }
         },
         {
           "name": "north void lip",
           "x": 0,
           "y": 0,
-          "z": -39,
-          "width": 58,
+          "z": -70,
+          "width": 98,
           "depth": 0.6,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": -29,
-            "maxX": 29,
+            "minX": -49,
+            "maxX": 49,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": -39.3,
-            "maxZ": -38.7
+            "minZ": -70.3,
+            "maxZ": -69.7
           }
         },
         {
           "name": "south void lip",
           "x": 0,
           "y": 0,
-          "z": 11,
-          "width": 58,
+          "z": 19,
+          "width": 98,
           "depth": 0.6,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": -29,
-            "maxX": 29,
+            "minX": -49,
+            "maxX": 49,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": 10.7,
-            "maxZ": 11.3
+            "minZ": 18.7,
+            "maxZ": 19.3
           }
         },
         {
           "name": "left platform rail",
-          "x": -24.5,
+          "x": -26.5,
           "y": 0,
-          "z": -19,
+          "z": -24,
           "width": 0.45,
-          "depth": 13,
+          "depth": 14,
           "height": 1.2,
           "texture": "astralCyan",
           "motion": null,
           "collider": {
-            "minX": -24.725,
-            "maxX": -24.275,
+            "minX": -26.725,
+            "maxX": -26.275,
             "minY": 0,
             "maxY": 1.2,
-            "minZ": -25.5,
-            "maxZ": -12.5
+            "minZ": -31,
+            "maxZ": -17
           }
         },
         {
           "name": "right platform rail",
-          "x": 25.5,
+          "x": 26.5,
           "y": 0,
-          "z": -17,
+          "z": -22,
           "width": 0.45,
-          "depth": 15,
+          "depth": 16,
           "height": 1.2,
           "texture": "astralMagenta",
           "motion": null,
           "collider": {
-            "minX": 25.275,
-            "maxX": 25.725,
+            "minX": 26.275,
+            "maxX": 26.725,
             "minY": 0,
             "maxY": 1.2,
-            "minZ": -24.5,
-            "maxZ": -9.5
+            "minZ": -30,
+            "maxZ": -14
+          }
+        },
+        {
+          "name": "neon backstreet floating facade west",
+          "x": 30,
+          "y": 0,
+          "z": -18,
+          "width": 0.8,
+          "depth": 8,
+          "height": 6.2,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": {
+            "minX": 29.6,
+            "maxX": 30.4,
+            "minY": 0,
+            "maxY": 6.2,
+            "minZ": -22,
+            "maxZ": -14
+          }
+        },
+        {
+          "name": "neon backstreet floating facade east",
+          "x": 43,
+          "y": 0,
+          "z": -18,
+          "width": 0.8,
+          "depth": 8,
+          "height": 5.4,
+          "texture": "neonTile",
+          "motion": null,
+          "collider": {
+            "minX": 42.6,
+            "maxX": 43.4,
+            "minY": 0,
+            "maxY": 5.4,
+            "minZ": -22,
+            "maxZ": -14
+          }
+        },
+        {
+          "name": "neon backstreet alley lintel",
+          "x": 36.5,
+          "y": 4.4,
+          "z": -22.1,
+          "width": 13,
+          "depth": 0.7,
+          "height": 1.2,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": {
+            "minX": 30,
+            "maxX": 43,
+            "minY": 4.4,
+            "maxY": 5.6000000000000005,
+            "minZ": -22.450000000000003,
+            "maxZ": -21.75
+          }
+        },
+        {
+          "name": "neon backstreet far sign wall",
+          "x": -39,
+          "y": 0,
+          "z": -63,
+          "width": 12,
+          "depth": 0.7,
+          "height": 4.2,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": {
+            "minX": -45,
+            "maxX": -33,
+            "minY": 0,
+            "maxY": 4.2,
+            "minZ": -63.35,
+            "maxZ": -62.65
           }
         }
       ],
@@ -11683,14 +11923,14 @@
           "z": -7,
           "width": 2.6,
           "depth": 2.6,
-          "height": 8.8,
+          "height": 9.8,
           "texture": "astralCyan",
           "motion": null,
           "collider": {
             "minX": -1.3,
             "maxX": 1.3,
             "minY": 0,
-            "maxY": 8.8,
+            "maxY": 9.8,
             "minZ": -8.3,
             "maxZ": -5.7
           }
@@ -11699,7 +11939,7 @@
           "name": "cyan rotating diamond north",
           "x": -7,
           "y": 3.5,
-          "z": -24,
+          "z": -27,
           "width": 2.8,
           "depth": 2.8,
           "height": 3.8,
@@ -11710,53 +11950,53 @@
             "maxX": -5.6,
             "minY": 3.5,
             "maxY": 7.3,
-            "minZ": -25.4,
-            "maxZ": -22.6
+            "minZ": -28.4,
+            "maxZ": -25.6
           }
         },
         {
           "name": "magenta rotating diamond east",
-          "x": 16,
+          "x": 18,
           "y": 3.2,
-          "z": -11,
+          "z": -12,
           "width": 2.8,
           "depth": 2.8,
           "height": 3.8,
           "texture": "astralMagenta",
           "motion": "bob",
           "collider": {
-            "minX": 14.6,
-            "maxX": 17.4,
+            "minX": 16.6,
+            "maxX": 19.4,
             "minY": 3.2,
             "maxY": 7,
-            "minZ": -12.4,
-            "maxZ": -9.6
+            "minZ": -13.4,
+            "maxZ": -10.6
           }
         },
         {
           "name": "yellow rotating diamond west",
-          "x": -16,
+          "x": -18,
           "y": 3,
-          "z": -11,
+          "z": -13,
           "width": 2.8,
           "depth": 2.8,
           "height": 3.8,
           "texture": "astralYellow",
           "motion": "bob",
           "collider": {
-            "minX": -17.4,
-            "maxX": -14.6,
+            "minX": -19.4,
+            "maxX": -16.6,
             "minY": 3,
             "maxY": 6.8,
-            "minZ": -12.4,
-            "maxZ": -9.6
+            "minZ": -14.4,
+            "maxZ": -11.6
           }
         },
         {
           "name": "black rotating diamond rear",
           "x": 7,
           "y": 3.7,
-          "z": -31,
+          "z": -39,
           "width": 2.8,
           "depth": 2.8,
           "height": 3.8,
@@ -11767,13 +12007,89 @@
             "maxX": 8.4,
             "minY": 3.7,
             "maxY": 7.5,
-            "minZ": -32.4,
-            "maxZ": -29.6
+            "minZ": -40.4,
+            "maxZ": -37.6
+          }
+        },
+        {
+          "name": "neon backstreet rotating cube billboard",
+          "x": 38,
+          "y": 5,
+          "z": -20,
+          "width": 3.4,
+          "depth": 1.2,
+          "height": 3.4,
+          "texture": "neonGlass",
+          "motion": "bob",
+          "collider": {
+            "minX": 36.3,
+            "maxX": 39.7,
+            "minY": 5,
+            "maxY": 8.4,
+            "minZ": -20.6,
+            "maxZ": -19.4
+          }
+        },
+        {
+          "name": "far garden rotating cube sentinel",
+          "x": -38,
+          "y": 5.1,
+          "z": -58,
+          "width": 3.2,
+          "depth": 3.2,
+          "height": 3.2,
+          "texture": "astralYellow",
+          "motion": "bob",
+          "collider": {
+            "minX": -39.6,
+            "maxX": -36.4,
+            "minY": 5.1,
+            "maxY": 8.3,
+            "minZ": -59.6,
+            "maxZ": -56.4
+          }
+        },
+        {
+          "name": "overscale surprise low-poly tesseract altar",
+          "x": 36,
+          "y": 0.2,
+          "z": -53,
+          "width": 7.6,
+          "depth": 7.6,
+          "height": 7.6,
+          "texture": "oneBitGrid",
+          "motion": "bob",
+          "collider": {
+            "minX": 32.2,
+            "maxX": 39.8,
+            "minY": 0.2,
+            "maxY": 7.8,
+            "minZ": -56.8,
+            "maxZ": -49.2
           }
         },
         {
           "name": "mirrored monolith left",
-          "x": -20,
+          "x": -22,
+          "y": 0,
+          "z": -27,
+          "width": 2,
+          "depth": 4,
+          "height": 6.5,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": {
+            "minX": -23,
+            "maxX": -21,
+            "minY": 0,
+            "maxY": 6.5,
+            "minZ": -29,
+            "maxZ": -25
+          }
+        },
+        {
+          "name": "mirrored monolith right",
+          "x": 24,
           "y": 0,
           "z": -23,
           "width": 2,
@@ -11782,8 +12098,8 @@
           "texture": "oneBitGrid",
           "motion": null,
           "collider": {
-            "minX": -21,
-            "maxX": -19,
+            "minX": 23,
+            "maxX": 25,
             "minY": 0,
             "maxY": 6.5,
             "minZ": -25,
@@ -11791,213 +12107,510 @@
           }
         },
         {
-          "name": "mirrored monolith right",
-          "x": 22,
+          "name": "neon backstreet telephone pole",
+          "x": 33,
           "y": 0,
-          "z": -20,
-          "width": 2,
-          "depth": 4,
-          "height": 6.5,
-          "texture": "oneBitGrid",
+          "z": -18,
+          "width": 0.55,
+          "depth": 0.55,
+          "height": 5.8,
+          "texture": "neonBark",
           "motion": null,
           "collider": {
-            "minX": 21,
-            "maxX": 23,
+            "minX": 32.725,
+            "maxX": 33.275,
             "minY": 0,
-            "maxY": 6.5,
-            "minZ": -22,
-            "maxZ": -18
+            "maxY": 5.8,
+            "minZ": -18.275,
+            "maxZ": -17.725
+          }
+        },
+        {
+          "name": "neon backstreet floating awning",
+          "x": 36.5,
+          "y": 3.2,
+          "z": -15,
+          "width": 10,
+          "depth": 1.2,
+          "height": 0.7,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": {
+            "minX": 31.5,
+            "maxX": 41.5,
+            "minY": 3.2,
+            "maxY": 3.9000000000000004,
+            "minZ": -15.6,
+            "maxZ": -14.4
           }
         },
         {
           "name": "orbit cube 1",
-          "x": 7.2,
+          "x": 8.2,
           "y": 2.2,
-          "z": -7,
+          "z": -9,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
           "collider": {
-            "minX": 6.65,
-            "maxX": 7.75,
+            "minX": 7.6499999999999995,
+            "maxX": 8.75,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -7.55,
-            "maxZ": -6.45
+            "minZ": -9.55,
+            "maxZ": -8.45
           }
         },
         {
           "name": "orbit cube 2",
-          "x": 5.824922359499622,
+          "x": 7.1014083110323964,
           "y": 2.2,
-          "z": -2.7679461834941934,
+          "z": -4.900000000000001,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
           "collider": {
-            "minX": 5.274922359499622,
-            "maxX": 6.374922359499622,
+            "minX": 6.551408311032397,
+            "maxX": 7.651408311032396,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -3.3179461834941932,
-            "maxZ": -2.2179461834941936
+            "minZ": -5.450000000000001,
+            "maxZ": -4.350000000000001
           }
         },
         {
           "name": "orbit cube 3",
-          "x": 2.224922359499622,
+          "x": 4.1000000000000005,
           "y": 2.2,
-          "z": -0.1523930826748945,
+          "z": -1.8985916889676044,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
           "collider": {
-            "minX": 1.6749223594996219,
-            "maxX": 2.774922359499622,
+            "minX": 3.5500000000000007,
+            "maxX": 4.65,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -0.7023930826748945,
-            "maxZ": 0.39760691732510556
+            "minZ": -2.4485916889676043,
+            "maxZ": -1.3485916889676044
           }
         },
         {
           "name": "orbit cube 4",
-          "x": -2.224922359499621,
+          "x": 5.021051876504147e-16,
           "y": 2.2,
-          "z": -0.1523930826748936,
+          "z": -0.8000000000000007,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
           "collider": {
-            "minX": -2.7749223594996213,
-            "maxX": -1.674922359499621,
+            "minX": -0.5499999999999995,
+            "maxX": 0.5500000000000006,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -0.7023930826748936,
-            "maxZ": 0.39760691732510645
+            "minZ": -1.3500000000000008,
+            "maxZ": -0.25000000000000067
           }
         },
         {
           "name": "orbit cube 5",
-          "x": -5.824922359499621,
+          "x": -4.099999999999998,
           "y": 2.2,
-          "z": -2.7679461834941925,
+          "z": -1.8985916889676036,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
           "collider": {
-            "minX": -6.374922359499621,
-            "maxX": -5.274922359499621,
+            "minX": -4.649999999999998,
+            "maxX": -3.549999999999998,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -3.3179461834941923,
-            "maxZ": -2.2179461834941927
+            "minZ": -2.4485916889676034,
+            "maxZ": -1.3485916889676035
           }
         },
         {
           "name": "orbit cube 6",
-          "x": -7.2,
+          "x": -7.1014083110323964,
           "y": 2.2,
-          "z": -6.999999999999999,
+          "z": -4.900000000000001,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
           "collider": {
-            "minX": -7.75,
-            "maxX": -6.65,
+            "minX": -7.651408311032396,
+            "maxX": -6.551408311032397,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -7.549999999999999,
-            "maxZ": -6.449999999999999
+            "minZ": -5.450000000000001,
+            "maxZ": -4.350000000000001
           }
         },
         {
           "name": "orbit cube 7",
-          "x": -5.824922359499622,
+          "x": -8.2,
           "y": 2.2,
-          "z": -11.232053816505806,
+          "z": -8.999999999999998,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
           "collider": {
-            "minX": -6.374922359499622,
-            "maxX": -5.274922359499622,
+            "minX": -8.75,
+            "maxX": -7.6499999999999995,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -11.782053816505806,
-            "maxZ": -10.682053816505805
+            "minZ": -9.549999999999999,
+            "maxZ": -8.449999999999998
           }
         },
         {
           "name": "orbit cube 8",
-          "x": -2.2249223594996224,
+          "x": -7.101408311032396,
           "y": 2.2,
-          "z": -13.847606917325106,
+          "z": -13.100000000000001,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
           "collider": {
-            "minX": -2.774922359499622,
-            "maxX": -1.6749223594996223,
+            "minX": -7.651408311032395,
+            "maxX": -6.551408311032396,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -14.397606917325106,
-            "maxZ": -13.297606917325105
+            "minZ": -13.650000000000002,
+            "maxZ": -12.55
           }
         },
         {
           "name": "orbit cube 9",
-          "x": 2.22492235949962,
+          "x": -4.100000000000003,
           "y": 2.2,
-          "z": -13.847606917325106,
+          "z": -16.101408311032394,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
           "collider": {
-            "minX": 1.67492235949962,
-            "maxX": 2.7749223594996204,
+            "minX": -4.650000000000003,
+            "maxX": -3.5500000000000034,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -14.397606917325106,
-            "maxZ": -13.297606917325105
+            "minZ": -16.651408311032394,
+            "maxZ": -15.551408311032393
           }
         },
         {
           "name": "orbit cube 10",
-          "x": 5.824922359499621,
+          "x": -1.5063155629512442e-15,
           "y": 2.2,
-          "z": -11.232053816505807,
+          "z": -17.2,
           "width": 1.1,
           "depth": 1.1,
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
           "collider": {
-            "minX": 5.274922359499621,
-            "maxX": 6.374922359499621,
+            "minX": -0.5500000000000016,
+            "maxX": 0.5499999999999985,
             "minY": 2.2,
             "maxY": 3.3000000000000003,
-            "minZ": -11.782053816505808,
-            "maxZ": -10.682053816505807
+            "minZ": -17.75,
+            "maxZ": -16.65
           }
+        },
+        {
+          "name": "orbit cube 11",
+          "x": 4.1000000000000005,
+          "y": 2.2,
+          "z": -16.101408311032394,
+          "width": 1.1,
+          "depth": 1.1,
+          "height": 1.1,
+          "texture": "astralCyan",
+          "motion": "orbit",
+          "collider": {
+            "minX": 3.5500000000000007,
+            "maxX": 4.65,
+            "minY": 2.2,
+            "maxY": 3.3000000000000003,
+            "minZ": -16.651408311032394,
+            "maxZ": -15.551408311032393
+          }
+        },
+        {
+          "name": "orbit cube 12",
+          "x": 7.101408311032394,
+          "y": 2.2,
+          "z": -13.100000000000003,
+          "width": 1.1,
+          "depth": 1.1,
+          "height": 1.1,
+          "texture": "astralMagenta",
+          "motion": "orbit",
+          "collider": {
+            "minX": 6.551408311032394,
+            "maxX": 7.651408311032394,
+            "minY": 2.2,
+            "maxY": 3.3000000000000003,
+            "minZ": -13.650000000000004,
+            "maxZ": -12.550000000000002
+          }
+        },
+        {
+          "name": "floating tree trunk 1",
+          "x": -30,
+          "y": 1.6,
+          "z": -53,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 1",
+          "x": -30,
+          "y": 5.6,
+          "z": -53,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 2",
+          "x": -23,
+          "y": 2.1500000000000004,
+          "z": -59,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 2",
+          "x": -23,
+          "y": 6.15,
+          "z": -59,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 3",
+          "x": -38,
+          "y": 2.7,
+          "z": -44,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 3",
+          "x": -38,
+          "y": 6.7,
+          "z": -44,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 4",
+          "x": -42,
+          "y": 3.25,
+          "z": -62,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 4",
+          "x": -42,
+          "y": 7.25,
+          "z": -62,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 5",
+          "x": 29,
+          "y": 1.6,
+          "z": -24,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 5",
+          "x": 29,
+          "y": 5.6,
+          "z": -24,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 6",
+          "x": 43,
+          "y": 2.1500000000000004,
+          "z": -34,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 6",
+          "x": 43,
+          "y": 6.15,
+          "z": -34,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 7",
+          "x": 34,
+          "y": 2.7,
+          "z": -45,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 7",
+          "x": 34,
+          "y": 6.7,
+          "z": -45,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 8",
+          "x": -12,
+          "y": 3.25,
+          "z": -28,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 8",
+          "x": -12,
+          "y": 7.25,
+          "z": -28,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 9",
+          "x": 12,
+          "y": 1.6,
+          "z": -32,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 9",
+          "x": 12,
+          "y": 5.6,
+          "z": -32,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree trunk 10",
+          "x": 4,
+          "y": 2.1500000000000004,
+          "z": -50,
+          "width": 0.7,
+          "depth": 0.7,
+          "height": 4.4,
+          "texture": "neonBark",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "floating tree cube canopy 10",
+          "x": 4,
+          "y": 6.15,
+          "z": -50,
+          "width": 4,
+          "depth": 3.4,
+          "height": 2.2,
+          "texture": "neonLeaf",
+          "motion": "bob",
+          "collider": null
         }
       ],
       "platforms": [
@@ -12057,14 +12670,109 @@
             "minZ": 2.4,
             "maxZ": 5.6
           }
+        },
+        {
+          "name": "floating cyan step to void",
+          "x": 26,
+          "y": 1,
+          "z": -35,
+          "width": 5.2,
+          "depth": 4.2,
+          "height": 0.5,
+          "texture": "astralCyan",
+          "motion": null,
+          "collider": {
+            "minX": 23.4,
+            "maxX": 28.6,
+            "minY": 1,
+            "maxY": 1.5,
+            "minZ": -37.1,
+            "maxZ": -32.9
+          }
+        },
+        {
+          "name": "floating yellow step to void",
+          "x": 30,
+          "y": 2.2,
+          "z": -41,
+          "width": 5.2,
+          "depth": 4.2,
+          "height": 0.5,
+          "texture": "astralYellow",
+          "motion": null,
+          "collider": {
+            "minX": 27.4,
+            "maxX": 32.6,
+            "minY": 2.2,
+            "maxY": 2.7,
+            "minZ": -43.1,
+            "maxZ": -38.9
+          }
+        },
+        {
+          "name": "floating magenta lookout",
+          "x": 36,
+          "y": 3.4,
+          "z": -47,
+          "width": 7.2,
+          "depth": 5.2,
+          "height": 0.5,
+          "texture": "astralMagenta",
+          "motion": null,
+          "collider": {
+            "minX": 32.4,
+            "maxX": 39.6,
+            "minY": 3.4,
+            "maxY": 3.9,
+            "minZ": -49.6,
+            "maxZ": -44.4
+          }
+        },
+        {
+          "name": "left sky garden elevator slab",
+          "x": -31,
+          "y": 2.1,
+          "z": -50,
+          "width": 7.5,
+          "depth": 5.2,
+          "height": 0.5,
+          "texture": "neonTile",
+          "motion": null,
+          "collider": {
+            "minX": -34.75,
+            "maxX": -27.25,
+            "minY": 2.1,
+            "maxY": 2.6,
+            "minZ": -52.6,
+            "maxZ": -47.4
+          }
+        },
+        {
+          "name": "left sky garden crown slab",
+          "x": -37,
+          "y": 4.2,
+          "z": -58,
+          "width": 8.5,
+          "depth": 6,
+          "height": 0.5,
+          "texture": "astralCyan",
+          "motion": null,
+          "collider": {
+            "minX": -41.25,
+            "maxX": -32.75,
+            "minY": 4.2,
+            "maxY": 4.7,
+            "minZ": -61,
+            "maxZ": -55
+          }
         }
       ],
       "mountains": [
         {
           "name": "cyan pyramid shard",
-          "x": -16,
+          "x": -18,
           "y": 0,
-          "z": -31,
+          "z": -36,
           "width": 8,
           "depth": 7,
           "height": 7,
@@ -12072,9 +12780,9 @@
         },
         {
           "name": "magenta pyramid shard",
-          "x": 15,
+          "x": 17,
           "y": 0,
-          "z": -30,
+          "z": -35,
           "width": 8,
           "depth": 7,
           "height": 7,
@@ -12082,9 +12790,9 @@
         },
         {
           "name": "yellow pyramid shard",
-          "x": -11,
+          "x": -13,
           "y": 0,
-          "z": -6,
+          "z": -8,
           "width": 7,
           "depth": 6,
           "height": 5.5,
@@ -12092,21 +12800,41 @@
         },
         {
           "name": "black pyramid shard",
-          "x": 18,
+          "x": 20,
           "y": 0,
-          "z": -4,
+          "z": -5,
           "width": 7,
           "depth": 6,
           "height": 5.5,
           "texture": "astralBlack"
+        },
+        {
+          "name": "far dogleg cyan pyramid anchor",
+          "x": 45,
+          "y": 0,
+          "z": -55,
+          "width": 10,
+          "depth": 9,
+          "height": 9,
+          "texture": "astralCyan"
+        },
+        {
+          "name": "far left magenta pyramid anchor",
+          "x": -44,
+          "y": 0,
+          "z": -61,
+          "width": 9,
+          "depth": 9,
+          "height": 8,
+          "texture": "astralMagenta"
         }
       ],
       "cards": [
         {
           "name": "distant polygon comet 1",
-          "x": -24,
+          "x": -28,
           "y": 12,
-          "z": -35,
+          "z": -47,
           "width": 3.5,
           "height": 1,
           "texture": "flickerComet",
@@ -12116,7 +12844,7 @@
           "name": "distant polygon comet 2",
           "x": -6,
           "y": 15,
-          "z": -38,
+          "z": -51,
           "width": 3.5,
           "height": 1,
           "texture": "flickerComet",
@@ -12126,7 +12854,7 @@
           "name": "distant polygon comet 3",
           "x": 18,
           "y": 13,
-          "z": -36,
+          "z": -49,
           "width": 3.5,
           "height": 1,
           "texture": "flickerComet",
@@ -12134,13 +12862,63 @@
         },
         {
           "name": "distant polygon comet 4",
-          "x": 27,
+          "x": 34,
           "y": 10,
-          "z": -30,
+          "z": -39,
           "width": 3.5,
           "height": 1,
           "texture": "flickerComet",
           "motion": "flicker-comet"
+        },
+        {
+          "name": "distant polygon comet 5",
+          "x": 45,
+          "y": 18,
+          "z": -63,
+          "width": 3.5,
+          "height": 1,
+          "texture": "flickerComet",
+          "motion": "flicker-comet"
+        },
+        {
+          "name": "distant polygon comet 6",
+          "x": -41,
+          "y": 16,
+          "z": -66,
+          "width": 3.5,
+          "height": 1,
+          "texture": "flickerComet",
+          "motion": "flicker-comet"
+        },
+        {
+          "name": "neon backstreet floating shop sign",
+          "x": 36.5,
+          "y": 3.6,
+          "z": -21.8,
+          "width": 6.4,
+          "height": 1.4,
+          "texture": "neonGlass",
+          "motion": "sign-flicker"
+        },
+        {
+          "name": "neon backstreet high window strip",
+          "x": 30.4,
+          "y": 4.2,
+          "z": -18,
+          "width": 1.6,
+          "height": 5.8,
+          "texture": "neonCloud",
+          "motion": "window-pulse"
+        },
+        {
+          "name": "neon backstreet far garden sign",
+          "x": -39,
+          "y": 5.1,
+          "z": -62.6,
+          "width": 8,
+          "height": 1.6,
+          "texture": "neonGlass",
+          "motion": "sign-flicker"
         }
       ],
       "movingBillboards": [],
@@ -12214,9 +12992,7 @@
           "y": 1.45,
           "z": -4.05,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "astral-geometry-garden molten-sentinel spawner",
@@ -12225,13 +13001,11 @@
           "enemyType": "molten-sentinel",
           "label": "Molten Stone Sentinel",
           "mesh": "molten-sentinel",
-          "x": 0.88,
+          "x": 1.08,
           "y": 1.45,
           "z": -24,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],
@@ -12359,6 +13133,10 @@
         },
         {
           "id": "warpGate",
+          "size": 64
+        },
+        {
+          "id": "bloodBurst",
           "size": 64
         }
       ],
@@ -13426,9 +14204,7 @@
           "y": 1.45,
           "z": -14,
           "yaw": 0,
-          "radius": 0.45,
-          "speed": 0.92,
-          "damage": 18
+          "radius": 0.45
         },
         {
           "name": "motel-mirage molten-sentinel spawner",
@@ -13439,11 +14215,9 @@
           "mesh": "molten-sentinel",
           "x": -18,
           "y": 1.45,
-          "z": 14.88,
+          "z": 15.08,
           "yaw": 0,
-          "radius": 0.38,
-          "speed": 0.78,
-          "damage": 45,
+          "radius": 0.58,
           "minimumHeadClearance": 4.8
         }
       ],

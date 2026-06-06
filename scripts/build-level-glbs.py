@@ -36,6 +36,7 @@ PALETTE = {
     "brick": ("#5b2f35", "#2c1820", "#8a4b4f"),
     "metal": ("#59616d", "#20242c", "#a9b2be"),
     "crate": ("#76523a", "#2f2119", "#b17b4f"),
+    "meshyGoldGoblet": ("#f7d94a", "#9a6716", "#fff0a4"),
     "alienGround": ("#4b7b36", "#1f3021", "#a3c453"),
     "rotMud": ("#3d2d2d", "#151313", "#6d573f"),
     "wetAsphalt": ("#252833", "#0d1018", "#506477"),
@@ -302,6 +303,9 @@ def build_scene_collection(scene, materials, collision_material, walkable_materi
         if category in ("floor", "walls", "platforms", "crates"):
             add_box(groups["walkable"], f"WALKABLE_{scene['id']}_{slug(item['name'])}", top_surface_box(item), walkable_material, textured=False)
 
+    for collectible in scene.get("collectibles", []):
+        add_box(groups["art"], f"ART_{scene['id']}_{slug(collectible['name'])}", collectible, materials[collectible["texture"]], textured=True, uv_scale=1.0)
+
     for mountain in scene.get("mountains", []):
         add_pyramid(groups["art"], f"ART_{scene['id']}_{slug(mountain['name'])}", mountain, materials[mountain["texture"]])
 
@@ -353,6 +357,11 @@ def add_markers(collection, scene, marker_material):
         add_marker(collection, scene, "PICKUP_HEALTH", potion, marker_material, {
             "index": index,
             **marker_extras_from_item(potion),
+        })
+    for index, collectible in enumerate(scene.get("collectibles", []), start=1):
+        add_marker(collection, scene, "PICKUP_COLLECTIBLE", collectible, marker_material, {
+            "index": index,
+            **marker_extras_from_item(collectible),
         })
     for index, light in enumerate(scene.get("lights", []), start=1):
         add_marker(collection, scene, "LIGHT", light, marker_material, {"index": index, "color": light.get("color"), "radius": light.get("radius"), "intensity": light.get("intensity")})
@@ -446,6 +455,10 @@ def add_box(collection, name, item, material, textured, uv_scale=1.0):
         obj["texture_id"] = material_texture_id(material)
         if item.get("motion"):
             obj["motion"] = item["motion"]
+        if "warping" in item:
+            obj["warping"] = item["warping"]
+        if item.get("collectibleId"):
+            obj["collectibleId"] = item["collectibleId"]
         if item.get("surfaceType"):
             obj["surfaceType"] = item["surfaceType"]
         if item.get("damagePerSecond"):

@@ -419,6 +419,7 @@ function palette(id, n) {
     warning: ['#2d2b25', '#413b2d', '#1f1e1b', '#6b5523'],
     torchWood: ['#2a160b', '#4a2b14', '#6b3d1d', '#140b06'],
     torchMetal: ['#1a1714', '#433f3a', '#777068', '#2d2925'],
+    meshyGoldGoblet: ['#f7d94a', '#9a6716', '#fff0a4', '#4f2d08'],
     alienGround: ['#293f37', '#4a5541', '#5e3c5f', '#1e282c'],
     alienRock: ['#3a3048', '#5d526d', '#2b2435', '#74678b'],
     rotMud: ['#1b2012', '#30301b', '#4a3d24', '#152012'],

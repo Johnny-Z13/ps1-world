@@ -36,6 +36,7 @@ const scenes = SCENE_DEFINITIONS.map((definition) => {
     zombieSpawns: world.zombieSpawns,
     enemySpawns: world.enemySpawns,
     healthPotions: world.healthPotions,
+    collectibles: world.collectibles,
     damageZones: world.damageZones,
     playerTorch: world.playerTorch,
     skyMode: world.skyMode,

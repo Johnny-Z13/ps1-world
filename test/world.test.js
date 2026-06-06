@@ -154,18 +154,28 @@ test('builds rotwood forest with dark-fantasy landmarks and living cards', () =>
 test('builds astral geometry garden as a navigable haunted demo-disc sculpture park', () => {
   const world = createSceneWorld('astral-geometry-garden');
   const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
+  const doglegPlatforms = world.floorPieces.filter((item) => item.name.includes('dogleg') || item.name.includes('skyblock'));
+  const treeForms = world.crates.filter((item) => item.name.includes('floating tree'));
+  const neonFragments = [...world.crates, ...world.walls, ...world.cards].filter((item) => item.name.includes('neon backstreet'));
 
   assert.equal(world.id, 'astral-geometry-garden');
-  assert.ok(world.floorPieces.length >= 5);
-  assert.ok(world.crates.filter((item) => item.motion === 'bob').length >= 4);
-  assert.ok(world.crates.filter((item) => item.motion === 'orbit').length >= 8);
+  assert.ok(world.floorPieces.length >= 12);
+  assert.ok(world.floor.width >= 22);
+  assert.ok(doglegPlatforms.length >= 4);
+  assert.ok(world.floorPieces.some((item) => item.x > 34 && item.z < -38));
+  assert.ok(world.floorPieces.some((item) => item.x < -28 && item.z < -54));
+  assert.ok(world.platforms.some((item) => item.y >= 3.2));
+  assert.ok(world.crates.filter((item) => item.motion === 'bob').length >= 7);
+  assert.ok(world.crates.filter((item) => item.motion === 'orbit').length >= 12);
+  assert.ok(treeForms.length >= 10);
+  assert.ok(neonFragments.length >= 8);
   assert.deepEqual(world.skyDome, { mode: 'clouds', palette: 'liminal-blue' });
   assert.ok(world.clearColor[2] > world.clearColor[0]);
   assert.ok(world.clearColor[1] > 0.6);
-  assert.ok(world.mountains.filter((item) => item.name.includes('pyramid')).length >= 4);
-  assert.ok(world.cards.filter((item) => item.motion === 'flicker-comet').length >= 4);
+  assert.ok(world.mountains.filter((item) => item.name.includes('pyramid')).length >= 6);
+  assert.ok(world.cards.filter((item) => item.motion === 'flicker-comet').length >= 6);
   assert.equal(world.shootingStar.interval, 10);
-  assert.ok(colliders.length >= 12);
+  assert.ok(colliders.length >= 30);
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
 });
 

@@ -122,8 +122,8 @@ test('shows a VHS-style photosensitivity warning before the title screen', () =>
   assert.match(runtimeSource, /function startBootWarningTimer/);
   assert.match(runtimeSource, /bootWarning\.hidden = true/);
   assert.match(runtimeSource, /document\.body\.classList\.remove\('boot-warning-active'\)/);
-  assert.match(index, /styles\.css\?v=17/);
-  assert.match(index, /src\/app\.js\?v=154/);
+  assert.match(index, /styles\.css\?v=18/);
+  assert.match(index, /src\/app\.js\?v=155/);
 });
 
 test('offers a hard Cut Up title mode that cycles all nine worlds', () => {
@@ -169,6 +169,19 @@ test('offers Rogue title mode with warp progression and a victory screen', () =>
   assert.match(runtimeSource, /rogueReturnButton\.addEventListener\('click'/);
 });
 
+test('offers Geometry Garden as a dedicated title sandbox mode', () => {
+  assert.match(index, /id="geometryGardenButton"/);
+  assert.match(index, /aria-label="Geometry Garden"/);
+  assert.match(styles, /\.title-geometry-garden-hitbox/);
+  assert.match(runtimeSource, /const GEOMETRY_GARDEN_SCENE_ID = 'astral-geometry-garden'/);
+  assert.match(runtimeSource, /function startGeometryGardenMode/);
+  assert.match(runtimeSource, /gameState\.mode = 'geometry-garden'/);
+  assert.match(runtimeSource, /setScene\(GEOMETRY_GARDEN_SCENE_ID\)/);
+  assert.match(runtimeSource, /bindTitleButton\(geometryGardenButton,\s*geometryGardenButtonState,\s*\(\) => startGeometryGardenMode\(\)\)/);
+  assert.match(runtimeSource, /function isEnemyGameplayEnabled/);
+  assert.match(runtimeSource, /gameState\.mode !== 'geometry-garden'/);
+});
+
 test('warns and flashes before Cut Up jumps scenes', () => {
   assert.match(cutUpMode, /export const CUT_UP_COUNTDOWN_SECONDS = 3/);
   assert.match(cutUpMode, /export const CUT_UP_FLASH_DURATION_MS = 260/);
@@ -194,8 +207,9 @@ test('keeps title mode buttons compact and vertically separated', () => {
   assert.match(styles, /--title-button-width:\s*calc\(var\(--title-width\) \* 0\.29\)/);
   assert.match(styles, /--title-button-height:\s*calc\(var\(--title-height\) \* 0\.067\)/);
   assert.match(runtimeSource, /TITLE_BUTTON_LAYOUT/);
-  assert.match(runtimeSource, /key: 'options', y: 392, label: 'options'/);
-  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 438, 1\.25/);
+  assert.match(runtimeSource, /key: 'geometryGarden', y: 286, label: 'geometry garden'/);
+  assert.match(runtimeSource, /key: 'options', y: 412, label: 'options'/);
+  assert.match(runtimeSource, /drawCenteredBitmapText\(context,\s*'wasd\+mouse or gamepad', 450, 1\.25/);
   assert.match(runtimeSource, /const width = 150/);
   assert.match(runtimeSource, /const height = 32/);
   assert.match(runtimeSource, /const textScale = 1\.5/);
@@ -553,7 +567,7 @@ test('loops zombie grunt audio when zombies are active near the player', () => {
   assert.match(runtimeSource, /function getZombieGruntGain/);
   assert.match(runtimeSource, /state\.zombieVoices/);
   assert.match(runtimeSource, /source\.loop = true/);
-  assert.match(runtimeSource, /!effects\.zombies/);
+  assert.match(runtimeSource, /!isEnemyGameplayEnabled\(\)/);
   assert.match(runtimeSource, /Math\.hypot\(player\.x - zombie\.x,\s*player\.z - zombie\.z\)/);
 });
 

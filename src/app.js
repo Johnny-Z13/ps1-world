@@ -239,6 +239,7 @@ const debugEnemies = document.querySelector('#debugEnemies');
 const titleScreen = document.querySelector('#titleScreen');
 const titleCanvas = document.querySelector('#titleCanvas');
 const startButton = document.querySelector('#startButton');
+const geometryGardenButton = document.querySelector('#geometryGardenButton');
 const cutUpButton = document.querySelector('#cutUpButton');
 const rogueButton = document.querySelector('#rogueButton');
 const titleOptionsButton = document.querySelector('#titleOptionsButton');
@@ -267,6 +268,7 @@ if (!gl) {
 const effects = createEffectState(loadSavedOptions());
 effects.sceneId = 'dungeon';
 const BOOT_WARNING_DURATION_MS = 2000;
+const GEOMETRY_GARDEN_SCENE_ID = 'astral-geometry-garden';
 const CUT_UP_SCENE_COUNT = SCENE_DEFINITIONS.length;
 const BOSS_IMPACT_SHAKE_DURATION_MS = 360;
 const BOSS_IMPACT_SHAKE_DISTANCE = 10;
@@ -338,6 +340,7 @@ let touchJumpActive = false;
 let bootWarningActive = true;
 let titleActive = true;
 const titleButtonState = { active: false };
+const geometryGardenButtonState = { active: false };
 const cutUpButtonState = { active: false };
 const rogueButtonState = { active: false };
 const titleOptionsButtonState = { active: false };
@@ -471,7 +474,8 @@ function updatePlayer(dt, now) {
   updateHealthPotions(now);
   updateSceneCollectibles(now);
 
-  if (effects.zombies) {
+  const enemyGameplayEnabled = isEnemyGameplayEnabled();
+  if (enemyGameplayEnabled) {
     const previousEnemies = zombies;
     zombies = updateZombieEnemies(zombies, player, {
       colliders,
@@ -490,7 +494,7 @@ function updatePlayer(dt, now) {
   } else {
     bloodBursts = [];
   }
-  const touchingEnemy = effects.zombies ? getTouchingEnemy(player, zombies) : null;
+  const touchingEnemy = enemyGameplayEnabled ? getTouchingEnemy(player, zombies) : null;
   if (touchingEnemy && isPlayerTouchedByZombie(player, zombies)) {
     damagePlayer(now, touchingEnemy);
   }
@@ -521,18 +525,19 @@ function render(time, now = performance.now()) {
 
   drawSkyDome(time, now);
 
+  const enemyGameplayEnabled = isEnemyGameplayEnabled();
   const debugPlayerMarker = effects.debugFreeCam && !deathState.active ? getDebugPlayerMarker() : null;
-  const dynamicEnemyMesh = effects.zombies || debugPlayerMarker ? zombieMesh : null;
+  const dynamicEnemyMesh = enemyGameplayEnabled || debugPlayerMarker ? zombieMesh : null;
   if (dynamicEnemyMesh) {
     updateZombieMesh(
       gl,
       zombieMesh,
-      effects.zombies ? zombies : [],
+      enemyGameplayEnabled ? zombies : [],
       textureIndices,
       characterModels,
       time,
       now,
-      effects.zombies ? bloodBursts : [],
+      enemyGameplayEnabled ? bloodBursts : [],
       zombieModel,
       debugPlayerMarker,
     );
@@ -616,7 +621,7 @@ function ensureAudioState() {
 }
 
 function ensureSceneAudio() {
-  if (!SCENE_AMBIENCE_URLS[world.id] && !world.lightning && !effects.zombies && !(world.torchLights ?? []).length) return;
+  if (!SCENE_AMBIENCE_URLS[world.id] && !world.lightning && !isEnemyGameplayEnabled() && !(world.torchLights ?? []).length) return;
 
   const state = ensureAudioState();
   if (!state) return;
@@ -889,7 +894,7 @@ function getCurrentPlayerHeartbeatParams() {
 }
 
 function getNearestZombieDistance() {
-  if (!effects.zombies || !zombies.length) return null;
+  if (!isEnemyGameplayEnabled() || !zombies.length) return null;
 
   let nearest = Infinity;
   for (const zombie of zombies) {
@@ -960,7 +965,7 @@ function syncZombieSpatialAudio(state) {
   }
 
   const activeIds = new Set();
-  if (!titleActive && !optionsDialog.open && !deathState.active && effects.zombies) {
+  if (!titleActive && !optionsDialog.open && !deathState.active && isEnemyGameplayEnabled()) {
     for (const zombie of zombies) {
       if ((zombie.enemyType ?? 'zombie') !== 'zombie') continue;
       const gain = getZombieGruntGain(zombie);
@@ -990,7 +995,7 @@ function syncZombieSpatialAudio(state) {
 
 function syncSpecialEnemyAudio(state) {
   const activeIds = new Set();
-  if (!titleActive && !optionsDialog.open && !deathState.active && effects.zombies) {
+  if (!titleActive && !optionsDialog.open && !deathState.active && isEnemyGameplayEnabled()) {
     for (const enemy of zombies) {
       if (!isSpecialEnemy(enemy)) continue;
       const profile = getEnemyAudioProfile(enemy);
@@ -1052,7 +1057,7 @@ function getSpecialEnemyLoopGain(enemy) {
 }
 
 function getZombieGruntGain(zombie) {
-  if (titleActive || optionsDialog.open || deathState.active || !effects.zombies || !zombie) return 0;
+  if (titleActive || optionsDialog.open || deathState.active || !isEnemyGameplayEnabled() || !zombie) return 0;
 
   const nearestDistance = Math.hypot(player.x - zombie.x, player.z - zombie.z);
   const occlusion = isZombieAudioOccluded(zombie) ? ZOMBIE_GRUNT_OCCLUDED_GAIN_MULTIPLIER : 1;
@@ -1149,6 +1154,9 @@ function setupInput() {
       if (event.code === 'Enter' || event.code === 'Space') {
         event.preventDefault();
         startRandomScene();
+      } else if (event.code === 'KeyG') {
+        event.preventDefault();
+        startGeometryGardenMode();
       } else if (event.code === 'KeyC') {
         event.preventDefault();
         startCutUpMode();
@@ -1451,6 +1459,10 @@ function getMouseLookTarget() {
   return effects.debugFreeCam ? debugFreeCamera : player;
 }
 
+function isEnemyGameplayEnabled() {
+  return effects.zombies && gameState.mode !== 'geometry-garden';
+}
+
 function syncDebugFreeCameraToPlayer() {
   debugFreeCamera.x = player.x;
   debugFreeCamera.y = player.y;
@@ -1491,6 +1503,7 @@ function handlePointerLockChange() {
 
 function setupOptions() {
   bindTitleButton(startButton, titleButtonState, () => startRandomScene());
+  bindTitleButton(geometryGardenButton, geometryGardenButtonState, () => startGeometryGardenMode());
   bindTitleButton(cutUpButton, cutUpButtonState, () => startCutUpMode());
   bindTitleButton(rogueButton, rogueButtonState, () => startRogueMode());
   bindTitleButton(titleOptionsButton, titleOptionsButtonState, () => {
@@ -1670,6 +1683,27 @@ function startRandomScene() {
   leaveTitleScreen();
 }
 
+async function startGeometryGardenMode() {
+  if (!titleActive) return;
+
+  gameState.mode = 'geometry-garden';
+  cutUpState.active = false;
+  cutUpHud.hidden = true;
+  rogueRun = null;
+  rogueTransitionPending = false;
+  rogueWinScreen.hidden = true;
+  ensureSceneAudio();
+  playMenuStartConfirmSound();
+  playTransitionOneShot(FREE_ROAM_START_SOUND_URL);
+  const sceneLoaded = await setScene(GEOMETRY_GARDEN_SCENE_ID);
+  if (!sceneLoaded) return;
+  zombies = [];
+  bloodBursts = [];
+  hordeState = createHordeState(world);
+  syncSceneSelect();
+  leaveTitleScreen();
+}
+
 function startCutUpMode() {
   if (!titleActive) return;
 
@@ -1802,6 +1836,7 @@ function renderTitleScreen(time) {
   drawTitleScreen(titleContext, time, {
     buttons: {
       freeRoam: titleButtonState.active,
+      geometryGarden: geometryGardenButtonState.active,
       cutUp: cutUpButtonState.active,
       rogue: rogueButtonState.active,
       options: titleOptionsButtonState.active,
@@ -1864,7 +1899,7 @@ function updateDebugHud(dt) {
     debugEnabled: effects.debugHud,
     sceneLabel: world.label,
     zombieCount,
-    zombiesEnabled: effects.zombies,
+    zombiesEnabled: isEnemyGameplayEnabled(),
   });
   debugHud.fps = snapshot.fps;
   applyDebugHudSnapshot({
@@ -2079,7 +2114,7 @@ function updateRadarHud(now = performance.now()) {
 
   drawRadarHud(radarHudContext, {
     player: getGameplayCamera(now),
-    enemies: effects.zombies ? zombies : [],
+    enemies: isEnemyGameplayEnabled() ? zombies : [],
     portal: world.warpGate,
   });
 }

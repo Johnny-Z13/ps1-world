@@ -17,6 +17,18 @@ test('smoke harness starts Free Roam with playable scene state', () => {
   assert.ok(run.zombies.length > 0);
 });
 
+test('smoke harness starts Geometry Garden as a non-combat sandbox scene', () => {
+  const harness = createGameSmokeHarness();
+  const run = harness.startGeometryGarden();
+
+  assert.equal(run.mode, 'geometry-garden');
+  assert.equal(run.world.id, 'astral-geometry-garden');
+  assert.ok(run.world.playerSpawn);
+  assert.ok(run.playerHealth.value > 0);
+  assert.deepEqual(run.zombies, []);
+  assert.ok(run.world.floorPieces.length >= 12);
+});
+
 test('smoke harness applies every video preset to a valid resolution', () => {
   const harness = createGameSmokeHarness();
   const presets = harness.applyAllVideoPresets();

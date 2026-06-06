@@ -2,10 +2,11 @@ export const TITLE_WIDTH = 512;
 export const TITLE_HEIGHT = 480;
 export const TITLE_LAST_COMMIT_MESSAGE = 'last commit polish scenes and gameplay feedback';
 export const TITLE_BUTTON_LAYOUT = Object.freeze([
-  Object.freeze({ key: 'freeRoam', y: 264, label: 'free roam' }),
-  Object.freeze({ key: 'cutUp', y: 310, label: 'cut-up mode' }),
-  Object.freeze({ key: 'rogue', y: 356, label: 'rogue' }),
-  Object.freeze({ key: 'options', y: 392, label: 'options' }),
+  Object.freeze({ key: 'freeRoam', y: 244, label: 'free roam' }),
+  Object.freeze({ key: 'geometryGarden', y: 286, label: 'geometry garden' }),
+  Object.freeze({ key: 'cutUp', y: 328, label: 'cut-up mode' }),
+  Object.freeze({ key: 'rogue', y: 370, label: 'rogue' }),
+  Object.freeze({ key: 'options', y: 412, label: 'options' }),
 ]);
 
 const TITLE_FONT = Object.freeze({
@@ -61,7 +62,7 @@ export function renderTitleScreen(context, time, options = {}) {
       blink: titleButtonBlink,
     });
   }
-  drawCenteredBitmapText(context, 'wasd+mouse or gamepad', 438, 1.25, '#cfc7aa', time);
+  drawCenteredBitmapText(context, 'wasd+mouse or gamepad', 450, 1.25, '#cfc7aa', time);
   drawCenteredBitmapText(context, footerMessage, 462, 1, '#8f8a77', time);
 }
 
