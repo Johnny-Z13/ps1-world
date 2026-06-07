@@ -11441,6 +11441,10 @@
           "size": 128
         },
         {
+          "id": "paleMoon",
+          "size": 64
+        },
+        {
           "id": "shootingStar",
           "size": 128
         },
@@ -11478,18 +11482,18 @@
         "x": 0,
         "y": -0.1,
         "z": 5,
-        "width": 24,
-        "depth": 24,
+        "width": 42,
+        "depth": 36,
         "height": 0.45,
         "texture": "astralGrid",
         "motion": null,
         "collider": {
-          "minX": -12,
-          "maxX": 12,
+          "minX": -21,
+          "maxX": 21,
           "minY": -0.1,
           "maxY": 0.35,
-          "minZ": -7,
-          "maxZ": 17
+          "minZ": -13,
+          "maxZ": 23
         }
       },
       "floorPieces": [
@@ -11498,37 +11502,37 @@
           "x": 0,
           "y": -0.1,
           "z": 5,
-          "width": 24,
-          "depth": 24,
+          "width": 42,
+          "depth": 36,
           "height": 0.45,
           "texture": "astralGrid",
           "motion": null,
           "collider": {
-            "minX": -12,
-            "maxX": 12,
+            "minX": -21,
+            "maxX": 21,
             "minY": -0.1,
             "maxY": 0.35,
-            "minZ": -7,
-            "maxZ": 17
+            "minZ": -13,
+            "maxZ": 23
           }
         },
         {
           "name": "cyan bridge north",
           "x": 0,
           "y": -0.08,
-          "z": -13,
-          "width": 5,
-          "depth": 20,
+          "z": -17,
+          "width": 14,
+          "depth": 34,
           "height": 0.35,
           "texture": "astralCyan",
           "motion": null,
           "collider": {
-            "minX": -2.5,
-            "maxX": 2.5,
+            "minX": -7,
+            "maxX": 7,
             "minY": -0.08,
             "maxY": 0.26999999999999996,
-            "minZ": -23,
-            "maxZ": -3
+            "minZ": -34,
+            "maxZ": 0
           }
         },
         {
@@ -11536,18 +11540,18 @@
           "x": -18,
           "y": -0.06,
           "z": -24,
-          "width": 16,
-          "depth": 14,
+          "width": 20,
+          "depth": 18,
           "height": 0.38,
           "texture": "astralYellow",
           "motion": null,
           "collider": {
-            "minX": -26,
-            "maxX": -10,
+            "minX": -28,
+            "maxX": -8,
             "minY": -0.06,
             "maxY": 0.32,
-            "minZ": -31,
-            "maxZ": -17
+            "minZ": -33,
+            "maxZ": -15
           }
         },
         {
@@ -11555,37 +11559,37 @@
           "x": 18,
           "y": -0.06,
           "z": -22,
-          "width": 16,
-          "depth": 16,
+          "width": 20,
+          "depth": 20,
           "height": 0.38,
           "texture": "astralMagenta",
           "motion": null,
           "collider": {
-            "minX": 10,
-            "maxX": 26,
+            "minX": 8,
+            "maxX": 28,
             "minY": -0.06,
             "maxY": 0.32,
-            "minZ": -30,
-            "maxZ": -14
+            "minZ": -32,
+            "maxZ": -12
           }
         },
         {
           "name": "one-bit rear dais",
           "x": 0,
           "y": -0.05,
-          "z": -40,
-          "width": 20,
-          "depth": 12,
+          "z": -43,
+          "width": 32,
+          "depth": 24,
           "height": 0.4,
           "texture": "oneBitGrid",
           "motion": null,
           "collider": {
-            "minX": -10,
-            "maxX": 10,
+            "minX": -16,
+            "maxX": 16,
             "minY": -0.05,
             "maxY": 0.35000000000000003,
-            "minZ": -46,
-            "maxZ": -34
+            "minZ": -55,
+            "maxZ": -31
           }
         },
         {
@@ -11593,18 +11597,18 @@
           "x": 14,
           "y": -0.05,
           "z": -4,
-          "width": 18,
-          "depth": 4.4,
+          "width": 22,
+          "depth": 8.5,
           "height": 0.33,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": 5,
-            "maxX": 23,
+            "minX": 3,
+            "maxX": 25,
             "minY": -0.05,
             "maxY": 0.28,
-            "minZ": -6.2,
-            "maxZ": -1.7999999999999998
+            "minZ": -8.25,
+            "maxZ": 0.25
           }
         },
         {
@@ -11612,18 +11616,18 @@
           "x": 36,
           "y": -0.05,
           "z": -16,
-          "width": 18,
-          "depth": 12,
+          "width": 24,
+          "depth": 18,
           "height": 0.36,
           "texture": "neonTile",
           "motion": null,
           "collider": {
-            "minX": 27,
-            "maxX": 45,
+            "minX": 24,
+            "maxX": 48,
             "minY": -0.05,
             "maxY": 0.31,
-            "minZ": -22,
-            "maxZ": -10
+            "minZ": -25,
+            "maxZ": -7
           }
         },
         {
@@ -11631,18 +11635,18 @@
           "x": 36,
           "y": -0.04,
           "z": -32,
-          "width": 5,
-          "depth": 22,
+          "width": 12,
+          "depth": 24,
           "height": 0.34,
           "texture": "astralCyan",
           "motion": null,
           "collider": {
-            "minX": 33.5,
-            "maxX": 38.5,
+            "minX": 30,
+            "maxX": 42,
             "minY": -0.04,
             "maxY": 0.30000000000000004,
-            "minZ": -43,
-            "maxZ": -21
+            "minZ": -44,
+            "maxZ": -20
           }
         },
         {
@@ -11650,37 +11654,37 @@
           "x": 36,
           "y": -0.05,
           "z": -50,
-          "width": 18,
-          "depth": 14,
+          "width": 24,
+          "depth": 18,
           "height": 0.36,
           "texture": "astralMagenta",
           "motion": null,
           "collider": {
-            "minX": 27,
-            "maxX": 45,
+            "minX": 24,
+            "maxX": 48,
             "minY": -0.05,
             "maxY": 0.31,
-            "minZ": -57,
-            "maxZ": -43
+            "minZ": -59,
+            "maxZ": -41
           }
         },
         {
           "name": "dogleg west cross span",
-          "x": 13,
+          "x": 0,
           "y": -0.04,
           "z": -58,
-          "width": 42,
-          "depth": 4.4,
+          "width": 76,
+          "depth": 10.5,
           "height": 0.34,
           "texture": "astralYellow",
           "motion": null,
           "collider": {
-            "minX": -8,
-            "maxX": 34,
+            "minX": -38,
+            "maxX": 38,
             "minY": -0.04,
             "maxY": 0.30000000000000004,
-            "minZ": -60.2,
-            "maxZ": -55.8
+            "minZ": -63.25,
+            "maxZ": -52.75
           }
         },
         {
@@ -11688,18 +11692,18 @@
           "x": -34,
           "y": -0.05,
           "z": -58,
-          "width": 18,
-          "depth": 15,
+          "width": 24,
+          "depth": 20,
           "height": 0.36,
           "texture": "neonTile",
           "motion": null,
           "collider": {
-            "minX": -43,
-            "maxX": -25,
+            "minX": -46,
+            "maxX": -22,
             "minY": -0.05,
             "maxY": 0.31,
-            "minZ": -65.5,
-            "maxZ": -50.5
+            "minZ": -68,
+            "maxZ": -48
           }
         },
         {
@@ -11707,18 +11711,151 @@
           "x": -38,
           "y": -0.05,
           "z": -38,
-          "width": 12,
-          "depth": 14,
+          "width": 16,
+          "depth": 18,
           "height": 0.36,
           "texture": "astralCyan",
           "motion": null,
           "collider": {
-            "minX": -44,
-            "maxX": -32,
+            "minX": -46,
+            "maxX": -30,
             "minY": -0.05,
             "maxY": 0.31,
-            "minZ": -45,
-            "maxZ": -31
+            "minZ": -47,
+            "maxZ": -29
+          }
+        },
+        {
+          "name": "rave horizon checker runway",
+          "x": 0,
+          "y": -0.08,
+          "z": -89,
+          "width": 30,
+          "depth": 56,
+          "height": 0.32,
+          "texture": "astralGrid",
+          "motion": null,
+          "collider": {
+            "minX": -15,
+            "maxX": 15,
+            "minY": -0.08,
+            "maxY": 0.24,
+            "minZ": -117,
+            "maxZ": -61
+          }
+        },
+        {
+          "name": "silver moon mirror plaza",
+          "x": 0,
+          "y": -0.08,
+          "z": -124,
+          "width": 54,
+          "depth": 38,
+          "height": 0.34,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": {
+            "minX": -27,
+            "maxX": 27,
+            "minY": -0.08,
+            "maxY": 0.26,
+            "minZ": -143,
+            "maxZ": -105
+          }
+        },
+        {
+          "name": "western column garden floor",
+          "x": -64,
+          "y": -0.08,
+          "z": -92,
+          "width": 38,
+          "depth": 56,
+          "height": 0.34,
+          "texture": "astralMagenta",
+          "motion": null,
+          "collider": {
+            "minX": -83,
+            "maxX": -45,
+            "minY": -0.08,
+            "maxY": 0.26,
+            "minZ": -120,
+            "maxZ": -64
+          }
+        },
+        {
+          "name": "eastern glass orb terrace",
+          "x": 62,
+          "y": -0.08,
+          "z": -84,
+          "width": 42,
+          "depth": 48,
+          "height": 0.34,
+          "texture": "astralCyan",
+          "motion": null,
+          "collider": {
+            "minX": 41,
+            "maxX": 83,
+            "minY": -0.08,
+            "maxY": 0.26,
+            "minZ": -108,
+            "maxZ": -60
+          }
+        },
+        {
+          "name": "far mountain overlook slab",
+          "x": 0,
+          "y": -0.08,
+          "z": -158,
+          "width": 70,
+          "depth": 30,
+          "height": 0.36,
+          "texture": "astralBlack",
+          "motion": null,
+          "collider": {
+            "minX": -35,
+            "maxX": 35,
+            "minY": -0.08,
+            "maxY": 0.27999999999999997,
+            "minZ": -173,
+            "maxZ": -143
+          }
+        },
+        {
+          "name": "left rave causeway",
+          "x": -43,
+          "y": -0.06,
+          "z": -78,
+          "width": 14,
+          "depth": 42,
+          "height": 0.33,
+          "texture": "astralYellow",
+          "motion": null,
+          "collider": {
+            "minX": -50,
+            "maxX": -36,
+            "minY": -0.06,
+            "maxY": 0.27,
+            "minZ": -99,
+            "maxZ": -57
+          }
+        },
+        {
+          "name": "right reflective causeway",
+          "x": 44,
+          "y": -0.06,
+          "z": -75,
+          "width": 14,
+          "depth": 40,
+          "height": 0.33,
+          "texture": "neonTile",
+          "motion": null,
+          "collider": {
+            "minX": 37,
+            "maxX": 51,
+            "minY": -0.06,
+            "maxY": 0.27,
+            "minZ": -95,
+            "maxZ": -55
           }
         }
       ],
@@ -11726,78 +11863,78 @@
       "walls": [
         {
           "name": "west void lip",
-          "x": -49,
+          "x": -92,
           "y": 0,
-          "z": -25,
+          "z": -76,
           "width": 0.6,
-          "depth": 90,
+          "depth": 210,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": -49.3,
-            "maxX": -48.7,
+            "minX": -92.3,
+            "maxX": -91.7,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": -70,
-            "maxZ": 20
+            "minZ": -181,
+            "maxZ": 29
           }
         },
         {
           "name": "east void lip",
-          "x": 50,
+          "x": 92,
           "y": 0,
-          "z": -25,
+          "z": -76,
           "width": 0.6,
-          "depth": 90,
+          "depth": 210,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": 49.7,
-            "maxX": 50.3,
+            "minX": 91.7,
+            "maxX": 92.3,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": -70,
-            "maxZ": 20
+            "minZ": -181,
+            "maxZ": 29
           }
         },
         {
           "name": "north void lip",
           "x": 0,
           "y": 0,
-          "z": -70,
-          "width": 98,
+          "z": -181,
+          "width": 184,
           "depth": 0.6,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": -49,
-            "maxX": 49,
+            "minX": -92,
+            "maxX": 92,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": -70.3,
-            "maxZ": -69.7
+            "minZ": -181.3,
+            "maxZ": -180.7
           }
         },
         {
           "name": "south void lip",
           "x": 0,
           "y": 0,
-          "z": 19,
-          "width": 98,
+          "z": 25,
+          "width": 184,
           "depth": 0.6,
           "height": 1.5,
           "texture": "astralBlack",
           "motion": null,
           "collider": {
-            "minX": -49,
-            "maxX": 49,
+            "minX": -92,
+            "maxX": 92,
             "minY": 0,
             "maxY": 1.5,
-            "minZ": 18.7,
-            "maxZ": 19.3
+            "minZ": 24.7,
+            "maxZ": 25.3
           }
         },
         {
@@ -11848,14 +11985,7 @@
           "height": 6.2,
           "texture": "neonGlass",
           "motion": null,
-          "collider": {
-            "minX": 29.6,
-            "maxX": 30.4,
-            "minY": 0,
-            "maxY": 6.2,
-            "minZ": -22,
-            "maxZ": -14
-          }
+          "collider": null
         },
         {
           "name": "neon backstreet floating facade east",
@@ -11867,14 +11997,7 @@
           "height": 5.4,
           "texture": "neonTile",
           "motion": null,
-          "collider": {
-            "minX": 42.6,
-            "maxX": 43.4,
-            "minY": 0,
-            "maxY": 5.4,
-            "minZ": -22,
-            "maxZ": -14
-          }
+          "collider": null
         },
         {
           "name": "neon backstreet alley lintel",
@@ -11886,14 +12009,7 @@
           "height": 1.2,
           "texture": "neonCloud",
           "motion": null,
-          "collider": {
-            "minX": 30,
-            "maxX": 43,
-            "minY": 4.4,
-            "maxY": 5.6000000000000005,
-            "minZ": -22.450000000000003,
-            "maxZ": -21.75
-          }
+          "collider": null
         },
         {
           "name": "neon backstreet far sign wall",
@@ -11905,14 +12021,7 @@
           "height": 4.2,
           "texture": "neonGlass",
           "motion": null,
-          "collider": {
-            "minX": -45,
-            "maxX": -33,
-            "minY": 0,
-            "maxY": 4.2,
-            "minZ": -63.35,
-            "maxZ": -62.65
-          }
+          "collider": null
         }
       ],
       "crates": [
@@ -11945,14 +12054,7 @@
           "height": 3.8,
           "texture": "astralCyan",
           "motion": "bob",
-          "collider": {
-            "minX": -8.4,
-            "maxX": -5.6,
-            "minY": 3.5,
-            "maxY": 7.3,
-            "minZ": -28.4,
-            "maxZ": -25.6
-          }
+          "collider": null
         },
         {
           "name": "magenta rotating diamond east",
@@ -11964,14 +12066,7 @@
           "height": 3.8,
           "texture": "astralMagenta",
           "motion": "bob",
-          "collider": {
-            "minX": 16.6,
-            "maxX": 19.4,
-            "minY": 3.2,
-            "maxY": 7,
-            "minZ": -13.4,
-            "maxZ": -10.6
-          }
+          "collider": null
         },
         {
           "name": "yellow rotating diamond west",
@@ -11983,14 +12078,7 @@
           "height": 3.8,
           "texture": "astralYellow",
           "motion": "bob",
-          "collider": {
-            "minX": -19.4,
-            "maxX": -16.6,
-            "minY": 3,
-            "maxY": 6.8,
-            "minZ": -14.4,
-            "maxZ": -11.6
-          }
+          "collider": null
         },
         {
           "name": "black rotating diamond rear",
@@ -12002,14 +12090,7 @@
           "height": 3.8,
           "texture": "astralBlack",
           "motion": "bob",
-          "collider": {
-            "minX": 5.6,
-            "maxX": 8.4,
-            "minY": 3.7,
-            "maxY": 7.5,
-            "minZ": -40.4,
-            "maxZ": -37.6
-          }
+          "collider": null
         },
         {
           "name": "neon backstreet rotating cube billboard",
@@ -12021,14 +12102,7 @@
           "height": 3.4,
           "texture": "neonGlass",
           "motion": "bob",
-          "collider": {
-            "minX": 36.3,
-            "maxX": 39.7,
-            "minY": 5,
-            "maxY": 8.4,
-            "minZ": -20.6,
-            "maxZ": -19.4
-          }
+          "collider": null
         },
         {
           "name": "far garden rotating cube sentinel",
@@ -12040,14 +12114,7 @@
           "height": 3.2,
           "texture": "astralYellow",
           "motion": "bob",
-          "collider": {
-            "minX": -39.6,
-            "maxX": -36.4,
-            "minY": 5.1,
-            "maxY": 8.3,
-            "minZ": -59.6,
-            "maxZ": -56.4
-          }
+          "collider": null
         },
         {
           "name": "overscale surprise low-poly tesseract altar",
@@ -12059,14 +12126,7 @@
           "height": 7.6,
           "texture": "oneBitGrid",
           "motion": "bob",
-          "collider": {
-            "minX": 32.2,
-            "maxX": 39.8,
-            "minY": 0.2,
-            "maxY": 7.8,
-            "minZ": -56.8,
-            "maxZ": -49.2
-          }
+          "collider": null
         },
         {
           "name": "mirrored monolith left",
@@ -12116,14 +12176,7 @@
           "height": 5.8,
           "texture": "neonBark",
           "motion": null,
-          "collider": {
-            "minX": 32.725,
-            "maxX": 33.275,
-            "minY": 0,
-            "maxY": 5.8,
-            "minZ": -18.275,
-            "maxZ": -17.725
-          }
+          "collider": null
         },
         {
           "name": "neon backstreet floating awning",
@@ -12135,14 +12188,7 @@
           "height": 0.7,
           "texture": "neonCloud",
           "motion": null,
-          "collider": {
-            "minX": 31.5,
-            "maxX": 41.5,
-            "minY": 3.2,
-            "maxY": 3.9000000000000004,
-            "minZ": -15.6,
-            "maxZ": -14.4
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 1",
@@ -12154,14 +12200,7 @@
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
-          "collider": {
-            "minX": 7.6499999999999995,
-            "maxX": 8.75,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -9.55,
-            "maxZ": -8.45
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 2",
@@ -12173,14 +12212,7 @@
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
-          "collider": {
-            "minX": 6.551408311032397,
-            "maxX": 7.651408311032396,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -5.450000000000001,
-            "maxZ": -4.350000000000001
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 3",
@@ -12192,14 +12224,7 @@
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
-          "collider": {
-            "minX": 3.5500000000000007,
-            "maxX": 4.65,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -2.4485916889676043,
-            "maxZ": -1.3485916889676044
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 4",
@@ -12211,14 +12236,7 @@
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
-          "collider": {
-            "minX": -0.5499999999999995,
-            "maxX": 0.5500000000000006,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -1.3500000000000008,
-            "maxZ": -0.25000000000000067
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 5",
@@ -12230,14 +12248,7 @@
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
-          "collider": {
-            "minX": -4.649999999999998,
-            "maxX": -3.549999999999998,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -2.4485916889676034,
-            "maxZ": -1.3485916889676035
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 6",
@@ -12249,14 +12260,7 @@
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
-          "collider": {
-            "minX": -7.651408311032396,
-            "maxX": -6.551408311032397,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -5.450000000000001,
-            "maxZ": -4.350000000000001
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 7",
@@ -12268,14 +12272,7 @@
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
-          "collider": {
-            "minX": -8.75,
-            "maxX": -7.6499999999999995,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -9.549999999999999,
-            "maxZ": -8.449999999999998
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 8",
@@ -12287,14 +12284,7 @@
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
-          "collider": {
-            "minX": -7.651408311032395,
-            "maxX": -6.551408311032396,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -13.650000000000002,
-            "maxZ": -12.55
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 9",
@@ -12306,14 +12296,7 @@
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
-          "collider": {
-            "minX": -4.650000000000003,
-            "maxX": -3.5500000000000034,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -16.651408311032394,
-            "maxZ": -15.551408311032393
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 10",
@@ -12325,14 +12308,7 @@
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
-          "collider": {
-            "minX": -0.5500000000000016,
-            "maxX": 0.5499999999999985,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -17.75,
-            "maxZ": -16.65
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 11",
@@ -12344,14 +12320,7 @@
           "height": 1.1,
           "texture": "astralCyan",
           "motion": "orbit",
-          "collider": {
-            "minX": 3.5500000000000007,
-            "maxX": 4.65,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -16.651408311032394,
-            "maxZ": -15.551408311032393
-          }
+          "collider": null
         },
         {
           "name": "orbit cube 12",
@@ -12363,14 +12332,7 @@
           "height": 1.1,
           "texture": "astralMagenta",
           "motion": "orbit",
-          "collider": {
-            "minX": 6.551408311032394,
-            "maxX": 7.651408311032394,
-            "minY": 2.2,
-            "maxY": 3.3000000000000003,
-            "minZ": -13.650000000000004,
-            "maxZ": -12.550000000000002
-          }
+          "collider": null
         },
         {
           "name": "floating tree trunk 1",
@@ -12611,6 +12573,366 @@
           "texture": "neonLeaf",
           "motion": "bob",
           "collider": null
+        },
+        {
+          "name": "rave scale column shaft 1",
+          "x": -58,
+          "y": 0,
+          "z": -42,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 12,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 1",
+          "x": -58,
+          "y": 12,
+          "z": -42,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 2",
+          "x": 64,
+          "y": 0,
+          "z": -42,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 14.5,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 2",
+          "x": 64,
+          "y": 14.5,
+          "z": -42,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 3",
+          "x": -70,
+          "y": 0,
+          "z": -58,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 17,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 3",
+          "x": -70,
+          "y": 17,
+          "z": -58,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 4",
+          "x": 58,
+          "y": 0,
+          "z": -58,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 19.5,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 4",
+          "x": 58,
+          "y": 19.5,
+          "z": -58,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 5",
+          "x": -64,
+          "y": 0,
+          "z": -74,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 12,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 5",
+          "x": -64,
+          "y": 12,
+          "z": -74,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 6",
+          "x": 70,
+          "y": 0,
+          "z": -74,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 14.5,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 6",
+          "x": 70,
+          "y": 14.5,
+          "z": -74,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 7",
+          "x": -58,
+          "y": 0,
+          "z": -90,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 17,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 7",
+          "x": -58,
+          "y": 17,
+          "z": -90,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 8",
+          "x": 64,
+          "y": 0,
+          "z": -90,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 19.5,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 8",
+          "x": 64,
+          "y": 19.5,
+          "z": -90,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 9",
+          "x": -70,
+          "y": 0,
+          "z": -106,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 12,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 9",
+          "x": -70,
+          "y": 12,
+          "z": -106,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 10",
+          "x": 58,
+          "y": 0,
+          "z": -106,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 14.5,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 10",
+          "x": 58,
+          "y": 14.5,
+          "z": -106,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 11",
+          "x": -64,
+          "y": 0,
+          "z": -122,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 17,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 11",
+          "x": -64,
+          "y": 17,
+          "z": -122,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 12",
+          "x": 70,
+          "y": 0,
+          "z": -122,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 19.5,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 12",
+          "x": 70,
+          "y": 19.5,
+          "z": -122,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 13",
+          "x": -58,
+          "y": 0,
+          "z": -138,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 12,
+          "texture": "oneBitGrid",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 13",
+          "x": -58,
+          "y": 12,
+          "z": -138,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column shaft 14",
+          "x": 64,
+          "y": 0,
+          "z": -138,
+          "width": 1.3,
+          "depth": 1.3,
+          "height": 14.5,
+          "texture": "neonGlass",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "rave scale column cap 14",
+          "x": 64,
+          "y": 14.5,
+          "z": -138,
+          "width": 4.8,
+          "depth": 4.8,
+          "height": 0.8,
+          "texture": "neonCloud",
+          "motion": null,
+          "collider": null
+        },
+        {
+          "name": "giant reflective rave orb west",
+          "x": -64,
+          "y": 6,
+          "z": -114,
+          "width": 10,
+          "depth": 10,
+          "height": 10,
+          "texture": "neonGlass",
+          "motion": "bob",
+          "collider": null
+        },
+        {
+          "name": "giant reflective rave orb east",
+          "x": 64,
+          "y": 8,
+          "z": -108,
+          "width": 13,
+          "depth": 13,
+          "height": 13,
+          "texture": "neonGlass",
+          "motion": "bob",
+          "collider": null
         }
       ],
       "platforms": [
@@ -12730,7 +13052,7 @@
         },
         {
           "name": "left sky garden elevator slab",
-          "x": -31,
+          "x": -57,
           "y": 2.1,
           "z": -50,
           "width": 7.5,
@@ -12739,8 +13061,8 @@
           "texture": "neonTile",
           "motion": null,
           "collider": {
-            "minX": -34.75,
-            "maxX": -27.25,
+            "minX": -60.75,
+            "maxX": -53.25,
             "minY": 2.1,
             "maxY": 2.6,
             "minZ": -52.6,
@@ -12749,7 +13071,7 @@
         },
         {
           "name": "left sky garden crown slab",
-          "x": -37,
+          "x": -66,
           "y": 4.2,
           "z": -58,
           "width": 8.5,
@@ -12758,8 +13080,8 @@
           "texture": "astralCyan",
           "motion": null,
           "collider": {
-            "minX": -41.25,
-            "maxX": -32.75,
+            "minX": -70.25,
+            "maxX": -61.75,
             "minY": 4.2,
             "maxY": 4.7,
             "minZ": -61,
@@ -12827,6 +13149,56 @@
           "depth": 9,
           "height": 8,
           "texture": "astralMagenta"
+        },
+        {
+          "name": "huge distant mesa left",
+          "x": -72,
+          "y": 0,
+          "z": -164,
+          "width": 28,
+          "depth": 22,
+          "height": 34,
+          "texture": "neonGlass"
+        },
+        {
+          "name": "huge distant mesa center",
+          "x": 0,
+          "y": 0,
+          "z": -178,
+          "width": 42,
+          "depth": 24,
+          "height": 42,
+          "texture": "oneBitGrid"
+        },
+        {
+          "name": "huge distant mesa right",
+          "x": 74,
+          "y": 0,
+          "z": -160,
+          "width": 30,
+          "depth": 20,
+          "height": 36,
+          "texture": "astralCyan"
+        },
+        {
+          "name": "low polygon rave mountain far west",
+          "x": -112,
+          "y": 0,
+          "z": -132,
+          "width": 34,
+          "depth": 18,
+          "height": 26,
+          "texture": "astralMagenta"
+        },
+        {
+          "name": "low polygon rave mountain far east",
+          "x": 112,
+          "y": 0,
+          "z": -126,
+          "width": 34,
+          "depth": 18,
+          "height": 28,
+          "texture": "astralYellow"
         }
       ],
       "cards": [
@@ -12919,6 +13291,26 @@
           "height": 1.6,
           "texture": "neonGlass",
           "motion": "sign-flicker"
+        },
+        {
+          "name": "giant low poly moon left",
+          "x": -42,
+          "y": 30,
+          "z": -148,
+          "width": 34,
+          "height": 34,
+          "texture": "paleMoon",
+          "motion": "moon-slide"
+        },
+        {
+          "name": "distant reflective moon right",
+          "x": 54,
+          "y": 25,
+          "z": -118,
+          "width": 22,
+          "height": 22,
+          "texture": "paleMoon",
+          "motion": "moon-slide"
         }
       ],
       "movingBillboards": [],

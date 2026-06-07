@@ -3,7 +3,7 @@ import { SCENE_DEFINITIONS } from './world.js';
 export const LEVEL_GLB_URLS = Object.freeze(Object.fromEntries(
   SCENE_DEFINITIONS.map((scene) => [
     scene.id,
-    `./assets/models/levels/${scene.id}.glb?v=15`,
+    `./assets/models/levels/${scene.id}.glb?v=20`,
   ]),
 ));
 
@@ -250,11 +250,32 @@ function readMeshPrimitives(json, bin, meshIndex, matrix, nodeName, extras, mate
       textureId: parseJsonString(extras.texture_id) ?? material?.textureId ?? null,
       motion: parseJsonString(extras.motion) ?? null,
       warping: parseBoolean(extras.warping ?? extras.wobble, true),
+      lookAtPlayer: parseBoolean(extras.lookAtPlayer ?? extras.look_at_player, false),
+      lookAtPivot: readLookAtPivot(extras, vertices),
       collectibleId: parseJsonString(extras.collectibleId) ?? parseJsonString(extras.collectible_id) ?? null,
       vertices,
       vertexCount: vertices.length,
     };
   });
+}
+
+function readLookAtPivot(extras, vertices) {
+  const explicitPivot = {
+    x: parseJsonString(extras.lookAtPivotX ?? extras.look_at_pivot_x),
+    y: parseJsonString(extras.lookAtPivotY ?? extras.look_at_pivot_y),
+    z: parseJsonString(extras.lookAtPivotZ ?? extras.look_at_pivot_z),
+  };
+  if (Number.isFinite(explicitPivot.x) && Number.isFinite(explicitPivot.y) && Number.isFinite(explicitPivot.z)) {
+    return explicitPivot;
+  }
+  if (!vertices.length) return { x: 0, y: 0, z: 0 };
+
+  const bounds = boundsFromPoints(vertices);
+  return {
+    x: roundLevelValue((bounds.minX + bounds.maxX) / 2),
+    y: roundLevelValue((bounds.minY + bounds.maxY) / 2),
+    z: roundLevelValue((bounds.minZ + bounds.maxZ) / 2),
+  };
 }
 
 function readBoundsFromMesh(json, bin, meshIndex, matrix, name) {

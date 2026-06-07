@@ -153,29 +153,73 @@ test('builds rotwood forest with dark-fantasy landmarks and living cards', () =>
 
 test('builds astral geometry garden as a navigable haunted demo-disc sculpture park', () => {
   const world = createSceneWorld('astral-geometry-garden');
-  const colliders = [...world.walls, ...world.crates].map((item) => item.collider).filter(Boolean);
+  const collidingItems = [...world.walls, ...world.crates].filter((item) => item.collider);
   const doglegPlatforms = world.floorPieces.filter((item) => item.name.includes('dogleg') || item.name.includes('skyblock'));
   const treeForms = world.crates.filter((item) => item.name.includes('floating tree'));
   const neonFragments = [...world.crates, ...world.walls, ...world.cards].filter((item) => item.name.includes('neon backstreet'));
+  const routeByName = new Map(world.floorPieces.map((item) => [item.name, item]));
+  const floorMinZ = Math.min(...world.floorPieces.map((item) => item.z - item.depth / 2));
+  const floorMaxSpan = Math.max(...world.floorPieces.map((item) => item.width));
+  const scaleColumns = world.crates.filter((item) => item.name.includes('rave scale column shaft'));
+  const giantSkyScaleObjects = [...world.crates, ...world.cards, ...world.mountains].filter((item) => (
+    item.name.includes('giant')
+    || item.name.includes('huge distant')
+    || item.name.includes('rave mountain')
+    || item.name.includes('reflective rave orb')
+  ));
+  const floatingDecor = [...world.walls, ...world.crates].filter((item) => (
+    item.name.includes('floating')
+    || item.name.includes('rotating')
+    || item.name.includes('orbit cube')
+    || item.name.includes('tesseract altar')
+    || item.name.includes('reflective rave orb')
+  ));
 
   assert.equal(world.id, 'astral-geometry-garden');
-  assert.ok(world.floorPieces.length >= 12);
-  assert.ok(world.floor.width >= 22);
+  assert.ok(world.floorPieces.length >= 19);
+  assert.ok(world.floor.width >= 40);
+  assert.ok(floorMinZ <= -170);
+  assert.ok(floorMaxSpan >= 70);
   assert.ok(doglegPlatforms.length >= 4);
+  assert.ok(routeByName.get('cyan bridge north').width >= 10);
+  assert.ok(routeByName.get('rave horizon checker runway').depth >= 50);
+  assert.ok(routeByName.get('silver moon mirror plaza').width >= 50);
+  assert.ok(routeByName.get('far mountain overlook slab').z <= -150);
+  assert.ok(routeByName.get('black bridge east').depth >= 8);
+  assert.ok(routeByName.get('dogleg vertical neon bridge').width >= 10);
+  assert.ok(routeByName.get('dogleg west cross span').depth >= 8);
   assert.ok(world.floorPieces.some((item) => item.x > 34 && item.z < -38));
   assert.ok(world.floorPieces.some((item) => item.x < -28 && item.z < -54));
   assert.ok(world.platforms.some((item) => item.y >= 3.2));
   assert.ok(world.crates.filter((item) => item.motion === 'bob').length >= 7);
   assert.ok(world.crates.filter((item) => item.motion === 'orbit').length >= 12);
   assert.ok(treeForms.length >= 10);
+  assert.ok(scaleColumns.length >= 14);
+  assert.ok(scaleColumns.every((item) => item.height >= 12 && item.collider === null));
+  assert.ok(giantSkyScaleObjects.length >= 8);
+  assert.ok(floatingDecor.length >= 30);
+  assert.ok(floatingDecor.every((item) => item.collider === null));
   assert.ok(neonFragments.length >= 8);
   assert.deepEqual(world.skyDome, { mode: 'clouds', palette: 'liminal-blue' });
   assert.ok(world.clearColor[2] > world.clearColor[0]);
   assert.ok(world.clearColor[1] > 0.6);
+  assert.ok(world.drawDistance >= 200);
   assert.ok(world.mountains.filter((item) => item.name.includes('pyramid')).length >= 6);
+  assert.ok(world.mountains.filter((item) => item.name.includes('huge distant')).length >= 3);
+  assert.ok(world.cards.filter((item) => item.name.includes('moon')).length >= 2);
   assert.ok(world.cards.filter((item) => item.motion === 'flicker-comet').length >= 6);
   assert.equal(world.shootingStar.interval, 10);
-  assert.ok(colliders.length >= 30);
+  assert.deepEqual(collidingItems.map((item) => item.name), [
+    'west void lip',
+    'east void lip',
+    'north void lip',
+    'south void lip',
+    'left platform rail',
+    'right platform rail',
+    'central mirrored obelisk',
+    'mirrored monolith left',
+    'mirrored monolith right',
+  ]);
   assert.ok(world.textures.every((texture) => texture.size === 64 || texture.size === 128));
 });
 

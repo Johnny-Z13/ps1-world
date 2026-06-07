@@ -11,16 +11,16 @@ function readLevel(id) {
   return parseLevelGlb(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength));
 }
 
-function makeMarkerOnlyGlb(nodes, overrides = {}) {
+function makeMarkerOnlyGlb(nodes, overrides = {}, binBuffer = new ArrayBuffer(0)) {
+  const binBytes = padChunk(new Uint8Array(binBuffer), 0x00);
   const jsonBytes = padChunk(new TextEncoder().encode(JSON.stringify({
     asset: { version: '2.0' },
     scene: 0,
     scenes: [{ nodes: nodes.map((_, index) => index) }],
     nodes,
-    buffers: [{ byteLength: 0 }],
+    buffers: [{ byteLength: binBytes.byteLength }],
     ...overrides,
   })), 0x20);
-  const binBytes = new Uint8Array(0);
   const buffer = new ArrayBuffer(12 + 8 + jsonBytes.byteLength + 8 + binBytes.byteLength);
   const view = new DataView(buffer);
   let offset = 0;
@@ -40,6 +40,8 @@ function makeMarkerOnlyGlb(nodes, overrides = {}) {
   view.setUint32(offset, binBytes.byteLength, true);
   offset += 4;
   view.setUint32(offset, 0x004e4942, true);
+  offset += 4;
+  new Uint8Array(buffer, offset, binBytes.byteLength).set(binBytes);
 
   return buffer;
 }
@@ -63,7 +65,7 @@ test('maps every selectable scene to a Blender-authored GLB', () => {
     Object.keys(LEVEL_GLB_URLS),
     SCENE_DEFINITIONS.map((scene) => scene.id),
   );
-  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=15');
+  assert.equal(LEVEL_GLB_URLS.dungeon, './assets/models/levels/dungeon.glb?v=20');
 });
 
 test('parses level GLB art, collision, walkable, and marker roles', () => {
@@ -118,10 +120,15 @@ test('exported gameplay collision and walkable roles match procedural scene rule
   for (const definition of SCENE_DEFINITIONS) {
     const scene = createSceneWorld(definition.id);
     const level = readLevel(definition.id);
-    const expectedCollisionCount = scene.walls.length + scene.crates.length + (scene.platforms ?? []).length;
+    const collidingWalls = scene.walls.filter((item) => item.collider);
+    const routePlatformWalls = scene.walls.filter((item) => !item.collider && item.name.includes('floating platform'));
+    const collidingCrates = scene.crates.filter((item) => item.collider);
+    const collidingPlatforms = (scene.platforms ?? []).filter((item) => item.collider);
+    const expectedCollisionCount = collidingWalls.length + collidingCrates.length + collidingPlatforms.length;
     const expectedWalkableCount = (scene.floorPieces ?? [scene.floor]).length
-      + scene.walls.length
-      + scene.crates.length
+      + collidingWalls.length
+      + routePlatformWalls.length
+      + collidingCrates.length
       + (scene.platforms ?? []).length;
 
     assert.equal(level.collision.length, expectedCollisionCount, `${definition.id} collision count`);
@@ -204,6 +211,61 @@ test('collectible pickup markers and art meshes keep authored metadata', () => {
   }]);
   assert.equal(level.artMeshes[0].collectibleId, 'dungeon-golden-goblet');
   assert.equal(level.artMeshes[0].motion, 'pickup-bob');
+  assert.equal(level.artMeshes[0].warping, false);
+});
+
+test('look-at-player art meshes preserve dynamic sky-art metadata', () => {
+  const level = parseLevelGlb(makeMarkerOnlyGlb([
+    {
+      name: 'ART_astral-geometry-garden_meshy_rave_sky_head',
+      mesh: 0,
+      extras: {
+        level_role: 'art',
+        texture_id: 'meshyRaveSkyHead',
+        lookAtPlayer: true,
+        lookAtPivotX: 10,
+        lookAtPivotY: 14,
+        lookAtPivotZ: -20,
+        warping: false,
+      },
+    },
+  ], {
+    meshes: [
+      {
+        primitives: [
+          {
+            attributes: { POSITION: 0, TEXCOORD_0: 1 },
+            indices: 2,
+            material: 0,
+          },
+        ],
+      },
+    ],
+    accessors: [
+      { bufferView: 0, componentType: 5126, count: 3, type: 'VEC3' },
+      { bufferView: 1, componentType: 5126, count: 3, type: 'VEC2' },
+      { bufferView: 2, componentType: 5123, count: 3, type: 'SCALAR' },
+    ],
+    bufferViews: [
+      { buffer: 0, byteOffset: 0, byteLength: 36 },
+      { buffer: 0, byteOffset: 36, byteLength: 24 },
+      { buffer: 0, byteOffset: 60, byteLength: 6 },
+    ],
+    buffers: [{ byteLength: 68 }],
+    materials: [{ name: 'LEVELMAT_meshyRaveSkyHead' }],
+  }, new Uint8Array([
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 128, 63, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 128, 63, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 128, 63, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 128, 63,
+    0, 0, 1, 0, 2, 0, 0, 0,
+  ]).buffer));
+
+  assert.equal(level.artMeshes[0].textureId, 'meshyRaveSkyHead');
+  assert.equal(level.artMeshes[0].lookAtPlayer, true);
+  assert.deepEqual(level.artMeshes[0].lookAtPivot, { x: 10, y: 14, z: -20 });
   assert.equal(level.artMeshes[0].warping, false);
 });
 
@@ -646,10 +708,40 @@ test('dungeon goblet collectible is visible and centered in open floor space', (
   assert.equal(goblet.height, 1.44);
 });
 
+test('geometry garden decorative floating trees do not export blocking collision', () => {
+  const garden = readLevel('astral-geometry-garden');
+  const decorativeArt = garden.artMeshes.filter((mesh) => mesh.name.includes('floating_tree'));
+  const decorativeCollision = garden.collision.filter((mesh) => mesh.name.includes('floating_tree'));
+  const decorativeWalkable = garden.walkableSurfaces.filter((mesh) => mesh.name.includes('floating_tree'));
+
+  assert.ok(decorativeArt.length >= 20, 'floating trees remain visible art');
+  assert.equal(decorativeCollision.length, 0, 'floating trees must not block the player');
+  assert.equal(decorativeWalkable.length, 0, 'floating trees must not create bogus walkable ledges');
+});
+
+test('geometry garden exports a Meshy sky head that looks at the player', () => {
+  const garden = readLevel('astral-geometry-garden');
+  const headMeshes = garden.artMeshes.filter((mesh) => mesh.name.includes('meshy_rave_sky_head'));
+  const eyeMeshes = garden.artMeshes.filter((mesh) => mesh.name.includes('meshy_rave_sky_eye'));
+  const headColliders = garden.collision.filter((mesh) => mesh.name.includes('meshy_rave_sky'));
+  const skyHeadMeshes = [...headMeshes, ...eyeMeshes];
+
+  assert.ok(headMeshes.length >= 1, 'Geometry Garden exports the Meshy sky head art');
+  assert.equal(eyeMeshes.length, 2, 'Geometry Garden exports two glowing low-poly eyes');
+  assert.equal(headColliders.length, 0, 'sky head remains visual-only');
+  assert.ok(skyHeadMeshes.every((mesh) => mesh.lookAtPlayer), 'sky head art tracks the player');
+  assert.ok(skyHeadMeshes.every((mesh) => mesh.warping === false), 'sky head opts out of PS1 sine wobble');
+  assert.ok(skyHeadMeshes.every((mesh) => mesh.lookAtPivot.x <= -28), 'sky head pivot sits left of center for spawn visibility');
+  assert.ok(skyHeadMeshes.every((mesh) => mesh.lookAtPivot.y >= 20), 'sky head pivot floats high above the garden');
+  assert.ok(skyHeadMeshes.every((mesh) => mesh.lookAtPivot.z <= -80), 'sky head pivot sits far enough north to read as a scale landmark');
+  assert.ok(eyeMeshes.every((mesh) => mesh.textureId === 'meshyRaveSkyEyes'), 'eyes use the glowing material');
+});
+
 test('large exported level surfaces keep world-scale texture repeats', () => {
   for (const definition of SCENE_DEFINITIONS) {
     const level = readLevel(definition.id);
     const largeMeshes = level.artMeshes.filter((mesh) => {
+      if (mesh.lookAtPlayer) return false;
       const bounds = meshBounds(mesh);
       const spans = [
         bounds.maxX - bounds.minX,

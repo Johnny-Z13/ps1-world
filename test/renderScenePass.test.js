@@ -83,6 +83,7 @@ function createSceneProgram() {
       aTextureId: 3,
       aShade: 4,
       aMotion: 5,
+      aWarping: 6,
     },
     uniforms: Object.fromEntries(uniformNames.map((name) => [name, name])),
   };
@@ -96,6 +97,7 @@ function createMesh(id, count) {
     textureId: `${id}-texture`,
     shade: `${id}-shade`,
     motion: `${id}-motion`,
+    warping: `${id}-warping`,
   };
 }
 
@@ -122,6 +124,7 @@ test('drawScenePass binds atlas texture, writes scene uniforms, and draws static
   const atlasTexture = { id: 'atlas' };
   const viewProjection = new Float32Array(16).fill(3);
   const staticMesh = createMesh('static', 12);
+  const lookAtMesh = createMesh('look-at', 9);
   const dynamicMesh = createMesh('dynamic', 6);
 
   drawScenePass(gl, {
@@ -146,6 +149,7 @@ test('drawScenePass binds atlas texture, writes scene uniforms, and draws static
     torchLights: [],
     viewProjection,
     staticMesh,
+    lookAtMesh,
     dynamicMesh,
   });
 
@@ -165,6 +169,7 @@ test('drawScenePass binds atlas texture, writes scene uniforms, and draws static
   const drawCalls = calls.filter((call) => call[0] === 'drawArrays');
   assert.deepEqual(drawCalls, [
     ['drawArrays', 'TRIANGLES', 0, 12],
+    ['drawArrays', 'TRIANGLES', 0, 9],
     ['drawArrays', 'TRIANGLES', 0, 6],
   ]);
 });

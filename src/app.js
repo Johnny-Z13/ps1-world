@@ -211,7 +211,9 @@ import {
   createSkyDomeMesh,
 } from './renderMeshes.js';
 import {
+  createLookAtLevelMesh,
   createSceneMesh,
+  updateLookAtLevelMesh,
 } from './renderSceneMeshes.js';
 import {
   createZombieMesh,
@@ -359,6 +361,7 @@ let skyProgram;
 let sceneProgram;
 let postProgram;
 let warehouseMesh;
+let lookAtLevelMesh;
 let skyDomeMesh;
 let zombieMesh;
 let zombieModel = null;
@@ -528,6 +531,13 @@ function render(time, now = performance.now()) {
   const enemyGameplayEnabled = isEnemyGameplayEnabled();
   const debugPlayerMarker = effects.debugFreeCam && !deathState.active ? getDebugPlayerMarker() : null;
   const dynamicEnemyMesh = enemyGameplayEnabled || debugPlayerMarker ? zombieMesh : null;
+  if (lookAtLevelMesh) {
+    updateLookAtLevelMesh(gl, lookAtLevelMesh, world.levelAsset, textureIndices, {
+      x: player.x,
+      y: player.y,
+      z: player.z,
+    });
+  }
   if (dynamicEnemyMesh) {
     updateZombieMesh(
       gl,
@@ -560,6 +570,7 @@ function render(time, now = performance.now()) {
     torchLights: world.torchLights,
     viewProjection: createViewProjection(now),
     staticMesh: warehouseMesh,
+    lookAtMesh: lookAtLevelMesh,
     dynamicMesh: dynamicEnemyMesh,
   });
 
@@ -1079,7 +1090,7 @@ function isZombieAudioOccluded(zombie) {
 }
 
 function createViewProjection(now = performance.now()) {
-  const projection = perspective(Math.PI / 3.2, PS1_RENDER_TARGET.aspect, 0.08, 80);
+  const projection = perspective(Math.PI / 3.2, PS1_RENDER_TARGET.aspect, 0.08, world.drawDistance ?? 80);
   const view = cameraView(getGameplayCamera(now));
   return multiplyMat4(projection, view);
 }
@@ -2309,9 +2320,11 @@ async function setScene(id) {
   resetPlayerToSpawn();
 
   deleteMeshBuffers(gl, warehouseMesh);
+  deleteMeshBuffers(gl, lookAtLevelMesh);
   deleteMeshBuffers(gl, zombieMesh);
   gl.deleteTexture(atlasTexture);
   warehouseMesh = createSceneMesh(gl, { ...world, healthPotions, collectedCollectibleIds }, textureIndices);
+  lookAtLevelMesh = createLookAtLevelMesh(gl);
   zombieMesh = createZombieMesh(gl);
   atlasTexture = await createSceneTextureAtlas(gl, world, characterTextureImages);
   if (audioState) ensureSceneAudio();
@@ -2379,6 +2392,7 @@ async function start() {
   damageZones = createSceneDamageZones(world);
   resetPlayerToSpawn();
   warehouseMesh = createSceneMesh(gl, { ...world, healthPotions, collectedCollectibleIds }, textureIndices);
+  lookAtLevelMesh = createLookAtLevelMesh(gl);
   skyDomeMesh = createSkyDomeMesh(gl);
   zombieMesh = createZombieMesh(gl);
   quad = createPostQuad(gl);

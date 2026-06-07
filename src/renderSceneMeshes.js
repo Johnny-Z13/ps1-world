@@ -1,5 +1,5 @@
 import { motionCode } from './generatedTextures.js';
-import { createBuffer } from './webglResources.js';
+import { createBuffer, createDynamicBuffer, updateBuffer } from './webglResources.js';
 
 export function createSceneMesh(glContext, scene, indices) {
   if (scene.levelAsset) {
@@ -14,6 +14,7 @@ export function createLevelMesh(glContext, scene, indices) {
 
   for (const mesh of scene.levelAsset.artMeshes) {
     if (mesh.collectibleId && hasCollectedCollectible(collectedCollectibleIds, mesh.collectibleId)) continue;
+    if (mesh.lookAtPlayer) continue;
 
     const textureId = indices.get(mesh.textureId) ?? 0;
     const motion = motionCode(mesh.motion);
@@ -76,6 +77,7 @@ function isBrightLevelTexture(textureId) {
     || textureId === 'comet'
     || textureId === 'firefly'
     || textureId === 'moonbeam'
+    || textureId === 'meshyRaveSkyEyes'
     || textureId === 'torchFlame'
     || textureId === 'lightning'
     || textureId === 'rain';
@@ -188,6 +190,98 @@ function createStaticMeshBuffers(glContext, geometry) {
 
 function createGeometryStreams() {
   return { positions: [], uvs: [], textureIds: [], shades: [], motions: [], warpings: [] };
+}
+
+export function createLookAtLevelMesh(glContext) {
+  return {
+    count: 0,
+    position: createDynamicBuffer(glContext),
+    uv: createDynamicBuffer(glContext),
+    textureId: createDynamicBuffer(glContext),
+    shade: createDynamicBuffer(glContext),
+    motion: createDynamicBuffer(glContext),
+    warping: createDynamicBuffer(glContext),
+  };
+}
+
+export function updateLookAtLevelMesh(glContext, mesh, levelAsset, indices, player) {
+  const geometry = createGeometryStreams();
+  for (const levelMesh of levelAsset?.artMeshes ?? []) {
+    if (!levelMesh.lookAtPlayer) continue;
+    addLookAtLevelArt(geometry, levelMesh, indices, player);
+  }
+
+  mesh.count = geometry.positions.length / 3;
+  updateBuffer(glContext, mesh.position, new Float32Array(geometry.positions));
+  updateBuffer(glContext, mesh.uv, new Float32Array(geometry.uvs));
+  updateBuffer(glContext, mesh.textureId, new Float32Array(geometry.textureIds));
+  updateBuffer(glContext, mesh.shade, new Float32Array(geometry.shades));
+  updateBuffer(glContext, mesh.motion, new Float32Array(geometry.motions));
+  updateBuffer(glContext, mesh.warping, new Float32Array(geometry.warpings));
+}
+
+function addLookAtLevelArt(geometry, mesh, indices, player) {
+  const textureId = indices.get(mesh.textureId) ?? 0;
+  const motion = motionCode(mesh.motion);
+  const warping = mesh.warping === false ? 0 : 1;
+  const pivot = mesh.lookAtPivot ?? meshCenter(mesh.vertices);
+  const aim = createLookAtAim(pivot, player);
+
+  for (let index = 0; index < mesh.vertices.length; index += 3) {
+    const shade = levelTriangleShade(mesh, index);
+    for (const vertex of mesh.vertices.slice(index, index + 3)) {
+      const transformed = rotateLookAtVertex(vertex, pivot, aim);
+      geometry.positions.push(transformed.x, transformed.y, transformed.z);
+      geometry.uvs.push(vertex.u, vertex.v);
+      geometry.textureIds.push(textureId);
+      geometry.shades.push(shade);
+      geometry.motions.push(motion);
+      geometry.warpings.push(warping);
+    }
+  }
+}
+
+export function createLookAtAim(pivot, player) {
+  const dx = player.x - pivot.x;
+  const dy = (player.y ?? 0) - pivot.y;
+  const dz = player.z - pivot.z;
+  const horizontal = Math.hypot(dx, dz) || 1;
+  return {
+    yaw: Math.atan2(dx, dz),
+    pitch: Math.max(-0.7, Math.min(0.7, -Math.atan2(dy, horizontal))),
+  };
+}
+
+export function rotateLookAtVertex(vertex, pivot, aim) {
+  const x = vertex.x - pivot.x;
+  const y = vertex.y - pivot.y;
+  const z = vertex.z - pivot.z;
+  const pitchCos = Math.cos(aim.pitch);
+  const pitchSin = Math.sin(aim.pitch);
+  const pitchedY = y * pitchCos - z * pitchSin;
+  const pitchedZ = y * pitchSin + z * pitchCos;
+  const yawCos = Math.cos(aim.yaw);
+  const yawSin = Math.sin(aim.yaw);
+
+  return {
+    x: pivot.x + x * yawCos + pitchedZ * yawSin,
+    y: pivot.y + pitchedY,
+    z: pivot.z - x * yawSin + pitchedZ * yawCos,
+  };
+}
+
+function meshCenter(vertices) {
+  if (!vertices?.length) return { x: 0, y: 0, z: 0 };
+  const sums = vertices.reduce((total, vertex) => ({
+    x: total.x + vertex.x,
+    y: total.y + vertex.y,
+    z: total.z + vertex.z,
+  }), { x: 0, y: 0, z: 0 });
+  return {
+    x: sums.x / vertices.length,
+    y: sums.y / vertices.length,
+    z: sums.z / vertices.length,
+  };
 }
 
 function addBox(geometry, item, indices, options = {}) {

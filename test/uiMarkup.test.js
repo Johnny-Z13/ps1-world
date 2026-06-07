@@ -123,7 +123,7 @@ test('shows a VHS-style photosensitivity warning before the title screen', () =>
   assert.match(runtimeSource, /bootWarning\.hidden = true/);
   assert.match(runtimeSource, /document\.body\.classList\.remove\('boot-warning-active'\)/);
   assert.match(index, /styles\.css\?v=18/);
-  assert.match(index, /src\/app\.js\?v=155/);
+  assert.match(index, /src\/app\.js\?v=156/);
 });
 
 test('offers a hard Cut Up title mode that cycles all nine worlds', () => {

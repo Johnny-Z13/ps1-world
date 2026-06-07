@@ -626,34 +626,42 @@ function createAstralGeometryGardenWorld() {
     { id: 'neonLeaf', size: 64 },
     { id: 'neonBark', size: 64 },
     { id: 'oneBitGrid', size: 128 },
+    { id: 'paleMoon', size: 64 },
     { id: 'shootingStar', size: 128 },
     { id: 'flickerComet', size: 64 },
   ];
   const floorPieces = [
-    box('central checker platform', 0, 5, 24, 24, 0.45, 'astralGrid', -0.1),
-    box('cyan bridge north', 0, -13, 5, 20, 0.35, 'astralCyan', -0.08),
-    box('yellow left platform', -18, -24, 16, 14, 0.38, 'astralYellow', -0.06),
-    box('magenta right platform', 18, -22, 16, 16, 0.38, 'astralMagenta', -0.06),
-    box('one-bit rear dais', 0, -40, 20, 12, 0.4, 'oneBitGrid', -0.05),
-    box('black bridge east', 14, -4, 18, 4.4, 0.33, 'astralBlack', -0.05),
-    box('dogleg east skyblock plaza', 36, -16, 18, 12, 0.36, 'neonTile', -0.05),
-    box('dogleg vertical neon bridge', 36, -32, 5, 22, 0.34, 'astralCyan', -0.04),
-    box('dogleg north observation slab', 36, -50, 18, 14, 0.36, 'astralMagenta', -0.05),
-    box('dogleg west cross span', 13, -58, 42, 4.4, 0.34, 'astralYellow', -0.04),
-    box('skyblock left garden shelf', -34, -58, 18, 15, 0.36, 'neonTile', -0.05),
-    box('skyblock far blue cul-de-sac', -38, -38, 12, 14, 0.36, 'astralCyan', -0.05),
+    box('central checker platform', 0, 5, 42, 36, 0.45, 'astralGrid', -0.1),
+    box('cyan bridge north', 0, -17, 14, 34, 0.35, 'astralCyan', -0.08),
+    box('yellow left platform', -18, -24, 20, 18, 0.38, 'astralYellow', -0.06),
+    box('magenta right platform', 18, -22, 20, 20, 0.38, 'astralMagenta', -0.06),
+    box('one-bit rear dais', 0, -43, 32, 24, 0.4, 'oneBitGrid', -0.05),
+    box('black bridge east', 14, -4, 22, 8.5, 0.33, 'astralBlack', -0.05),
+    box('dogleg east skyblock plaza', 36, -16, 24, 18, 0.36, 'neonTile', -0.05),
+    box('dogleg vertical neon bridge', 36, -32, 12, 24, 0.34, 'astralCyan', -0.04),
+    box('dogleg north observation slab', 36, -50, 24, 18, 0.36, 'astralMagenta', -0.05),
+    box('dogleg west cross span', 0, -58, 76, 10.5, 0.34, 'astralYellow', -0.04),
+    box('skyblock left garden shelf', -34, -58, 24, 20, 0.36, 'neonTile', -0.05),
+    box('skyblock far blue cul-de-sac', -38, -38, 16, 18, 0.36, 'astralCyan', -0.05),
+    box('rave horizon checker runway', 0, -89, 30, 56, 0.32, 'astralGrid', -0.08),
+    box('silver moon mirror plaza', 0, -124, 54, 38, 0.34, 'oneBitGrid', -0.08),
+    box('western column garden floor', -64, -92, 38, 56, 0.34, 'astralMagenta', -0.08),
+    box('eastern glass orb terrace', 62, -84, 42, 48, 0.34, 'astralCyan', -0.08),
+    box('far mountain overlook slab', 0, -158, 70, 30, 0.36, 'astralBlack', -0.08),
+    box('left rave causeway', -43, -78, 14, 42, 0.33, 'astralYellow', -0.06),
+    box('right reflective causeway', 44, -75, 14, 40, 0.33, 'neonTile', -0.06),
   ];
   const walls = [
-    box('west void lip', -49, -25, 0.6, 90, 1.5, 'astralBlack'),
-    box('east void lip', 50, -25, 0.6, 90, 1.5, 'astralBlack'),
-    box('north void lip', 0, -70, 98, 0.6, 1.5, 'astralBlack'),
-    box('south void lip', 0, 19, 98, 0.6, 1.5, 'astralBlack'),
+    box('west void lip', -92, -76, 0.6, 210, 1.5, 'astralBlack'),
+    box('east void lip', 92, -76, 0.6, 210, 1.5, 'astralBlack'),
+    box('north void lip', 0, -181, 184, 0.6, 1.5, 'astralBlack'),
+    box('south void lip', 0, 25, 184, 0.6, 1.5, 'astralBlack'),
     box('left platform rail', -26.5, -24, 0.45, 14, 1.2, 'astralCyan'),
     box('right platform rail', 26.5, -22, 0.45, 16, 1.2, 'astralMagenta'),
-    box('neon backstreet floating facade west', 30, -18, 0.8, 8, 6.2, 'neonGlass'),
-    box('neon backstreet floating facade east', 43, -18, 0.8, 8, 5.4, 'neonTile'),
-    box('neon backstreet alley lintel', 36.5, -22.1, 13, 0.7, 1.2, 'neonCloud', 4.4),
-    box('neon backstreet far sign wall', -39, -63, 12, 0.7, 4.2, 'neonGlass'),
+    box('neon backstreet floating facade west', 30, -18, 0.8, 8, 6.2, 'neonGlass', 0, true),
+    box('neon backstreet floating facade east', 43, -18, 0.8, 8, 5.4, 'neonTile', 0, true),
+    box('neon backstreet alley lintel', 36.5, -22.1, 13, 0.7, 1.2, 'neonCloud', 4.4, true),
+    box('neon backstreet far sign wall', -39, -63, 12, 0.7, 4.2, 'neonGlass', 0, true),
   ];
   const platforms = [
     box('central ziggurat step one', -4.5, 4, 3.8, 3.2, 0.6, 'astralYellow'),
@@ -662,26 +670,26 @@ function createAstralGeometryGardenWorld() {
     box('floating cyan step to void', 26, -35, 5.2, 4.2, 0.5, 'astralCyan', 1.0),
     box('floating yellow step to void', 30, -41, 5.2, 4.2, 0.5, 'astralYellow', 2.2),
     box('floating magenta lookout', 36, -47, 7.2, 5.2, 0.5, 'astralMagenta', 3.4),
-    box('left sky garden elevator slab', -31, -50, 7.5, 5.2, 0.5, 'neonTile', 2.1),
-    box('left sky garden crown slab', -37, -58, 8.5, 6.0, 0.5, 'astralCyan', 4.2),
+    box('left sky garden elevator slab', -57, -50, 7.5, 5.2, 0.5, 'neonTile', 2.1),
+    box('left sky garden crown slab', -66, -58, 8.5, 6.0, 0.5, 'astralCyan', 4.2),
   ];
   const crates = [
     box('central mirrored obelisk', 0, -7, 2.6, 2.6, 9.8, 'astralCyan'),
-    box('cyan rotating diamond north', -7, -27, 2.8, 2.8, 3.8, 'astralCyan', 3.5, false, 'bob'),
-    box('magenta rotating diamond east', 18, -12, 2.8, 2.8, 3.8, 'astralMagenta', 3.2, false, 'bob'),
-    box('yellow rotating diamond west', -18, -13, 2.8, 2.8, 3.8, 'astralYellow', 3.0, false, 'bob'),
-    box('black rotating diamond rear', 7, -39, 2.8, 2.8, 3.8, 'astralBlack', 3.7, false, 'bob'),
-    box('neon backstreet rotating cube billboard', 38, -20, 3.4, 1.2, 3.4, 'neonGlass', 5.0, false, 'bob'),
-    box('far garden rotating cube sentinel', -38, -58, 3.2, 3.2, 3.2, 'astralYellow', 5.1, false, 'bob'),
-    box('overscale surprise low-poly tesseract altar', 36, -53, 7.6, 7.6, 7.6, 'oneBitGrid', 0.2, false, 'bob'),
+    box('cyan rotating diamond north', -7, -27, 2.8, 2.8, 3.8, 'astralCyan', 3.5, true, 'bob'),
+    box('magenta rotating diamond east', 18, -12, 2.8, 2.8, 3.8, 'astralMagenta', 3.2, true, 'bob'),
+    box('yellow rotating diamond west', -18, -13, 2.8, 2.8, 3.8, 'astralYellow', 3.0, true, 'bob'),
+    box('black rotating diamond rear', 7, -39, 2.8, 2.8, 3.8, 'astralBlack', 3.7, true, 'bob'),
+    box('neon backstreet rotating cube billboard', 38, -20, 3.4, 1.2, 3.4, 'neonGlass', 5.0, true, 'bob'),
+    box('far garden rotating cube sentinel', -38, -58, 3.2, 3.2, 3.2, 'astralYellow', 5.1, true, 'bob'),
+    box('overscale surprise low-poly tesseract altar', 36, -53, 7.6, 7.6, 7.6, 'oneBitGrid', 0.2, true, 'bob'),
     box('mirrored monolith left', -22, -27, 2, 4, 6.5, 'oneBitGrid'),
     box('mirrored monolith right', 24, -23, 2, 4, 6.5, 'oneBitGrid'),
-    box('neon backstreet telephone pole', 33, -18, 0.55, 0.55, 5.8, 'neonBark'),
-    box('neon backstreet floating awning', 36.5, -15, 10, 1.2, 0.7, 'neonCloud', 3.2),
+    box('neon backstreet telephone pole', 33, -18, 0.55, 0.55, 5.8, 'neonBark', 0, true),
+    box('neon backstreet floating awning', 36.5, -15, 10, 1.2, 0.7, 'neonCloud', 3.2, true),
   ];
   for (let i = 0; i < 12; i += 1) {
     const angle = i / 12 * Math.PI * 2;
-    crates.push(box(`orbit cube ${i + 1}`, Math.cos(angle) * 8.2, -9 + Math.sin(angle) * 8.2, 1.1, 1.1, 1.1, i % 2 ? 'astralMagenta' : 'astralCyan', 2.2, false, 'orbit'));
+    crates.push(box(`orbit cube ${i + 1}`, Math.cos(angle) * 8.2, -9 + Math.sin(angle) * 8.2, 1.1, 1.1, 1.1, i % 2 ? 'astralMagenta' : 'astralCyan', 2.2, true, 'orbit'));
   }
   for (let i = 0; i < 10; i += 1) {
     const x = [-30, -23, -38, -42, 29, 43, 34, -12, 12, 4][i];
@@ -692,12 +700,27 @@ function createAstralGeometryGardenWorld() {
       box(`floating tree cube canopy ${i + 1}`, x, z, 4.0, 3.4, 2.2, 'neonLeaf', y + 4.0, true, 'bob'),
     );
   }
+  for (let i = 0; i < 14; i += 1) {
+    const side = i % 2 === 0 ? -1 : 1;
+    const x = side * (58 + (i % 3) * 6);
+    const z = -42 - Math.floor(i / 2) * 16;
+    const height = 12 + (i % 4) * 2.5;
+    crates.push(
+      box(`rave scale column shaft ${i + 1}`, x, z, 1.3, 1.3, height, i % 2 ? 'neonGlass' : 'oneBitGrid', 0, true),
+      box(`rave scale column cap ${i + 1}`, x, z, 4.8, 4.8, 0.8, 'neonCloud', height, true),
+    );
+  }
+  crates.push(
+    box('giant reflective rave orb west', -64, -114, 10, 10, 10, 'neonGlass', 6, true, 'bob'),
+    box('giant reflective rave orb east', 64, -108, 13, 13, 13, 'neonGlass', 8, true, 'bob'),
+  );
 
   return withZombies({
     id: 'astral-geometry-garden',
     label: 'Astral Geometry Garden',
     skyDome: SKY_DOME_LIMINAL_BLUE,
     clearColor: [0.42, 0.68, 0.92, 1],
+    drawDistance: 220,
     floor: floorPieces[0],
     floorPieces,
     ceiling: null,
@@ -711,6 +734,11 @@ function createAstralGeometryGardenWorld() {
       mountain('black pyramid shard', 20, -5, 7, 6, 5.5, 'astralBlack'),
       mountain('far dogleg cyan pyramid anchor', 45, -55, 10, 9, 9, 'astralCyan'),
       mountain('far left magenta pyramid anchor', -44, -61, 9, 9, 8, 'astralMagenta'),
+      mountain('huge distant mesa left', -72, -164, 28, 22, 34, 'neonGlass'),
+      mountain('huge distant mesa center', 0, -178, 42, 24, 42, 'oneBitGrid'),
+      mountain('huge distant mesa right', 74, -160, 30, 20, 36, 'astralCyan'),
+      mountain('low polygon rave mountain far west', -112, -132, 34, 18, 26, 'astralMagenta'),
+      mountain('low polygon rave mountain far east', 112, -126, 34, 18, 28, 'astralYellow'),
     ],
     cards: [
       card('distant polygon comet 1', -28, 12, -47, 3.5, 1.0, 'flickerComet', 'flicker-comet'),
@@ -722,6 +750,8 @@ function createAstralGeometryGardenWorld() {
       card('neon backstreet floating shop sign', 36.5, 3.6, -21.8, 6.4, 1.4, 'neonGlass', 'sign-flicker'),
       card('neon backstreet high window strip', 30.4, 4.2, -18, 1.6, 5.8, 'neonCloud', 'window-pulse'),
       card('neon backstreet far garden sign', -39, 5.1, -62.6, 8.0, 1.6, 'neonGlass', 'sign-flicker'),
+      card('giant low poly moon left', -42, 30, -148, 34, 34, 'paleMoon', 'moon-slide'),
+      card('distant reflective moon right', 54, 25, -118, 22, 22, 'paleMoon', 'moon-slide'),
     ],
     movingBillboards: [],
     sun: null,

@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  createLookAtLevelMesh,
   createSceneMesh,
   face,
   levelTriangleShade,
+  rotateLookAtVertex,
+  updateLookAtLevelMesh,
 } from '../src/renderSceneMeshes.js';
 
 function createFakeGl() {
@@ -12,6 +15,7 @@ function createFakeGl() {
   let nextBuffer = 1;
   const gl = {
     ARRAY_BUFFER: 'ARRAY_BUFFER',
+    DYNAMIC_DRAW: 'DYNAMIC_DRAW',
     STATIC_DRAW: 'STATIC_DRAW',
     createBuffer() {
       const buffer = { id: nextBuffer++ };
@@ -122,6 +126,82 @@ test('createSceneMesh builds GLB level art plus health and warp geometry into st
   assert.ok(textureIds.includes(2));
   assert.ok(textureIds.includes(3));
   assert.ok(textureIds.includes(4));
+});
+
+test('createSceneMesh skips look-at-player GLB art from static buffers', () => {
+  const { gl, calls } = createFakeGl();
+  const indices = new Map([['stone', 2], ['face', 8]]);
+  const scene = {
+    levelAsset: {
+      artMeshes: [
+        {
+          textureId: 'stone',
+          vertices: [
+            { x: 0, y: 0, z: 0, u: 0, v: 0 },
+            { x: 1, y: 0, z: 0, u: 1, v: 0 },
+            { x: 0, y: 0, z: 1, u: 0, v: 1 },
+          ],
+        },
+        {
+          textureId: 'face',
+          lookAtPlayer: true,
+          vertices: [
+            { x: 10, y: 20, z: 30, u: 0, v: 0 },
+            { x: 11, y: 20, z: 30, u: 1, v: 0 },
+            { x: 10, y: 21, z: 30, u: 0, v: 1 },
+          ],
+        },
+      ],
+    },
+  };
+
+  const mesh = createSceneMesh(gl, scene, indices);
+  const [positions, , textureIds] = getBufferPayloads(calls);
+
+  assert.equal(mesh.count, 3);
+  assert.equal(positions.includes(10), false);
+  assert.deepEqual(textureIds, [2, 2, 2]);
+});
+
+test('updateLookAtLevelMesh rotates tagged level art toward the player', () => {
+  const { gl, calls } = createFakeGl();
+  const mesh = createLookAtLevelMesh(gl);
+  const indices = new Map([['face', 8]]);
+  const levelAsset = {
+    artMeshes: [{
+      textureId: 'face',
+      lookAtPlayer: true,
+      lookAtPivot: { x: 0, y: 10, z: 0 },
+      warping: false,
+      vertices: [
+        { x: 0, y: 10, z: 1, u: 0, v: 0 },
+        { x: 1, y: 10, z: 1, u: 1, v: 0 },
+        { x: 0, y: 11, z: 1, u: 0, v: 1 },
+      ],
+    }],
+  };
+  calls.length = 0;
+
+  updateLookAtLevelMesh(gl, mesh, levelAsset, indices, { x: 10, y: 10, z: 0 });
+
+  const [positions, uvs, textureIds, , , warpings] = getBufferPayloads(calls);
+  assert.equal(mesh.count, 3);
+  assert.equal(positions[0] > 0.99, true);
+  assert.equal(Math.abs(positions[2]) < 0.001, true);
+  assert.deepEqual(uvs, [0, 0, 1, 0, 0, 1]);
+  assert.deepEqual(textureIds, [8, 8, 8]);
+  assert.deepEqual(warpings, [0, 0, 0]);
+});
+
+test('rotateLookAtVertex pitches sky art down toward lower players', () => {
+  const transformed = rotateLookAtVertex(
+    { x: 0, y: 10, z: 2 },
+    { x: 0, y: 10, z: 0 },
+    { yaw: 0, pitch: 0.5 },
+  );
+
+  assert.equal(transformed.y < 10, true);
+  assert.equal(transformed.z > 1.7, true);
 });
 
 test('createSceneMesh skips collected GLB collectible art meshes', () => {

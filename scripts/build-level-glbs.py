@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import bpy
+import mathutils
 
 
 PIXELS_PER_WORLD_UNIT = 32
@@ -30,6 +31,13 @@ SPRITE_TEXTURE_IDS = {
     "torchFlame",
 }
 
+GEOMETRY_GARDEN_ID = "astral-geometry-garden"
+GEOMETRY_GARDEN_SKY_HEAD_ASSET = "meshy-rave-sky-head.glb"
+GEOMETRY_GARDEN_SKY_HEAD_PIVOT = {"x": -34.0, "y": 23.0, "z": -86.0}
+GEOMETRY_GARDEN_SKY_HEAD_HEIGHT = 22.0
+GEOMETRY_GARDEN_SKY_HEAD_TRIANGLE_TARGET = 1600
+GEOMETRY_GARDEN_SKY_HEAD_TEXTURE_SIZE = 128
+
 
 PALETTE = {
     "concrete": ("#5c5f66", "#393b42", "#7b7f88"),
@@ -37,6 +45,7 @@ PALETTE = {
     "metal": ("#59616d", "#20242c", "#a9b2be"),
     "crate": ("#76523a", "#2f2119", "#b17b4f"),
     "meshyGoldGoblet": ("#f7d94a", "#9a6716", "#fff0a4"),
+    "meshyRaveSkyEyes": ("#f7ff5a", "#00eaff", "#ffffff"),
     "alienGround": ("#4b7b36", "#1f3021", "#a3c453"),
     "rotMud": ("#3d2d2d", "#151313", "#6d573f"),
     "wetAsphalt": ("#252833", "#0d1018", "#506477"),
@@ -74,6 +83,7 @@ def main():
 
     for scene in data["scenes"]:
         build_scene_collection(scene, materials, collision_material, walkable_material, marker_material, damage_zone_material)
+    import_geometry_garden_sky_head(levels_dir)
 
     bpy.context.preferences.filepaths.save_version = 0
     bpy.ops.wm.save_as_mainfile(filepath=str(blend_path))
@@ -298,9 +308,11 @@ def build_scene_collection(scene, materials, collision_material, walkable_materi
             add_whole_tree(groups["art"], f"ART_{scene['id']}_{slug(item['name'])}", item, materials)
         else:
             add_box(groups["art"], f"ART_{scene['id']}_{slug(item['name'])}", item, materials[item["texture"]], textured=True, uv_scale=uv_scale_for_box_category(category))
-        if category in ("walls", "platforms", "crates"):
+        has_collider = item.get("collider") is not None
+        if has_collider and category in ("walls", "platforms", "crates"):
             add_box(groups["collision"], f"COLLISION_{scene['id']}_{slug(item['name'])}", item, collision_material, textured=False)
-        if category in ("floor", "walls", "platforms", "crates"):
+        is_route_platform_wall = category == "walls" and "floating platform" in item["name"]
+        if category == "floor" or category == "platforms" or is_route_platform_wall or (has_collider and category in ("walls", "crates")):
             add_box(groups["walkable"], f"WALKABLE_{scene['id']}_{slug(item['name'])}", top_surface_box(item), walkable_material, textured=False)
 
     for collectible in scene.get("collectibles", []):
@@ -330,6 +342,154 @@ def build_scene_collection(scene, materials, collision_material, walkable_materi
         add_damage_zone(groups["triggers"], scene, zone, damage_zone_material, index)
 
     add_markers(groups["markers"], scene, marker_material)
+
+
+def import_geometry_garden_sky_head(levels_dir):
+    prop_path = levels_dir.parent / "props" / GEOMETRY_GARDEN_SKY_HEAD_ASSET
+    if not prop_path.exists():
+        print(f"Skipping Geometry Garden Meshy sky head; missing {prop_path}")
+        return
+
+    art_collection = bpy.data.collections.get(f"{ART_COLLECTION_NAME}__{GEOMETRY_GARDEN_ID}")
+    if not art_collection:
+        raise SystemExit(f"Missing Geometry Garden art collection: {GEOMETRY_GARDEN_ID}")
+
+    remove_geometry_garden_sky_head()
+    imported = import_meshy_prop(prop_path)
+    downscale_imported_textures(imported, GEOMETRY_GARDEN_SKY_HEAD_TEXTURE_SIZE)
+    normalize_imported_materials(imported, "LEVELMAT_meshyRaveSkyHead")
+    fit_imported_to_sky_head(imported)
+    for index, obj in enumerate(imported, start=1):
+        decimate_to_target(obj, GEOMETRY_GARDEN_SKY_HEAD_TRIANGLE_TARGET)
+        obj.name = "ART_astral-geometry-garden_meshy_rave_sky_head" if index == 1 else f"ART_astral-geometry-garden_meshy_rave_sky_head_{index}"
+        obj.data.name = obj.name
+        tag_look_at_sky_art(obj, "meshyRaveSkyHead")
+        link_to_collection(obj, art_collection)
+
+    add_sky_head_eyes(art_collection)
+
+
+def remove_geometry_garden_sky_head():
+    for obj in list(bpy.data.objects):
+        if obj.name.startswith("ART_astral-geometry-garden_meshy_rave_sky_head"):
+            bpy.data.objects.remove(obj, do_unlink=True)
+        elif obj.name.startswith("ART_astral-geometry-garden_meshy_rave_sky_eye"):
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def import_meshy_prop(prop_path):
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(prop_path))
+    imported = [obj for obj in bpy.data.objects if obj not in before and obj.type == "MESH"]
+    if not imported:
+        raise SystemExit(f"Imported Meshy GLB did not contain mesh objects: {prop_path}")
+    return imported
+
+
+def downscale_imported_textures(objects, size):
+    images = {
+        texture_node.image
+        for obj in objects
+        for material in obj.data.materials
+        if material and material.use_nodes
+        for texture_node in material.node_tree.nodes
+        if texture_node.type == "TEX_IMAGE" and texture_node.image
+    }
+    for image in images:
+        image.scale(size, size)
+        image.pack()
+
+
+def normalize_imported_materials(objects, material_name):
+    for obj in objects:
+        if not obj.data.materials:
+            obj.data.materials.append(build_flat_material(material_name, (0.82, 0.84, 0.96, 1.0)))
+        for material in obj.data.materials:
+            if material:
+                material.name = material_name
+
+
+def fit_imported_to_sky_head(objects):
+    bounds = object_bounds(objects)
+    height = max(0.001, bounds["max_z"] - bounds["min_z"])
+    scale = GEOMETRY_GARDEN_SKY_HEAD_HEIGHT / height
+    center = (
+        (bounds["min_x"] + bounds["max_x"]) / 2,
+        (bounds["min_y"] + bounds["max_y"]) / 2,
+        (bounds["min_z"] + bounds["max_z"]) / 2,
+    )
+    target = to_blender_point(GEOMETRY_GARDEN_SKY_HEAD_PIVOT)
+    for obj in objects:
+        obj.location = (
+            target[0] + (obj.location.x - center[0]) * scale,
+            target[1] + (obj.location.y - center[1]) * scale,
+            target[2] + (obj.location.z - center[2]) * scale,
+        )
+        obj.scale = (obj.scale.x * scale, obj.scale.y * scale, obj.scale.z * scale)
+
+
+def object_bounds(objects):
+    xs = []
+    ys = []
+    zs = []
+    for obj in objects:
+        for corner in obj.bound_box:
+            world = obj.matrix_world @ mathutils.Vector(corner)
+            xs.append(world.x)
+            ys.append(world.y)
+            zs.append(world.z)
+    return {
+        "min_x": min(xs),
+        "max_x": max(xs),
+        "min_y": min(ys),
+        "max_y": max(ys),
+        "min_z": min(zs),
+        "max_z": max(zs),
+    }
+
+
+def decimate_to_target(obj, target_triangles):
+    triangles = sum(max(0, len(polygon.vertices) - 2) for polygon in obj.data.polygons)
+    if triangles <= target_triangles:
+        return
+
+    ratio = max(0.05, min(1.0, target_triangles / triangles))
+    modifier = obj.modifiers.new("PS1 sky head decimate", "DECIMATE")
+    modifier.ratio = ratio
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=modifier.name)
+
+
+def add_sky_head_eyes(collection):
+    material = bpy.data.materials.get("LEVELMAT_meshyRaveSkyEyes") or build_flat_material("LEVELMAT_meshyRaveSkyEyes", (0.95, 1.0, 0.16, 1.0))
+    for name, x in (("left", -2.8), ("right", 2.8)):
+        bpy.ops.mesh.primitive_cube_add(size=1, location=to_blender_point({
+            "x": GEOMETRY_GARDEN_SKY_HEAD_PIVOT["x"] + x,
+            "y": GEOMETRY_GARDEN_SKY_HEAD_PIVOT["y"] + 1.2,
+            "z": GEOMETRY_GARDEN_SKY_HEAD_PIVOT["z"] + 7.6,
+        }))
+        eye = bpy.context.object
+        eye.name = f"ART_astral-geometry-garden_meshy_rave_sky_eye_{name}"
+        eye.data.name = eye.name
+        eye.dimensions = (1.4, 0.55, 1.0)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        eye.data.materials.append(material)
+        tag_look_at_sky_art(eye, "meshyRaveSkyEyes")
+        link_to_collection(eye, collection)
+
+
+def tag_look_at_sky_art(obj, texture_id):
+    obj["level_role"] = "art"
+    obj["scene_id"] = GEOMETRY_GARDEN_ID
+    obj["texture_id"] = texture_id
+    obj["lookAtPlayer"] = True
+    obj["lookAtPivotX"] = GEOMETRY_GARDEN_SKY_HEAD_PIVOT["x"]
+    obj["lookAtPivotY"] = GEOMETRY_GARDEN_SKY_HEAD_PIVOT["y"]
+    obj["lookAtPivotZ"] = GEOMETRY_GARDEN_SKY_HEAD_PIVOT["z"]
+    obj["warping"] = False
+
 
 def create_level_groups(level_collection, scene_id):
     groups = {

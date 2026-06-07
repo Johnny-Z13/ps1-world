@@ -22,6 +22,7 @@ export function drawScenePass(glContext, options) {
     torchLights,
     viewProjection,
     staticMesh,
+    lookAtMesh,
     dynamicMesh,
   } = options;
 
@@ -45,6 +46,7 @@ export function drawScenePass(glContext, options) {
   setStaticTorchUniforms(glContext, program, torchLights ?? [], time);
   glContext.uniformMatrix4fv(program.uniforms.uViewProjection, false, viewProjection);
   drawMesh(glContext, program, staticMesh);
+  drawMesh(glContext, program, lookAtMesh);
   drawMesh(glContext, program, dynamicMesh);
 }
 
